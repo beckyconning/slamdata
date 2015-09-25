@@ -23,9 +23,12 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Error.Class (throwError)
 import Data.Maybe (maybe, fromMaybe)
+import Data.List (length)
+import Data.List.Unsafe (head)
 import Platform (getPlatform, PLATFORM(), runOs, runPlatform)
-import Selenium.Monad (Selenium(), byCss, byXPath)
-import Selenium.Types (ControlKey(), Locator())
+import Selenium.Monad (Selenium(), byCss, byXPath, findElements)
+import Selenium (showLocator)
+import Selenium.Types (ControlKey(), Locator(), Element())
 import Selenium.Key (metaKey, controlKey)
 import Test.Config (Config())
 import qualified Graphics.ImageDiff as GI
@@ -50,6 +53,13 @@ getPlatformString = do
     >>> runOs
     >>> _.family
 
+findSingle :: Locator -> Check Element
+findSingle locator = do
+  elements <- findElements locator
+  case length elements of
+    1 -> return $ head elements
+    0 -> throwError $ error $ "Couldn't find an element with the locator: " ++ showLocator locator
+    _ -> throwError $ error $ "Found more than one element with the locator: " ++ showLocator locator
 
 getModifierKey :: Check ControlKey
 getModifierKey = map modifierKey getPlatformString
