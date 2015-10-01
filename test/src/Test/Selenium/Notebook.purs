@@ -29,9 +29,9 @@ import qualified Test.Selenium.Notebook.Complex as Complex
 test :: Check Unit
 test = do
   setUp
-  Common.test
-  Explore.test
-  Search.test
-  Viz.test
+  --Common.test
+  --Explore.test
+  --Search.test
+  --Viz.test
   Markdown.test
-  Complex.test
+  --Complex.test
