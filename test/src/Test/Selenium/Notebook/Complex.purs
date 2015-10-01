@@ -5,7 +5,7 @@ import Prelude
 import Data.List (length)
 import Data.Traversable (traverse)
 import Data.Array (last)
-import Data.Maybe (maybe, Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Either (Either(..))
 import Control.MonadPlus (guard)
 
@@ -23,6 +23,7 @@ import Test.Selenium.Expect
 import Test.Selenium.Notebook.Getters
 import Test.Selenium.Notebook.Contexts
 import Test.Selenium.Notebook.Viz (actualCanvasScreenshot)
+import Test.Selenium.Notebook.Markdown.Interactions (insertMdCell)
 
 import qualified Config as SDCfg
 import qualified Data.String as S
@@ -43,7 +44,6 @@ checkMarkdownViz = onlyFirefox do
       input <- tryToFind $ byCss config.complex.inputSelector
       value <- getAttribute input "value"
       expectEq (Just value) $ last config.complex.values
-
   setUp = do
     config <- getConfig
     insertMdCell
