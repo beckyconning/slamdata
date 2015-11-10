@@ -16,5 +16,4 @@ limitations under the License.
 
 module Dashboard.Component.Query where
 
-data Query a
-  = Save a
+data Query a = Save a | DismissAll a

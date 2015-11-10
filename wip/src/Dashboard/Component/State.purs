@@ -20,11 +20,13 @@ import Prelude
 
 import Data.Lens (LensP(), lens)
 import Data.BrowserFeatures (BrowserFeatures())
+import Data.Maybe (Maybe(..))
 
 type StateRec =
   { editable :: Boolean
   , browserFeatures :: BrowserFeatures
   , loaded :: Boolean
+  , version :: Maybe String
   }
 
 newtype State = State StateRec
@@ -34,8 +36,8 @@ initialState fs =
   State { editable: true
         , browserFeatures: fs
         , loaded: false
+        , version: Nothing
         }
-
 
 _State :: LensP State StateRec
 _State = lens (\(State obj) -> obj) (const State)
@@ -48,3 +50,7 @@ _browserFeatures = _State <<< lens _.browserFeatures _{browserFeatures = _}
 
 _loaded :: LensP State Boolean
 _loaded = _State <<< lens _.loaded _{loaded = _}
+
+_version :: LensP State (Maybe String)
+_version = _State <<< lens _.version _{version = _}
+
