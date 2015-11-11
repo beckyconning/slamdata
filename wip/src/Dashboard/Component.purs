@@ -104,7 +104,8 @@ render state =
     [ P.classes classes
     , E.onClick (E.input_ DismissAll)
     ]
-    [ renderHeader (state ^. _version)
+    [ H.nav_
+        [ renderHeader (state ^. _version) ]
     , H.div
         [ P.classes [ className "sd-menu" ] ]
         [ H.slot' cpMenu MenuSlot \_ ->
@@ -112,10 +113,13 @@ render state =
           , initialState: installedState Menu.initial
           }
         ]
-    , H.slot' cpNotebook unit \_ ->
-        { component: Notebook.notebookComponent
-        , initialState: Notebook.initialState (state ^. _browserFeatures)
-        }
+    , H.div
+        [ P.classes [ className "sd-notebook" ] ]
+        [  H.slot' cpNotebook unit \_ ->
+          { component: Notebook.notebookComponent
+          , initialState: Notebook.initialState (state ^. _browserFeatures)
+          }
+        ]
     , H.slot' cpDialog unit \_ ->
         { component: Dialog.comp
         , initialState: Dialog.initialState
