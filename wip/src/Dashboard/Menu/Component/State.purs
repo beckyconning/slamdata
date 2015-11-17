@@ -58,16 +58,28 @@ initial = HalogenMenu.makeMenu
     }
   , { label: "Help"
     , submenu:
-        [ { label: "Tutorial"
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation"
+        [ { label: "Getting started"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/"
           }
-        , { label: "SQL Tutorial"
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation"
+        , { label: "Manual"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/front-end-manual/"
           }
-        , { label: "SQL Reference"
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation"
+        , { label: "SlamSQL reference"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamsql-reference/"
           }
-        , { label: "Report bug"
+        , { label: "SlamDown reference"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamdown-reference/"
+          }
+        , { label: "Cheatsheet"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/support/cheatsheet.pdf"
+          }
+        , { label: "How to guides"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/how-tos/"
+          }
+        , { label: "Securing access to SlamData"
+          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/quick-guide-resources/"
+          }
+        , { label: "Report a bug"
           , value: helpURIToValue $ HelpURI "mailto:support@slamdata.com?subject=Bug found"
           }
         , { label: "Request support"
