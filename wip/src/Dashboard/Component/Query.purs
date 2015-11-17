@@ -27,3 +27,4 @@ data Query a
   | GetPath (DirPath -> a)
   | SetAccessType AccessType a
   | SetViewingCell (Maybe CellId) a
+  | DismissAll a
