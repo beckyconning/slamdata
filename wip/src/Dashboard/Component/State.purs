@@ -32,6 +32,7 @@ type State =
   , loaded :: Boolean
   , path :: DirPath
   , viewingCell :: Maybe CellId
+  , version :: Maybe String
   }
 
 initialState :: BrowserFeatures -> State
@@ -41,6 +42,7 @@ initialState fs =
   , loaded: false
   , path: rootDir
   , viewingCell: Nothing
+  , version: Nothing
   }
 
 _accessType :: LensP State AccessType
@@ -57,3 +59,6 @@ _path = lens _.path _{path = _}
 
 _viewingCell :: LensP State (Maybe CellId)
 _viewingCell = lens _.viewingCell _{viewingCell = _}
+
+_version :: LensP State (Maybe String)
+_version = lens _.version _{version = _}
