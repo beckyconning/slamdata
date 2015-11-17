@@ -35,6 +35,7 @@ module Dashboard.Component
 import Prelude
 
 import Control.Alt ((<|>))
+import Control.UI.Browser (newTab)
 import Control.Monad.Eff (Eff())
 import Control.Apply ((*>))
 import Data.Either (Either(), either)
@@ -205,5 +206,3 @@ queryNotebook q = query' cpNotebook unit (left q) *> pure unit
 
 presentHelp :: Menu.HelpURI -> DashboardDSL Unit
 presentHelp (Menu.HelpURI uri) = liftH $ liftEff' $ newTab uri
-
-foreign import newTab :: forall e. String -> Eff (dom :: DOM | e) Unit
