@@ -9,7 +9,6 @@ import Halogen.Menu.Component as HalogenMenu
 
 import Dashboard.Dialog.Component as Dialog
 import Notebook.Component as Notebook
-import Model.CellType
 
 type DialogOrNotebookQuery = Coproduct Dialog.Query Notebook.NotebookQuery
 
