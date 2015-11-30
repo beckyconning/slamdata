@@ -2,15 +2,12 @@ module Dashboard.Menu.Component.State where
 
 import Prelude
 
-import Data.Functor.Coproduct (Coproduct(..), left, right)
 import Data.Maybe (Maybe(..))
 import Halogen.Menu.Component as HalogenMenu
 import Halogen.Menu.Component.State as HalogenMenu
-import Halogen.Query (action)
 
 import Model.CellType
 import Notebook.Component as Notebook
-import Dashboard.Dialog.Component as Dialog
 import Dashboard.Menu.Component.Query
 
 type StateP g = HalogenMenu.MenuP Value g

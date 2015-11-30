@@ -34,20 +34,17 @@ module Dashboard.Component
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Control.UI.Browser (newTab)
-import Control.Monad.Eff (Eff())
 import Control.Apply ((*>))
 import Data.Either (Either(), either)
 import Data.Functor (($>))
 import Data.Functor.Coproduct (Coproduct(), coproduct, left, right)
 import Data.Generic (Generic, gEq, gCompare)
 import Data.Lens ((^.), (.~))
-import Data.Maybe (Maybe(), fromMaybe)
-import DOM (DOM())
+import Data.Maybe (Maybe())
 import Halogen
-import Halogen.Component.ChildPath (ChildPath(), cpL, cpR, (:>), injSlot, prjSlot, prjQuery)
-import Halogen.HTML.Core (ClassName(), className)
+import Halogen.Component.ChildPath (ChildPath(), cpL, cpR, (:>), injSlot)
+import Halogen.HTML.Core (className)
 import Halogen.HTML.Events.Indexed as E
 import Halogen.HTML.Indexed as H
 import Halogen.HTML.Properties.Indexed as P
