@@ -19,6 +19,7 @@ module Dashboard.Component.State where
 import Prelude
 
 import Data.BrowserFeatures (BrowserFeatures())
+import Data.Key (Platform())
 import Data.Lens (LensP(), lens)
 import Data.Maybe (Maybe(..))
 import Data.Path.Pathy (rootDir)
@@ -29,16 +30,18 @@ import Utils.Path (DirPath())
 type State =
   { accessType :: AccessType
   , browserFeatures :: BrowserFeatures
+  , platform :: Platform
   , loaded :: Boolean
   , path :: DirPath
   , viewingCell :: Maybe CellId
   , version :: Maybe String
   }
 
-initialState :: BrowserFeatures -> State
-initialState fs =
+initialState :: { browserFeatures :: BrowserFeatures, platform :: Platform } -> State
+initialState rec =
   { accessType: Editable
-  , browserFeatures: fs
+  , browserFeatures: rec.browserFeatures
+  , platform: rec.platform
   , loaded: false
   , path: rootDir
   , viewingCell: Nothing
@@ -50,6 +53,9 @@ _accessType = lens _.accessType _{accessType = _}
 
 _browserFeatures :: LensP State BrowserFeatures
 _browserFeatures = lens _.browserFeatures _{browserFeatures = _}
+
+_platform :: LensP State Platform
+_platform = lens _.platform _{platform = _}
 
 _loaded :: LensP State Boolean
 _loaded = lens _.loaded _{loaded = _}

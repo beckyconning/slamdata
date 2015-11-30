@@ -3,6 +3,8 @@ module Dashboard.Menu.Component.State where
 import Prelude
 
 import Data.Maybe (Maybe(..))
+import Data.Char (fromCharCode)
+import Data.Key (Platform(), meta, shift, enter, character, printCombination)
 import Halogen.Menu.Component as HalogenMenu
 import Halogen.Menu.Component.State as HalogenMenu
 
@@ -12,12 +14,12 @@ import Dashboard.Menu.Component.Query
 
 type StateP g = HalogenMenu.MenuP Value g
 
-initial :: String -> HalogenMenu.Menu Value
-initial modifyerKeyString = HalogenMenu.makeMenu
+initial :: Platform -> HalogenMenu.Menu Value
+initial platform = HalogenMenu.makeMenu
   [ { label: "Notebook"
     , submenu:
         [ { label: "Rename/Move"
-          , shortcutLabel: Just $ modifyerKeyString ++ "⇧S"
+          , shortcutLabel: Just $ printCombination platform [meta, shift, character (fromCharCode 67)]
           , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
           }
         , { label: "Delete"
@@ -25,7 +27,7 @@ initial modifyerKeyString = HalogenMenu.makeMenu
           , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
           }
         , { label: "Publish"
-          , shortcutLabel: Just $ modifyerKeyString ++ "P"
+          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 80)]
           , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
           }
         ]
@@ -33,19 +35,19 @@ initial modifyerKeyString = HalogenMenu.makeMenu
   , { label: "Insert"
     , submenu:
         [ { label: "Query"
-          , shortcutLabel: Just $ modifyerKeyString ++ "1"
+          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 49)]
           , value: notebookQueryToValue $ (Notebook.AddCell Query) unit
           }
         , { label: "Markdown"
-          , shortcutLabel: Just $ modifyerKeyString ++ "2"
+          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 50)]
           , value: notebookQueryToValue $ (Notebook.AddCell Markdown) unit
           }
         , { label: "Explore"
-          , shortcutLabel: Just $ modifyerKeyString ++ "3"
+          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 51)]
           , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
           }
         , { label: "Search"
-          , shortcutLabel: Just $ modifyerKeyString ++ "4"
+          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 52)]
           , value: notebookQueryToValue $ (Notebook.AddCell Search) unit
           }
         ]
@@ -53,7 +55,7 @@ initial modifyerKeyString = HalogenMenu.makeMenu
   , { label: "Cell"
     , submenu:
         [ { label: "Evaluate"
-          , shortcutLabel: Just $ modifyerKeyString ++ "Enter"
+          , shortcutLabel: Just $ printCombination platform [meta, enter]
           , value: notebookQueryToValue $ (Notebook.RunActiveCell) unit
           }
         , { label: "Delete"
