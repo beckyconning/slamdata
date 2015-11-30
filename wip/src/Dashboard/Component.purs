@@ -129,7 +129,7 @@ render state =
         [ P.classes [ className "sd-menu" ] ]
         [ H.slot' cpMenu MenuSlot \_ ->
           { component: HalogenMenu.menuComponent
-          , initialState: installedState $ Menu.initial "Ctrl "
+          , initialState: installedState $ Menu.initial (state ^. _platform)
           }
         ]
     , H.div
