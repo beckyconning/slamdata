@@ -3,64 +3,64 @@ module Dashboard.Menu.Component.State where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Char (fromCharCode)
-import Data.Key (Platform(), meta, shift, enter, character, printCombination)
+import Data.Array (index)
 import Halogen.Menu.Component as HalogenMenu
 import Halogen.Menu.Component.State as HalogenMenu
 
-import Model.CellType
+import Model.CellType (CellType(..))
 import Notebook.Component as Notebook
+import Dashboard.Component.State (KeyboardShortcut())
 import Dashboard.Menu.Component.Query
 
-type StateP g = HalogenMenu.MenuP Value g
+type StateP g = HalogenMenu.MenuP (Maybe Value) g
 
-initial :: Platform -> HalogenMenu.Menu Value
-initial platform = HalogenMenu.makeMenu
+make :: (Array KeyboardShortcut) -> HalogenMenu.Menu (Maybe Value)
+make shortcuts = HalogenMenu.makeMenu
   [ { label: "Notebook"
     , submenu:
         [ { label: "Rename/Move"
-          , shortcutLabel: Just $ printCombination platform [meta, shift, character (fromCharCode 67)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
+          , shortcutLabel: Nothing
+          , value: Just $ notebookQueryToValue $ (Notebook.AddCell Explore) unit
           }
         , { label: "Delete"
           , shortcutLabel: Nothing
-          , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
+          , value: Nothing
           }
         , { label: "Publish"
-          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 80)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
+          , shortcutLabel: Just $ ""
+          , value: Nothing
           }
         ]
     }
   , { label: "Insert"
     , submenu:
         [ { label: "Query"
-          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 49)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Query) unit
+          , shortcutLabel: index shortcuts 0 >>= _.label
+          , value: index shortcuts 0 >>= _.value >>> pure
           }
         , { label: "Markdown"
-          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 50)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Markdown) unit
+          , shortcutLabel: index shortcuts 1 >>= _.label
+          , value: index shortcuts 1 >>= _.value >>> pure
           }
         , { label: "Explore"
-          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 51)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
+          , shortcutLabel: index shortcuts 2 >>= _.label
+          , value: index shortcuts 2 >>= _.value >>> pure
           }
         , { label: "Search"
-          , shortcutLabel: Just $ printCombination platform [meta, character (fromCharCode 52)]
-          , value: notebookQueryToValue $ (Notebook.AddCell Search) unit
+          , shortcutLabel: index shortcuts 3 >>= _.label
+          , value: index shortcuts 3 >>= _.value >>> pure
           }
         ]
     }
   , { label: "Cell"
     , submenu:
         [ { label: "Evaluate"
-          , shortcutLabel: Just $ printCombination platform [meta, enter]
-          , value: notebookQueryToValue $ (Notebook.RunActiveCell) unit
+          , shortcutLabel: index shortcuts 4 >>= _.label
+          , value: index shortcuts 4 >>= _.value >>> pure
           }
         , { label: "Delete"
           , shortcutLabel: Nothing
-          , value: notebookQueryToValue $ (Notebook.AddCell Explore) unit
+          , value: Nothing
           }
         ]
     }
@@ -68,39 +68,39 @@ initial platform = HalogenMenu.makeMenu
     , submenu:
         [ { label: "Getting started"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/"
           }
         , { label: "Manual"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/front-end-manual/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/front-end-manual/"
           }
         , { label: "SlamSQL reference"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamsql-reference/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamsql-reference/"
           }
         , { label: "SlamDown reference"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamdown-reference/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/slamdown-reference/"
           }
         , { label: "Cheatsheet"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/support/cheatsheet.pdf"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/support/cheatsheet.pdf"
           }
         , { label: "How to guides"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/how-tos/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/how-tos/"
           }
         , { label: "Securing access to SlamData"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "http://slamdata.com/documentation/quick-guide-resources/"
+          , value: Just $ helpURIToValue $ HelpURI "http://slamdata.com/documentation/quick-guide-resources/"
           }
         , { label: "Report a bug"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "mailto:support@slamdata.com?subject=Bug found"
+          , value: Just $ helpURIToValue $ HelpURI "mailto:support@slamdata.com?subject=Bug found"
           }
         , { label: "Request support"
           , shortcutLabel: Nothing
-          , value: helpURIToValue $ HelpURI "mailto:support@slamdata.com?subject=Request help"
+          , value: Just $ helpURIToValue $ HelpURI "mailto:support@slamdata.com?subject=Request help"
           }
         ]
     }

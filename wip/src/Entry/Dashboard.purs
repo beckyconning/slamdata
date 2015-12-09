@@ -21,7 +21,6 @@ import Prelude
 import Control.Monad.Aff (runAff, forkAff)
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-import Data.Key (Platform(..))
 
 import DOM.BrowserFeatures.Detectors (detectBrowserFeatures)
 
@@ -39,11 +38,10 @@ main :: Eff NotebookEffects Unit
 main = do
   AceConfig.set AceConfig.basePath (Config.baseUrl ++ "js/ace")
   browserFeatures <- detectBrowserFeatures
-  --platform <- getPlatform
   runAff throwException (const (pure unit)) $ do
     app <- runUI comp
       $ installedState
-      $ initialState { browserFeatures: browserFeatures, platform: Mac }
+      $ initialState { browserFeatures: browserFeatures }
     onLoad (appendToBody app.node)
     forkAff $ routeSignal app.driver
     forkAff $ autoSaveSignal app.driver

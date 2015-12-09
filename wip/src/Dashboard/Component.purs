@@ -34,14 +34,25 @@ module Dashboard.Component
 
 import Prelude
 
-import Control.UI.Browser (newTab)
+import Data.Traversable (traverse)
 import Control.Apply ((*>))
+import Halogen.Query.EventSource (EventSource(..))
+import Control.Coroutine.Aff (produce)
+import Data.Either (Either(..))
+import Control.Coroutine.Stalling (producerToStallingProducer)
+import Control.UI.Browser (newTab)
+import DOM.Event.EventTarget (removeEventListener)
+import Data.KeyCombination (printPlatform, platformize)
+import Control.Monad.Eff.Keyboard (onKeyCombination)
+import Control.Monad.Eff.KeyPlatform (keyPlatform)
+import DOM.Event.EventTypes (keydown)
 import Data.Either (Either(), either)
 import Data.Functor (($>))
 import Data.Functor.Coproduct (Coproduct(), coproduct, left, right)
 import Data.Generic (Generic, gEq, gCompare)
-import Data.Lens ((^.), (.~))
-import Data.Maybe (Maybe())
+import Data.Lens ((^.), (.~), (%~))
+import Data.Array (cons)
+import Data.Maybe (Maybe(..), maybe)
 import Halogen
 import Halogen.Component.ChildPath (ChildPath(), cpL, cpR, (:>), injSlot)
 import Halogen.HTML.Core (className)
@@ -62,6 +73,7 @@ import Notebook.Common (Slam())
 import Notebook.Component as Notebook
 import Render.CssClasses as Rc
 import Render.Common (icon, logo)
+import Utils.DOM (documentTarget)
 
 type DialogSlot = Unit
 type NotebookSlot = Unit
@@ -129,7 +141,7 @@ render state =
         [ P.classes [ className "sd-menu" ] ]
         [ H.slot' cpMenu MenuSlot \_ ->
           { component: HalogenMenu.menuComponent
-          , initialState: installedState $ Menu.initial (state ^. _platform)
+          , initialState: installedState $ Menu.make []
           }
         ]
     , H.div
@@ -152,7 +164,8 @@ render state =
 
   renderHeader :: Maybe String -> DashboardHTML
   renderHeader version =
-    H.div_
+    H.div
+      [ P.initializer \_ -> action ActivateKeyboardShortcuts ]
       [ H.div
           [ P.classes [ B.clearfix ] ]
           [ H.div
@@ -163,7 +176,36 @@ render state =
           ]
       ]
 
+
 eval :: Natural Query DashboardDSL
+eval (ActivateKeyboardShortcuts next) = do
+  initialShortcuts <- gets _.keyboardShortcuts
+  platform <- liftH $ liftEff' keyPlatform
+
+  let labelShortcut shortcut = shortcut { label = Just $ printPlatform platform shortcut.combination }
+  let platformShortcut shortcut = shortcut { combination = platformize platform shortcut.combination }
+  let shortcuts = map (labelShortcut <<< platformShortcut) initialShortcuts
+
+  modify (_keyboardShortcuts .~ shortcuts)
+
+  query' cpMenu MenuSlot $ left $ action $ HalogenMenu.SetMenu $ Menu.make shortcuts
+
+  subscribe' $ EventSource $ producerToStallingProducer $ produce \emit -> do
+    target <- documentTarget
+    let evaluateMenuValue = emit <<< Left <<< action <<< EvaluateMenuValue
+    let addKeyboardListeners = emit <<< Left <<< action <<< AddKeyboardListener
+    let activate shortcut = onKeyCombination target (evaluateMenuValue shortcut.value) shortcut.combination
+    traverse activate $ shortcuts
+    pure unit
+
+  pure next
+eval (DeactivateKeyboardShortcuts next) = do
+  let remove listener = liftH $ liftEff' $ documentTarget >>= removeEventListener keydown listener false
+  gets _.keyboardListeners >>= traverse remove
+  modify (_keyboardListeners .~ [])
+  pure next
+eval (EvaluateMenuValue value next) = evaluateMenuValue value $> next
+eval (AddKeyboardListener listener next) = modify (_keyboardListeners %~ cons listener) $> next
 eval (Save next) = pure next
 eval (GetPath continue) = map continue $ gets _.path
 eval (SetAccessType aType next) = do
@@ -191,9 +233,11 @@ notebookPeek q = pure unit
 menuPeek :: forall a. Menu.QueryP a -> DashboardDSL Unit
 menuPeek = coproduct (const (pure unit)) submenuPeek
 
-submenuPeek :: forall a. (ChildF HalogenMenu.SubmenuSlotAddress (HalogenMenu.SubmenuQuery Menu.Value)) a -> DashboardDSL Unit
-submenuPeek (ChildF _ (HalogenMenu.SelectSubmenuItem v _)) =
-  either presentHelp (coproduct queryDialog queryNotebook) v
+evaluateMenuValue :: Menu.Value -> DashboardDSL Unit
+evaluateMenuValue = either presentHelp (coproduct queryDialog queryNotebook)
+
+submenuPeek :: forall a. (ChildF HalogenMenu.SubmenuSlotAddress (HalogenMenu.SubmenuQuery (Maybe Menu.Value))) a -> DashboardDSL Unit
+submenuPeek (ChildF _ (HalogenMenu.SelectSubmenuItem v _)) = maybe (pure unit) evaluateMenuValue v
 
 queryDialog :: Dialog.Query Unit -> DashboardDSL Unit
 queryDialog q = query' cpDialog unit (left q) *> pure unit
@@ -203,3 +247,4 @@ queryNotebook q = query' cpNotebook unit (left q) *> pure unit
 
 presentHelp :: Menu.HelpURI -> DashboardDSL Unit
 presentHelp (Menu.HelpURI uri) = liftH $ liftEff' $ newTab uri
+
