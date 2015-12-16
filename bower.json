@@ -35,7 +35,9 @@
     "purescript-these": "^0.3.0",
     "purescript-timers": "^1.0.0",
     "purescript-uri": "^0.2.0",
-    "purescript-zclipboard": "^0.3.0"
+    "purescript-zclipboard": "^0.3.0",
+    "purescript-halogen-menu": "^0.4.0",
+    "purescript-dom-keyboard": "*"
   },
   "devDependencies": {
     "purescript-debug": "^0.1.2",
