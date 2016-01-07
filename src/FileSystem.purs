@@ -91,7 +91,7 @@ render state@(State r) =
   H.div [P.classes [ Rc.filesystem ] ]
          [ navbar
            [  H.div [ P.classes [ Rc.header, B.clearfix ] ]
-              [ icon B.glyphiconFolderOpen Config.homeHash
+              [ icon B.glyphiconFolderOpen Config.homeHash "Filesystem root"
               , logo (state ^. _version)
               , H.slot' cpSearch SearchSlot
                 \_ -> { component: Search.comp
