@@ -3,47 +3,56 @@ module Test.Selenium.Notebook.Markdown.Finders where
 import Prelude
 
 import Test.Selenium.Monad (Check(), byAriaLabel)
-import Test.Selenium.Finders (findElementIndexByText)
-import Data.List (List())
+import Test.Selenium.Finders (findByXPath, findAllByXPath, findAnyByXPath)
+import Data.List (List(), length)
 import Selenium.Monad (byXPath, tryRepeatedlyTo, getText, findElements)
 import Selenium.Combinators (tryToFind)
 import Selenium.Types (Element())
+import Test.XPath as XPath
+import Test.Selenium.XPaths as XPaths
 
 import Data.Traversable (traverse) as T
 
+markdownQueryTitleXPath :: String
+markdownQueryTitleXPath = XPaths.mdCellTitleXPath `XPath.following` XPaths.queryCellTitleXPath
+
 findMdField :: Check Element
-findMdField = tryToFind $ byXPath xPath
+findMdField = findByXPath $ XPath.anywhere xPath
   where
-  xPath = "//*[text()='Markdown']/following::*[contains(@class, 'ace_editor')]"
+  xPath = XPaths.mdCellTitleXPath `XPath.following` XPaths.aceEditorXPath
 
 findMdPlayButton :: Check Element
-findMdPlayButton = tryToFind $ byXPath xPath
+findMdPlayButton = findByXPath $ XPath.anywhere xPath
   where
-  xPath = "//*[text()='Markdown']/following::*[@aria-label='Play']"
+  xPath = XPaths.mdCellTitleXPath `XPath.following` XPaths.playXPath
 
 findMdQueryPlayButton :: Check Element
-findMdQueryPlayButton = tryToFind $ byXPath xPath
+findMdQueryPlayButton = findByXPath $ XPath.anywhere xPath
   where
-  xPath = "//*[text()='Markdown']/following::*[text()='Query']/following::*[@aria-label='Play']"
+  xPath = markdownQueryTitleXPath `XPath.following` XPaths.playXPath
 
 findCreateMdQueryCellButton :: Check Element
-findCreateMdQueryCellButton = tryToFind $ byAriaLabel "Query using fields"
+findCreateMdQueryCellButton =
+  findByXPath $ XPath.anywhere $ XPath.anyWithExactAriaLabel "Insert Query cell after this cell"
 
 findMdQueryField :: Check Element
-findMdQueryField = tryToFind $ byXPath xPath
+findMdQueryField = findByXPath $ XPath.anywhere xPath
   where
-  xPath = "//*[text()='Markdown']/following::*[text()='Query']/following::*[contains(@class, 'ace_editor')]"
+  xPath = markdownQueryTitleXPath `XPath.following` XPaths.aceEditorXPath
 
 findMdQueryColumnCellsByIndex :: Int -> Check (List Element)
-findMdQueryColumnCellsByIndex index = tryRepeatedlyTo $ byXPath xPath >>= findElements
+findMdQueryColumnCellsByIndex index = findAllByXPath $ XPath.index (XPath.anywhere xPath) index
   where
-  xPath = "//*[text()='Markdown']/following::*[text()='Query']/following::tbody/tr/td[" ++ show index ++ "]"
+  xPath = markdownQueryTitleXPath `XPath.following` "tbody/tr/td"
 
 findMdQueryColumnCellsByHeading :: String -> Check (List Element)
-findMdQueryColumnCellsByHeading heading =
-  byXPath xPath >>= findElementIndexByText heading >>= findMdQueryColumnCellsByIndex
-    where
-    xPath = "//*[text()='Markdown']/following::*[text()='Query']/following::thead/tr/td"
+findMdQueryColumnCellsByHeading heading = findHeaderIndex >>= findMdQueryColumnCellsByIndex
+  where
+  columnHeadingXPath = XPath.nodeWithExactText "thead/tr/th"
+  findHeaderIndex = ((+ 1) <<< length) <$> (findAnyByXPath $ XPath.anywhere priorHeadingXPath)
+  priorHeadingXPath =
+    markdownQueryTitleXPath `XPath.following` columnHeadingXPath heading `XPath.precedingSibling` XPath.any
 
 findMdQueryColumnCellsTextByHeading :: String -> Check (List String)
 findMdQueryColumnCellsTextByHeading s = findMdQueryColumnCellsByHeading s >>= T.traverse getText
+

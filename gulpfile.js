@@ -10,7 +10,8 @@ var gulp = require("gulp"),
     trimlines = require("gulp-trimlines"),
     less = require("gulp-less"),
     sequence = require("run-sequence"),
-    run = require("gulp-run");
+    run = require("gulp-run"),
+    replace = require('gulp-replace');
 
 var slamDataSources = [
   "src/**/*.purs",
@@ -31,6 +32,12 @@ var foreigns = [
   "bower_components/purescript-*/src/**/*.js",
   "test/src/**/*.js"
 ];
+
+gulp.task('remove-css-fixed-positions', function(){
+  gulp.src(['public/css/main.css'])
+    .pipe(replace('fixed', 'absolute'))
+    .pipe(gulp.dest('public/css'));
+});
 
 gulp.task("clean", function () {
     [
@@ -114,7 +121,7 @@ gulp.task("bundle", [
 gulp.task("bundle-test",
           ["bundle"],
            function() {
-    sequence("less", "make", function() {
+    sequence("less", "remove-css-fixed-positions", "make", function() {
         return purescript.pscBundle({
             src: "output/**/*.js",
             output: "test/index.js",

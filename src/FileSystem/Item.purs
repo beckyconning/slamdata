@@ -171,14 +171,14 @@ itemView state selected =
                   ]
         ]
       ]
-    , H.a [ P.classes $ [ B.colXs3, Rc.itemToolbar ]
-            <> (guard selected $> Rc.selected)
-          ]
-      [ H.ul [ P.classes [ B.listInline, B.pullRight ]
-             , CSS.style (marginBottom $ px zero)
-             ]
-        $ showToolbar (state ^. _item)
-      ]
+    , H.a
+        [ P.classes $ [ B.colXs3, Rc.itemToolbar, Rc.selected ] ]
+        [ H.ul
+            [ P.classes [ B.listInline, B.pullRight ]
+            , CSS.style (marginBottom $ px zero)
+            ]
+            $ showToolbar (state ^. _item)
+        ]
     ]
   ]
   where

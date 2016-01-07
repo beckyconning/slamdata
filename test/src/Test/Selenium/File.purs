@@ -33,7 +33,7 @@ import Data.Traversable (traverse)
 import Data.List (List(), reverse, filter, null, fromList, (!!))
 import Selenium.Types
 import Selenium.MouseButton
-import Selenium.ActionSequence hiding (sequence)
+import Selenium.ActionSequence hiding (sequence, click)
 import Selenium.Monad
 import Selenium.Combinators (checker, awaitUrlChanged, waitUntilJust, tryToFind)
 import Node.FS.Aff
@@ -52,6 +52,8 @@ import Test.Selenium.ActionSequence
 import Test.Selenium.Common
 import Test.Selenium.Monad
 import Test.Selenium.Log
+import Test.Selenium.Finders (findSingle)
+import Test.Selenium.Interactions (click)
 
 
 foreign import data MODULE :: !
@@ -462,7 +464,7 @@ sorting = do
   checkHash texts (Salted sort search salt) = do
     config <- getConfig
     sortButton <- getElementByCss config.sort.button "there is no sort button"
-    sequence $ click leftButton sortButton
+    click sortButton
     fileComponentLoaded
     nTexts <- getItemTexts
     if reverse nTexts == texts

@@ -7,7 +7,9 @@ import Data.String.Regex (regex, noFlags)
 import Data.Int (toNumber)
 import Selenium.Combinators (tryToFind)
 import Selenium.Monad (byXPath, getText)
-import Test.Selenium.Monad (Check(), findAtLeast)
+import Test.Selenium.Monad (Check())
+import Test.Selenium.Finders (findByXPath)
+import Test.XPath as XPath
 import Test.Selenium.Expectations (expectLabel, expectInputWithLabelTypeAndChecked, expectInputWithLabelTypeAndValue, expectDropdownWithLabelOptionsAndValue)
 import Test.Selenium.Notebook.Markdown.Finders (findMdQueryColumnCellsTextByHeading)
 
@@ -23,13 +25,13 @@ expectMdQueryResultsToBeFilteredByDefaultFormValues = do
   expectMdQueryColumn "type" toNotEq "Gold"
 
 expectMdQueryRows :: Int -> Check Unit
-expectMdQueryRows i = void $ locator >>= findAtLeast i
+expectMdQueryRows = void <<< findByXPath <<< XPath.index (XPath.anywhere xPath)
   where
-  locator = byXPath "//*[text()='Markdown']/following::*[text()='Query']/following::tbody/tr"
+  xPath =  "*[text()='Markdown']/following::*[text()='Query']/following::tbody/tr"
 
 expectMdQueryResultsToBeFilteredByChangedFormValues :: Check Unit
 expectMdQueryResultsToBeFilteredByChangedFormValues = do
-  expectMdQueryRows 10
+  expectMdQueryRows 8
   expectMdQueryColumn "discipline" toEq "Luge"
   expectMdQueryColumn "year" toBeGreaterThan $ toNumber 1950
   expectMdQueryColumn "country" toEq "GDR"

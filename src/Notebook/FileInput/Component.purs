@@ -39,6 +39,7 @@ import Data.Path.Pathy as P
 import Halogen
 import Halogen.HTML.Indexed as H
 import Halogen.HTML.Properties.Indexed as HP
+import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Events.Handler as HEH
 import Halogen.Themes.Bootstrap3 as B
@@ -140,20 +141,26 @@ render st =
                 [ HP.classes [ B.btn , B.btnDefault ]
                 , HP.buttonType HP.ButtonButton
                 , HE.onClick \_ -> HEH.stopPropagation $> action ToggleFileList
+                , ARIA.label toggleLabel
+                , HP.title toggleLabel
                 ]
                 [ H.span [ HP.class_ B.caret ] [ ]
                 ]
             ]
         ]
-    , H.ul
-        [ HP.classes $
-            [ CSS.fileListGroup
-            , B.listGroup
-            , B.fade
-            ] <> if st.showFiles then [ B.in_ ] else [ ]
-        ]
-        $ renderItem <$> st.files
+    , fileList
     ]
+  where
+  toggleLabel = if st.showFiles then "Hide file list" else "Show file list"
+  fileList | st.showFiles =
+    H.ul
+      [ HP.classes $
+          [ CSS.fileListGroup
+          , B.listGroup
+          ]
+      ]
+      $ renderItem <$> st.files
+  fileList = H.text ""
 
 renderItem
   :: R.Resource
