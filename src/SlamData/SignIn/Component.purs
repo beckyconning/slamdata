@@ -35,7 +35,8 @@ import Control.Apply ((*>))
 import Data.Const (Const(), getConst)
 import Data.Functor (($>))
 import Data.Functor.Coproduct (Coproduct(), coproduct, left)
---import Data.Functor.Eff (liftEff)
+import Data.Functor.Eff (liftEff)
+--import Data.Functor.Aff (liftAff)
 import Data.Generic (Generic, gEq, gCompare)
 import Data.Void (Void(), absurd)
 
@@ -48,6 +49,7 @@ import Halogen.Menu.Component as HalogenMenu
 import Halogen.Menu.Submenu.Component as HalogenMenu
 --import Halogen.Themes.Bootstrap3 as B
 
+import OIDC.Aff (requestAuthentication)
 import SlamData.Effects (Slam())
 import SlamData.SignIn.Component.State
 --import SlamData.Render.CSS as Rc
@@ -102,7 +104,7 @@ dismissAll =
     action HalogenMenu.DismissSubmenu
 
 makeAuthRequestWithProviderR :: Provider.ProviderR -> DraftboardDSL Unit
-makeAuthRequestWithProviderR _ = pure unit
+makeAuthRequestWithProviderR _ = liftEff requestAuthentication *> pure unit
 
 peek :: forall a. ChildF ChildSlot ChildQuery a -> DraftboardDSL Unit
 peek (ChildF p q) = menuPeek q
@@ -117,7 +119,7 @@ submenuPeek
   :: forall a
    . ChildF HalogenMenu.SubmenuSlotAddress (HalogenMenu.SubmenuQuery Provider.ProviderR) a
   -> DraftboardDSL Unit
-submenuPeek (ChildF _ (HalogenMenu.SelectSubmenuItem v _)) = evaluateMenuValue v
+submenuPeek (ChildF _ (HalogenMenu.SelectSubmenuItem v _)) = makeAuthRequestWithProviderR v
 
 queryMenu :: HalogenMenu.MenuQuery Provider.ProviderR Unit -> DraftboardDSL Unit
 queryMenu q = query MenuSlot (left q) *> pure unit
