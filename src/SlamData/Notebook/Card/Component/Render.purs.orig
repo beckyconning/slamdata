@@ -105,7 +105,11 @@ controls cs =
 statusBar ∷ Boolean → CardState → CardHTML
 statusBar hasResults cs =
   H.div
-    [ P.classes [CSS.cardEvalLine] ]
+<<<<<<< 7889c6257b4c0e7fa3b03ce64114cbbffc07e0bf:src/SlamData/Notebook/Card/Component/Render.purs
+    [ P.classes [CSS.cardEvalLine, B.clearfix, B.row] ]
+=======
+    [ P.classes [CSS.cellEvalLine] ]
+>>>>>>> Layout:src/SlamData/Notebook/Cell/Component/Render.purs
     $ [ H.button
           [ P.classes [B.btn, B.btnPrimary, button.className]
           , E.onClick (E.input_ $ if isRunning cs.runState

@@ -1,0 +1,80 @@
+.sd-board {
+  position: absolute;
+  top: 114px;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background-color: #fff;
+  background-size: 1.5rem 1.5rem;
+  background-position: center top;
+  background-image:
+    linear-gradient(to right, #E8E9E9 1px, transparent 1px),
+    linear-gradient(to bottom, #E8E9E9 1px, transparent 1px);
+}
+
+.sd-notebook-hidden-top-menu {
+<<<<<<< 10c939be2c09e4d22bf3901e3680e767ea826b6f
+    padding-top: 0px;
+    .new-card-menu {
+=======
+    top: 0px;
+    .new-cell-menu {
+>>>>>>> Interaction
+        display: none;
+    }
+}
+
+.sd-deck {
+  position: relative;
+  margin-top: 1.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: calc(25 * 1.5rem);
+  height: calc(20 * 1.5rem);
+  overflow: hidden;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+	box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+  border-top: 1.5rem solid #999;
+  border-bottom: 1.5rem solid #999;
+  background: #ddd;
+}
+
+.sd-card-slider {
+  display: block;
+  height: 100%;
+}
+
+.sd-card {
+  float: left;
+  min-height: 100%;
+  height: 100%;
+  background: white;
+}
+
+.sd-card-gripper {
+  display: block;
+  position: relative;
+  background-color: #bbb;
+  width: 1.5rem;
+  height: 100%;
+  float: left;
+}
+
+.sd-card-gripper:nth-child(2) {
+  float: right;
+}
+
+.sd-card-gripper:hover {
+  background-color: #ccc;
+}
+
+.sd-card-gripper::after {
+  display: block;
+  position: absolute;
+  content: "⬌";
+  width: 100%;
+  text-align: center;
+  top: 50%;
+  margin-top: -50%;
+  color: #444;
+}

@@ -74,10 +74,90 @@ makeCardComponent
 makeCardComponent def = makeCardComponentPart def render
   where
   render
+<<<<<<< 7889c6257b4c0e7fa3b03ce64114cbbffc07e0bf:src/SlamData/Notebook/Card/Component.purs
     ∷ H.Component AnyCardState InnerCardQuery Slam
     → AnyCardState
     → CardState
     → CardHTML
+=======
+    :: H.Component AnyCellState InnerCellQuery Slam
+    -> AnyCellState
+    -> CellState
+    -> CellHTML
+  render =
+    cellSourceRender
+      def
+      (\x -> x.accessType == ReadOnly)
+      (\x -> [statusBar x.hasResults x])
+
+-- | Sometimes we don't need editor or results and whole cell can be expressed
+-- | as one cell part
+makeSingularCellComponent
+  :: forall s f
+   . EditorCellDef s f
+  -> CellComponent
+makeSingularCellComponent def = makeCellComponentPart def render
+  where
+  render
+    :: H.Component AnyCellState InnerCellQuery Slam
+    -> AnyCellState
+    -> CellState
+    -> CellHTML
+  render =
+    cellSourceRender
+      def
+      (const false)
+      (const [])
+
+cellSourceRender
+  :: forall s f
+   . EditorCellDef s f
+  -> (CellState -> Boolean)
+  -> (CellState -> Array CellHTML)
+  -> H.Component AnyCellState InnerCellQuery Slam
+  -> AnyCellState
+  -> CellState
+  -> CellHTML
+cellSourceRender def collapseWhen afterContent component initialState cs =
+  if cs.visibility == Invisible
+    then HH.text ""
+    else shown
+  where
+  shouldCollapse =
+    cs.isCollapsed || collapseWhen cs
+  collapsedClass =
+    guard shouldCollapse $> CSS.collapsed
+
+  hideIfCollapsed =
+    ARIA.hidden $ show shouldCollapse
+
+  shown :: CellHTML
+  shown =
+    HH.div [ HP.classes $ join [ containerClasses, collapsedClass ] ]
+    $ fold
+        [
+          guard cs.controllable $> header def cs
+        , [ HH.div
+              [ hideIfCollapsed
+              ]
+              [ HH.slot unit \_ -> {component, initialState} ]
+          ]
+        , afterContent cs
+        ]
+
+-- | Constructs a cell component for an results-style cell.
+makeResultsCellComponent
+  :: forall s f
+   . ResultsCellDef s f
+  -> CellComponent
+makeResultsCellComponent def = makeCellComponentPart def render
+  where
+  render
+    :: H.Component AnyCellState InnerCellQuery Slam
+    -> AnyCellState
+    -> CellState
+    -> CellHTML
+>>>>>>> Layout:src/SlamData/Notebook/Cell/Component.purs
   render component initialState cs =
     if cs.visibility ≡ Invisible
       then HH.text ""
@@ -107,7 +187,11 @@ makeCardComponent def = makeCardComponentPart def render
           , (guard canHaveOutput) $> statusBar cs.hasResults cs
           ]
 containerClasses ∷ Array (HH.ClassName)
-containerClasses = [CSS.notebookCard]
+<<<<<<< 7889c6257b4c0e7fa3b03ce64114cbbffc07e0bf:src/SlamData/Notebook/Card/Component.purs
+containerClasses = [B.containerFluid, CSS.notebookCard, B.clearfix]
+=======
+containerClasses = [CSS.notebookCell]
+>>>>>>> Layout:src/SlamData/Notebook/Cell/Component.purs
 
 -- | Constructs a card component from a record with the necessary properties and
 -- | a render function.

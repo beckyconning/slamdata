@@ -406,6 +406,7 @@ sharePermissionsButtons = className "share-permissions-buttons"
 glyphImage ∷ ClassName
 glyphImage = className "glyph-image"
 
+<<<<<<< 7889c6257b4c0e7fa3b03ce64114cbbffc07e0bf
 saveCardButton ∷ ClassName
 saveCardButton = className "save-card-button"
 
@@ -417,7 +418,7 @@ codeGlyph = className "code-glyph"
 
 deckBackSide ∷ ClassName
 deckBackSide = className "deck-backside"
-
+=======
 cardSlider :: ClassName
 cardSlider = className "sd-card-slider"
 
@@ -429,3 +430,4 @@ card = className "sd-card"
 
 cardGripper :: ClassName
 cardGripper = className "sd-card-gripper"
+>>>>>>> Layout

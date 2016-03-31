@@ -52,12 +52,17 @@ data Query a
   | Reset BF.BrowserFeatures UP.DirPath a
   | GetGlobalVarMap (Port.VarMap → a)
   | SetGlobalVarMap Port.VarMap a
+<<<<<<< 7889c6257b4c0e7fa3b03ce64114cbbffc07e0bf:src/SlamData/Notebook/Deck/Component/Query.purs
   | FindCardParent CID.CardId (Maybe CID.CardId → a)
   | GetCardType CID.CardId (Maybe CT.CardType → a)
   | FlipDeck a
   | GetActiveCardId (Maybe CID.CardId → a)
+=======
+  | FindCellParent CID.CellId (Maybe CID.CellId -> a)
+  | GetCellType CID.CellId (Maybe CT.CellType -> a)
   | StartSliding (Maybe Int) (Event MouseEvent) a
   | StopSliding (Maybe Int) (Event MouseEvent) a
   | UpdateSliderPosition (Maybe Int) (Event MouseEvent) a
+>>>>>>> Layout:src/SlamData/Notebook/Editor/Component/Query.purs
 
 type QueryP = Coproduct Query (ChildF ChildSlot ChildQuery)
