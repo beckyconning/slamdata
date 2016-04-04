@@ -137,7 +137,7 @@ var bundleTasks = [];
 
 var mkBundleTask = function (name, main) {
 
-  gulp.task("prebundle-" + name, ["make"], function() {
+  gulp.task("prebundle-" + name, [], function() {
     return purescript.pscBundle({
       src: "output/**/*.js",
       output: "tmp/" + name + ".js",

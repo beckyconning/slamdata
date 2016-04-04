@@ -46,10 +46,7 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Query.EventSource (EventSource(..))
 import Halogen.Query.HalogenF (HalogenFP(..))
-import Halogen.Themes.Bootstrap3 as B
-
 import SlamData.Effects (Slam)
-import SlamData.FileSystem.Resource (_filePath)
 import SlamData.Notebook.AccessType (AccessType(..))
 import SlamData.Notebook.Card.CardType (CardType, AceMode(..), cardGlyph, cardName, nextCardTypes)
 import SlamData.Notebook.Card.Common.EvalQuery (prepareCardEvalInput)
@@ -59,7 +56,7 @@ import SlamData.Notebook.Card.Component.Render (CardHTML, header, statusBar)
 import SlamData.Notebook.Card.Component.State (AnyCardState, CardState, CardStateP, _APIResultsState, _APIState, _AceState, _ChartState, _DownloadState, _ExploreState, _JTableState, _MarkdownState, _SearchState, _VizState, _NextState, _accessType, _cachingEnabled, _canceler, _hasResults, _input, _isCollapsed, _messageVisibility, _messages, _output, _runState, _tickStopper, _visibility, initEditorCardState, initResultsCardState, _SaveState)
 import SlamData.Notebook.Card.Port (Port(..), _Resource, _Blocked)
 import SlamData.Notebook.Card.RunState (RunState(..))
-import SlamData.Render.Common (row', fadeWhen, glyph)
+import SlamData.Render.Common (glyph)
 import SlamData.Render.CSS as CSS
 
 -- | Type synonym for the full type of a card component.
@@ -99,7 +96,7 @@ makeCardComponent def = makeCardComponentPart def render
       $ fold
           [
             header def.cardType cs
-          , [ HH.div [ HP.classes ([B.row] ⊕ (fadeWhen shouldCollapse))
+          , [ HH.div [ HP.classes ([])
                      , hideIfCollapsed
                      ]
               [ HH.slot unit \_ → {component, initialState} ]

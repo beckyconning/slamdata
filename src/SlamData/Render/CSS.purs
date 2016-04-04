@@ -421,6 +421,9 @@ deckBackSide = className "deck-backside"
 cardSlider :: ClassName
 cardSlider = className "sd-card-slider"
 
+board :: ClassName
+board = className "sd-board"
+
 deck :: ClassName
 deck = className "sd-deck"
 
