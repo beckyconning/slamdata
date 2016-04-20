@@ -262,6 +262,7 @@ eval (AddCard cardType next) = createCard cardType $> next
 eval (RunActiveCard next) =
   (maybe (pure unit) runCard =<< H.gets (_.activeCardId)) $> next
 eval (LoadNotebook fs dir next) = do
+  state ← H.get
   H.modify (_stateMode .~ Loading)
   json ← H.fromAff $ Auth.authed $ Quasar.load $ dir </> Pathy.file "index"
   case Model.decode =<< json of
@@ -273,7 +274,7 @@ eval (LoadNotebook fs dir next) = do
       let peeledPath = Pathy.peel dir
           path = fst <$> peeledPath
           name = either Just (const Nothing) ∘ snd =<< peeledPath
-      in case fromModel fs path name model of
+      in case fromModel fs path name model state of
         Tuple cards st → do
           H.set st
           forceRerender'
@@ -363,7 +364,7 @@ eval (StartSliding mouseEvent next) =
   setInitialSliderX =
     H.modify <<< (_initialSliderX .~)
 eval (StopSlidingAndSnap mouseEvent next) =
-  snap *> stopSliding *> startTransition $> next
+  startTransition *> snap *> stopSliding $> next
   where
   stopSliding =
     setInitialX Nothing *> setTranslateX 0.0
@@ -374,7 +375,8 @@ eval (StopSlidingAndSnap mouseEvent next) =
   getNextActionCardElement =
     H.gets _.nextActionCardElement
   getCardWidth =
-    traverse getBoundingClientWidth =<< getNextActionCardElement
+    traverse getBoundingClientWidth
+      =<< getNextActionCardElement
   setActiveCardId =
     H.modify <<< (_activeCardId .~)
   setTranslateX =

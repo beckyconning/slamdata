@@ -464,31 +464,28 @@ fromModel
   → Maybe DirPath
   → Maybe P.DirName
   → Model.Deck
+  → State
   → Tuple (Array Card.Model) State
-fromModel browserFeatures path name { cards, dependencies } =
+fromModel browserFeatures path name { cards, dependencies } state =
   Tuple
     cards
-    ({ fresh: maybe 0 (_ + 1) $ maximum $ map (runCardId ∘ _.cardId) cards
-    , accessType: ReadOnly
-    , cards: cardDefs
-    , cardTypes: foldl addCardIdTypePair M.empty cards
-    , dependencies
-    , activeCardId: _.id <$> L.last cardDefs
-    , name: maybe (That Config.newNotebookName) This name
-    , browserFeatures
-    , viewingCard: Nothing
-    , path
-    , saveTrigger: Nothing
-    , globalVarMap: SM.empty
-    , runTrigger: Nothing
-    , pendingCards: S.empty
-    , stateMode: Loading
-    , backsided: false
-    , initialSliderX: Nothing
-    , sliderTransition: false
-    , sliderTranslateX: 0.0
-    , nextActionCardElement: Nothing
-    } ∷ State)
+    ((state
+       { fresh = maybe 0 (_ + 1) $ maximum $ map (runCardId ∘ _.cardId) cards
+       , accessType = ReadOnly
+       , cards = cardDefs
+       , cardTypes =  foldl addCardIdTypePair M.empty cards
+       , dependencies = dependencies
+       , activeCardId = _.id <$> L.last cardDefs
+       , name = maybe (That Config.newNotebookName) This name
+       , browserFeatures = browserFeatures
+       , viewingCard = Nothing
+       , path = path
+       , saveTrigger = Nothing
+       , globalVarMap = SM.empty
+       , runTrigger = Nothing
+       , pendingCards = S.empty
+       }
+    ) :: State)
   where
   cardDefs = foldMap cardDefFromModel cards
 
