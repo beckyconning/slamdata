@@ -133,14 +133,15 @@ render state =
             [ HP.class_ CSS.deck
             , HP.key "deck-container"
             ]
-            [ renderCards $ not state.backsided
+            [ HH.button
+                [ HP.classes [ CSS.flipDeck ]
+                , HE.onClick (HE.input_ FlipDeck)
+                , ARIA.label "Flip deck"
+                , HP.title "Flip deck"
+                ]
+                [ HH.text "" ]
+            , renderCards $ not state.backsided
             , renderBackside state.backsided
-              -- Commented until one card representation
---            , HH.button [ HP.classes [ B.btn, B.btnPrimary ]
---                        , HE.onClick (HE.input_ FlipDeck)
---                        , ARIA.label "Flip deck"
---                        ]
---              [ HH.text "Flip" ]
             ]
         ]
 
@@ -155,15 +156,22 @@ render state =
   where
   renderBackside visible =
     HH.div
-      ( [ ARIA.hidden $ show $ not visible ]
-        ⊕ ((guard $ not visible) $> (HP.class_ CSS.invisible)))
-
-      [ HH.slot' cpBackSide unit \_ →
-         { component: Back.comp
-         , initialState: Back.initialState
-         }
+      ([ HP.classes [ CSS.cardSlider ]
+      , ARIA.hidden $ show $ not visible
       ]
-
+      ⊕ ((guard $ not visible) $> (HP.class_ CSS.invisible)))
+      [ HH.div
+          [ HP.classes [ CSS.card ]
+          , style $ cardWidth 1 true
+          ]
+          [ cardGripper false
+          , cardGripper true
+          , HH.slot' cpBackSide unit \_ →
+             { component: Back.comp
+             , initialState: Back.initialState
+             }
+          ]
+      ]
 
   renderCards visible =
     -- The key here helps out virtual-dom: the entire subtree will be moved
@@ -187,16 +195,16 @@ render state =
     HH.div
     ([ HP.key ("card" ⊕ cardIdToString cardDef.id)
      , HP.classes [ CSS.card ]
-     , style $ cardWidth cardsCount
+     , style $ cardWidth cardsCount false
     ]
      ⊕ foldMap (viewingStyle cardDef) state.viewingCard)
-    [ cardGripper
+    [ cardGripper false
     , HH.Slot $ transformCardConstructor cardDef.ctor
     ]
 
-  cardGripper =
+  cardGripper last =
     HH.div
-      [ HP.classes [ CSS.cardGripper ]
+      [ HP.classes [ if last then CSS.cardGripperLast else CSS.cardGripper ]
       , HE.onMouseDown \e -> HEH.preventDefault $> H.action (StartSliding e)
       ]
       []
@@ -223,11 +231,12 @@ render state =
       ([ HP.key ("next-action-card")
        , HP.classes [ CSS.card ]
        , HP.ref (H.action <<< SetNextActionCardElement)
-       , style $ cardWidth cardsCount
+       , style $ cardWidth cardsCount true
        ]
        ⊕ (guard shouldHideNextAction $> (HP.class_ CSS.invisible)))
 
-    [ cardGripper
+    [ cardGripper false
+    , cardGripper true
     , HH.slot' cpCard (CardSlot top) \_ →
        { component: Next.nextCardComponent
        , initialState: H.parentState $ initEditorCardState
@@ -237,8 +246,13 @@ render state =
   cardWidthPct cardsCount =
     100.0 / toNumber cardsCount
 
-  cardWidth cardsCount =
-    width $ calc $ (show $ cardWidthPct cardsCount) ++ "% - 1.5rem"
+  cardWidth cardsCount lastCard =
+    width $ calc
+      $ (show $ cardWidthPct cardsCount) ++ "%"
+      ++ " - " ++ (show $ nextCardGripperWidth lastCard) ++ "rem"
+
+  nextCardGripperWidth lastCard =
+    if lastCard then 0.0 else 1.5
 
   cardSliderWidth cardsCount =
     width $ pct $ 100.0 * toNumber cardsCount
@@ -276,7 +290,8 @@ eval (LoadNotebook fs dir next) = do
           name = either Just (const Nothing) ∘ snd =<< peeledPath
       in case fromModel fs path name model state of
         Tuple cards st → do
-          H.set st
+          Debug.Trace.traceAnyA "LoadNotebook"
+          setDeckState st
           forceRerender'
           ranCards ← catMaybes <$> for cards \card → do
             H.query' cpCard  (CardSlot card.cardId)
@@ -294,7 +309,8 @@ eval (LoadNotebook fs dir next) = do
   pure next
 
 eval (ExploreFile fs res next) = do
-  H.set $ initialDeck fs
+  Debug.Trace.traceAnyA "ExploreFile"
+  setDeckState $ initialDeck fs
   H.modify
     $ (_path .~ Pathy.parentDir res)
     ∘ (addCard Explore Nothing)
@@ -323,7 +339,8 @@ eval (Reset fs dir next) = do
     peeledPath = Pathy.peel dir
     path = fst <$> peeledPath
     name = maybe nb.name This (either Just (const Nothing) ∘ snd =<< peeledPath)
-  H.set $ nb { path = path, name = name }
+  Debug.Trace.traceAnyA "Reset"
+  setDeckState $ nb { path = path, name = name }
   pure next
 eval (SetName name next) =
   H.modify (_name %~ \n → case n of
@@ -359,10 +376,17 @@ eval (GetCardType cid k) = k <$> H.gets (getCardType cid)
 eval (FlipDeck next) = H.modify (_backsided %~ not) $> next
 eval (GetActiveCardId k) = map k $ H.gets findLast
 eval (StartSliding mouseEvent next) =
-  setInitialSliderX (Just mouseEvent.screenX) $> next
+  setInitialSliderX (Just mouseEvent.screenX)
+    *> setSliderTransition false
+    *> setBacksided false
+    $> next
   where
   setInitialSliderX =
     H.modify <<< (_initialSliderX .~)
+  setSliderTransition =
+    H.modify <<< (_sliderTransition .~)
+  setBacksided =
+    H.modify <<< (_backsided .~)
 eval (StopSlidingAndSnap mouseEvent next) =
   startTransition *> snap *> stopSliding $> next
   where
@@ -375,8 +399,7 @@ eval (StopSlidingAndSnap mouseEvent next) =
   getNextActionCardElement =
     H.gets _.nextActionCardElement
   getCardWidth =
-    traverse getBoundingClientWidth
-      =<< getNextActionCardElement
+    traverse getBoundingClientWidth =<< getNextActionCardElement
   setActiveCardId =
     H.modify <<< (_activeCardId .~)
   setTranslateX =
@@ -409,7 +432,7 @@ eval (UpdateSliderPosition mouseEvent next) =
   setTranslateX =
     H.modify <<< (_sliderTranslateX .~)
 eval (SetNextActionCardElement element next) =
-  setNextActionCardElement element $> next
+  Debug.Trace.traceAnyA element *> setNextActionCardElement element *> (Debug.Trace.traceAnyA =<< H.get) $> next
   where
   setNextActionCardElement =
     H.modify <<< (_nextActionCardElement .~)
@@ -512,12 +535,15 @@ updateNextActionCard = do
 createCard ∷ CardType → NotebookDSL Unit
 createCard cardType = do
   cid ← H.gets findLast
+  s ← H.get
+  Debug.Trace.traceAnyA "hi"
   case cid of
-    Nothing →
+    Nothing → do
       H.modify (addCard cardType Nothing)
     Just cardId → do
       Tuple st newCardId ← H.gets $ addCard' cardType (Just cardId)
-      H.set st
+      Debug.Trace.traceAnyA "createCard"
+      setDeckState st
       forceRerender'
       input ←
         map join $ H.query' cpCard (CardSlot cardId) $ left (H.request GetOutput)
@@ -534,6 +560,7 @@ createCard cardType = do
       runCard newCardId
   updateNextActionCard
   triggerSave unit
+  Debug.Trace.traceAnyA =<< H.get
 
 -- | Peek on the inner card components to observe `NotifyRunCard`, which is
 -- | raised by actions within a card that should cause the card to run.
@@ -726,3 +753,8 @@ nameFromDirName ∷ Pathy.DirName → String
 nameFromDirName dirName =
   let name = Pathy.runDirName dirName
   in Str.take (Str.length name - Str.length Config.notebookExtension - 1) name
+
+setDeckState :: State -> NotebookDSL Unit
+setDeckState newState = do
+  nextActionCardElement <- H.gets _.nextActionCardElement
+  H.set $ newState { nextActionCardElement = nextActionCardElement }

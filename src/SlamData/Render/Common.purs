@@ -34,7 +34,7 @@ import SlamData.Config as Config
 import SlamData.Render.CSS as Rc
 
 navbar :: forall p f. Array (HTML p f) -> HTML p f
-navbar = H.nav [ P.class_ B.clearfix ]
+navbar = H.nav [ ]
 
 row :: forall p f. Array (HTML p f) -> HTML p f
 row = H.div [ P.class_ B.row ]
