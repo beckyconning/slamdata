@@ -18,7 +18,7 @@ module Test.SlamData.Feature.Test.File where
 import SlamData.Prelude
 
 import Selenium.Monad (later)
-import Test.Feature.Log (successMsg, errorMsg, warnMsg)
+import Test.Feature.Log (successMsg, warnMsg)
 import Test.Feature.Scenario (scenario)
 import Test.SlamData.Feature.Expectations as Expect
 import Test.SlamData.Feature.Interactions as Interact
@@ -50,10 +50,6 @@ afterAccessSharingUrl =
     *> Interact.browseTestFolder
     *> Interact.deleteFile "Quarterly report.slam"
 
-unexpectedBehaviourWithoutHesitationIssue ∷ String
-unexpectedBehaviourWithoutHesitationIssue =
-  "https://slamdata.atlassian.net/browse/SD-1525"
-
 test ∷ SlamFeature Unit
 test = do
   fileScenario afterRename "Rename a folder" [] do
@@ -66,9 +62,6 @@ test = do
     Interact.renameFile "Пациенты# #" "Ϡ⨁⟶≣ΜϞ"
     Expect.file "Ϡ⨁⟶≣ΜϞ"
     successMsg "Successfully renamed a folder"
-
-
-
 
   fileScenario afterMove "Move a folder" [] do
     Interact.browseTestFolder
@@ -105,7 +98,7 @@ test = do
   fileScenario afterUpload "Upload a file" [] do
     Interact.browseTestFolder
     Interact.uploadFile "test/array-wrapped.json"
-    Expect.exploreFileInLastCard "/test-mount/testDb/array-wrapped.json"
+    Expect.resourceOpenedInLastExploreCard "/test-mount/testDb/array-wrapped.json"
     Interact.browseTestFolder
     Expect.file "array-wrapped.json"
     successMsg "Successfully uploaded file"
@@ -121,7 +114,7 @@ test = do
     Interact.browseTestFolder
     Interact.shareFile "smallZips"
     Interact.accessSharingUrl
-    Expect.exploreFileInLastCard "/test-mount/testDb/smallZips"
+    Expect.resourceOpenedInLastExploreCard "/test-mount/testDb/smallZips"
     successMsg "Successfully accessed sharing URL for a file"
     Interact.launchSlamData
 
@@ -149,15 +142,11 @@ test = do
       "test/smallZips.csv"
     successMsg "Successfully downloaded file as CSV"
 
-  fileScenario
-    defaultAfterFile
-    "Download file as JSON"
-    [unexpectedBehaviourWithoutHesitationIssue] do
-      Interact.browseTestFolder
-      Interact.downloadFileAsJSON "smallZips"
-      Expect.downloadedTextFileToMatchFile
-        "tmp/test/downloads"
-        "smallZips"
-        "test/smallZips.json"
-      errorMsg "The known issue occurs non-dermininistically"
-      successMsg "Successfully downloaded file as JSON"
+  fileScenario defaultAfterFile "Download file as JSON" [] do
+    Interact.browseTestFolder
+    Interact.downloadFileAsJSON "smallZips"
+    Expect.downloadedTextFileToMatchFile
+      "tmp/test/downloads"
+      "smallZips"
+      "test/smallZips.json"
+    successMsg "Successfully downloaded file as JSON"

@@ -26,7 +26,9 @@ module SlamData.Prelude
   , module Control.Monad.Trans
   , module Control.MonadPlus
   , module Control.Plus
+  , module Data.Bifoldable
   , module Data.Bifunctor
+  , module Data.Bitraversable
   , module Data.Const
   , module Data.Either
   , module Data.Foldable
@@ -52,11 +54,13 @@ import Control.Monad.Trans (class MonadTrans, lift)
 import Control.MonadPlus (class MonadPlus, guard)
 import Control.Plus (class Plus, empty)
 
+import Data.Bifoldable (class Bifoldable, bitraverse_, bifor_)
 import Data.Bifunctor (bimap, lmap, rmap)
+import Data.Bitraversable (class Bitraversable, bitraverse, bisequence, bifor)
 import Data.Const (Const(..), getConst)
 import Data.Either (Either(..), either, isLeft, isRight)
 import Data.Foldable (class Foldable, traverse_, for_, foldMap, foldl, foldr, fold)
-import Data.Functor (($>))
+import Data.Functor (($>), (<$))
 import Data.Functor.Coproduct (Coproduct, coproduct, left, right)
 import Data.Generic (class Generic, gEq, gCompare)
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing, maybe, maybe')

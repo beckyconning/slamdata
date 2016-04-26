@@ -24,7 +24,6 @@ module SlamData.Notebook.Card.Component
 
 import SlamData.Prelude
 
-import Control.Coroutine.Aff (produce)
 import Control.Coroutine.Stalling (producerToStallingProducer)
 import Control.Monad.Eff.Ref (newRef, readRef, writeRef)
 import Control.Monad.Free (liftF)
@@ -46,18 +45,19 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Query.EventSource (EventSource(..))
 import Halogen.Query.HalogenF (HalogenFP(..))
+
 import SlamData.Effects (Slam)
-import SlamData.Notebook.AccessType (AccessType(..))
-import SlamData.Notebook.Card.CardType (CardType, AceMode(..), cardGlyph, cardName, nextCardTypes)
+import SlamData.Notebook.Card.CardType (nextCardTypes)
 import SlamData.Notebook.Card.Common.EvalQuery (prepareCardEvalInput)
 import SlamData.Notebook.Card.Component.Def (CardDef, makeQueryPrism, makeQueryPrism')
-import SlamData.Notebook.Card.Component.Query (CardEvalInputPre, CardQueryP, InnerCardQuery, AnyCardQuery(..), CardEvalQuery(..), CardQuery(..), _APIQuery, _APIResultsQuery, _AceQuery, _AnyCardQuery, _CardEvalQuery, _ChartQuery, _DownloadQuery, _ExploreQuery, _JTableQuery, _MarkdownQuery, _SearchQuery, _VizQuery, _NextQuery, _SaveQuery)
+import SlamData.Notebook.Card.Component.Query (CardEvalInputPre, CardQueryP, InnerCardQuery, AnyCardQuery(..), CardEvalQuery(..), CardQuery(..), _APIQuery, _APIResultsQuery, _AceQuery, _AnyCardQuery, _CardEvalQuery, _ChartQuery, _DownloadQuery, _JTableQuery, _MarkdownQuery, _SearchQuery, _VizQuery, _NextQuery, _SaveQuery, _OpenResourceQuery)
 import SlamData.Notebook.Card.Component.Render (CardHTML, header, statusBar)
-import SlamData.Notebook.Card.Component.State (AnyCardState, CardState, CardStateP, _APIResultsState, _APIState, _AceState, _ChartState, _DownloadState, _ExploreState, _JTableState, _MarkdownState, _SearchState, _VizState, _NextState, _accessType, _cachingEnabled, _canceler, _hasResults, _input, _isCollapsed, _messageVisibility, _messages, _output, _runState, _tickStopper, _visibility, initEditorCardState, initResultsCardState, _SaveState)
-import SlamData.Notebook.Card.Port (Port(..), _Resource, _Blocked)
+import SlamData.Notebook.Card.Component.State (AnyCardState, CardState, CardStateP, _APIResultsState, _APIState, _AceState, _ChartState, _DownloadState, _JTableState, _MarkdownState, _NextState, _OpenResourceState, _SaveState, _SearchState, _VizState, _accessType, _cachingEnabled, _canceler, _hasResults, _input, _isCollapsed, _messageVisibility, _messages, _output, _runState, _tickStopper, _visibility, initialCardState)
+import SlamData.Notebook.Card.Port (_Blocked)
 import SlamData.Notebook.Card.RunState (RunState(..))
-import SlamData.Render.Common (glyph)
 import SlamData.Render.CSS as CSS
+
+import Utils.AffableProducer (produce)
 
 -- | Type synonym for the full type of a card component.
 type CardComponent = H.Component CardStateP CardQueryP Slam
@@ -196,6 +196,7 @@ makeCardComponentPart def render =
   cardEvalPeek (SetCanceler canceler _) = H.modify $ _canceler .~ canceler
   cardEvalPeek (SetupCard _ _) = H.modify $ _canceler .~ mempty
   cardEvalPeek (EvalCard _ _) = H.modify $ _canceler .~ mempty
+  cardEvalPeek (NotifyStopCard _) = stopRun
   cardEvalPeek _ = pure unit
 
   stopRun ∷ CardDSL Unit

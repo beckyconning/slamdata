@@ -14,7 +14,6 @@ import Control.Monad.Maybe.Trans as Mt
 import Control.UI.ZClipboard as Z
 
 import Data.Array as Arr
-import Data.Functor ((<$))
 import Data.Functor.Coproduct.Nested (coproduct6)
 import Data.NonEmpty as Ne
 import Data.Lens ((.~), (?~))
@@ -37,8 +36,7 @@ import SlamData.FileSystem.Dialog.Permissions.Component.Render (render)
 import SlamData.FileSystem.Dialog.Permissions.Component.State (State, ShareType(..), _canGoFurther, _confirm, _error, _groups, _permissions, _resource, _sending, _shareType, _zRef, initialState)
 import SlamData.Halogen.Select.Cascade.Component as Cascade
 import SlamData.Halogen.Select.Rotary.Component as Rotary
-
-import Quasar.Auth.Permission as Qp
+import SlamData.Quasar.Auth.Permission as Qp
 
 import Utils.DOM (waitLoaded)
 

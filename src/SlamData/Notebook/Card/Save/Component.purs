@@ -7,12 +7,12 @@ module SlamData.Notebook.Card.Save.Component
 
 import SlamData.Prelude
 
+import Control.Monad.Eff.Exception as Exn
 import Control.Monad.Error.Class as EC
 import Control.Monad.Writer.Class as WC
 
 import Data.Argonaut (decodeJson, encodeJson)
 import Data.Lens ((.~))
-import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as Pt
 import Data.StrMap as Sm
 
@@ -23,18 +23,16 @@ import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 import Halogen.HTML.Events.Indexed as HE
 
-import SlamData.FileSystem.Resource as R
-import SlamData.Notebook.Card.Common.EvalQuery as Eq
+import SlamData.Effects (Slam)
 import SlamData.Notebook.Card.CardType as Ct
+import SlamData.Notebook.Card.Common.EvalQuery as Eq
 import SlamData.Notebook.Card.Component as Cc
 import SlamData.Notebook.Card.Port as P
-import SlamData.Effects (Slam)
-import SlamData.Notebook.Card.Save.Component.State (State, initialState, _pathString)
 import SlamData.Notebook.Card.Save.Component.Query (Query(..), QueryP)
+import SlamData.Notebook.Card.Save.Component.State (State, initialState, _pathString)
+import SlamData.Quasar.FS (messageIfFileNotFound) as Api
+import SlamData.Quasar.Query (fileQuery) as Api
 import SlamData.Render.CSS as Rc
-
-import Quasar.Aff as Api
-import Quasar.Auth as Auth
 
 import Utils.Path as Up
 
@@ -93,30 +91,28 @@ cardEval (Eq.EvalCard info k) = case info.inputPort of
     case pt, Up.parseAnyPath pt of
       "", _ →
         pure $ k { output: Nothing, messages: [ ] }
-      _, Just (Left fp) → map k $ Eq.runCardEvalT do
-        {plan, outputResource} ←
-          Api.executeQuery
-              "select * from {{path}}"
-              true
-              Sm.empty
-              resource
-              (R.File fp)
-           # Auth.authed
+      _, Just (Right fp) → map k $ Eq.runCardEvalT do
+
+        outputResource ←
+          Api.fileQuery resource fp "select * from {{path}}" Sm.empty
            # Eq.liftWithCanceler'
            # lift
-           >>= either EC.throwError pure
-        Api.messageIfResourceNotExists
+           >>= either (EC.throwError <<< Exn.message) pure
+
+        Api.messageIfFileNotFound
           outputResource
-          "Error saving file, please, try another location"
-          # Auth.authed
+          "Error saving file, please try another location"
           # Eq.liftWithCanceler'
           # lift
-          >>= traverse_ EC.throwError
-        when (R.File fp ≠ outputResource)
+          >>= either (EC.throwError <<< Exn.message) (traverse EC.throwError)
+
+        when (fp ≠ outputResource)
           $ EC.throwError
-          $ "Resource: " ⊕ R.resourcePath outputResource ⊕ " hasn't been modified"
+          $ "Resource: " ⊕ Pt.printPath outputResource ⊕ " hasn't been modified"
+
         WC.tell ["Resource successfully saved as: " ⊕ Pt.printPath fp]
-        pure $ P.TaggedResource {resource: outputResource, tag: Nothing}
+
+        pure $ P.TaggedResource { resource: outputResource, tag: Nothing }
       _, _ →
         pure $ k { output: Just P.Blocked
                  , messages: [ Left $ pt ⊕ " is incorrect file path" ] }
@@ -124,6 +120,7 @@ cardEval (Eq.EvalCard info k) = case info.inputPort of
   _ →
     pure $ k { output: Nothing, messages: [ Left "Expected Resource input" ] }
 cardEval (Eq.NotifyRunCard next) = pure next
+cardEval (Eq.NotifyStopCard next) = pure next
 cardEval (Eq.Save k) = do
   pt ← H.gets _.pathString
   case Pt.parseAbsFile pt of

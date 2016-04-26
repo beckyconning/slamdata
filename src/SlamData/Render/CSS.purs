@@ -438,3 +438,12 @@ cardGripperLast = className "sd-card-gripper-last"
 
 flipDeck :: ClassName
 flipDeck = className "sd-flip-deck"
+
+openResourceCard ∷ ClassName
+openResourceCard = className "open-resource-card"
+
+openResourceCardMenu ∷ ClassName
+openResourceCardMenu = className "open-resource-card-menu"
+
+loading ∷ ClassName
+loading = className "loading"

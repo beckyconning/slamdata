@@ -18,7 +18,6 @@ module SlamData.FileSystem.Dialog.Rename.Component where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff (attempt)
 import Control.Monad.Eff.Exception (message)
 import Control.Monad.Error.Class (throwError)
 import Control.UI.Browser (reload)
@@ -37,13 +36,11 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
-import Quasar.Aff as API
-import Quasar.Auth as Auth
-
 import SlamData.Config as Config
-import SlamData.Effects (Slam)
 import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Effects (Slam)
 import SlamData.FileSystem.Resource as R
+import SlamData.Quasar.FS as API
 import SlamData.Render.Common (fadeWhen, formGroup)
 import SlamData.Render.CSS as Rc
 
@@ -245,7 +242,7 @@ eval (Submit next) = do
   state <- H.get
   let src = state.initial
       tgt = R.getPath $ renameSlam state
-  result <- H.fromAff $ attempt $ Auth.authed $ API.move src tgt
+  result <- API.move src tgt
   case result of
     Left e ->
       H.modify (_error ?~ message e)
@@ -258,7 +255,7 @@ eval (NameTyped str next) = do
   H.modify validate
   pure next
 eval (DirTyped str next) = do
-  maybe (pure unit) (dirItemClicked <<< R.mkDirectory <<< Right) do
+  maybe (pure unit) (dirItemClicked <<< R.mkDirectory <<< Left) do
     d <- parseAbsDir str
     s <- sandbox rootDir d
     pure $ rootDir </> s
@@ -280,10 +277,10 @@ eval (Init next) = do
 dirItemClicked :: R.Resource -> DSL Unit
 dirItemClicked res =
   case R.getPath res of
-    Left _ -> pure unit
-    Right dir -> do
-      siblings <- H.fromAff $ Auth.authed $ API.children dir
+    Right _ -> pure unit
+    Left dir -> do
+      siblings <- API.children dir
       H.modify
         $ (_dir .~ dir)
         <<< (_showList .~ false)
-        <<< (_siblings .~ siblings)
+        <<< (_siblings .~ either (const []) id siblings)

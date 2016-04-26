@@ -21,20 +21,19 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (random, RANDOM)
 import Control.UI.Browser (hostAndProtocol, getHref, setLocation)
-import DOM (DOM)
 import Data.Foldable as F
 import Data.StrMap as Sm
 import Data.Tuple (Tuple(..))
 import Data.URI (printURI, runParseURI)
 import Data.URI.Types as URI
+import DOM (DOM)
 import Global as Global
 import OIDCCryptUtils as Cryptography
-import Quasar.Auth as Auth
-import Quasar.Auth.OpenIDConfiguration (getOpenIDConfiguration)
-import Quasar.Auth.Provider (ProviderR)
+import Quasar.Advanced.Auth.Provider (Provider)
+import SlamData.Quasar.Auth as Auth
 
 requestAuthentication
-  :: ProviderR
+  :: Provider
   -> forall e. Eff (dom :: DOM, random :: RANDOM | e) Unit
 requestAuthentication pr = do
   csrf <- (Cryptography.KeyString <<< show) <$> random
@@ -44,10 +43,7 @@ requestAuthentication pr = do
   Auth.storeClientId pr.clientID
   hap <- hostAndProtocol
   hrefState <- map Cryptography.StateString getHref
-  let authURIString =
-        pr.openIDConfiguration
-        # getOpenIDConfiguration
-        # _.authorizationEndpoint
+  let authURIString = pr.openIDConfiguration.authorizationEndpoint
   -- The only way to get incorrect `authURIString` is incorrect config
   -- In this situation nothing happens.
   F.for_ (runParseURI authURIString) \(URI.URI s h q f) ->

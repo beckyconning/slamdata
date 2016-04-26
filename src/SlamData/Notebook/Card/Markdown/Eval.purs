@@ -1,18 +1,16 @@
 {-
 Copyright 2016 SlamData, Inc.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -}
+
 module SlamData.Notebook.Card.Markdown.Eval
   ( markdownEval
   , markdownSetup
@@ -33,26 +31,21 @@ import Data.Date as D
 import Data.Date.Locale as DL
 import Data.Enum as Enum
 import Data.Foldable as F
-import Data.Functor ((<$))
 import Data.Functor.Mu as Mu
 import Data.Identity (Identity)
 import Data.List as L
 import Data.NaturalTransformation as NT
-import Data.Path.Pathy ((</>))
-import Data.Path.Pathy as Path
 import Data.SQL2.Literal as SQL2
 import Data.String as S
 import Data.StrMap as SM
 import Data.Time as DT
 
-import Quasar.Aff as Quasar
-import Quasar.Auth as Auth
-
+import SlamData.Effects (Slam)
 import SlamData.Notebook.Card.Ace.Component as ACE
 import SlamData.Notebook.Card.CardId as CID
 import SlamData.Notebook.Card.Common.EvalQuery as CEQ
 import SlamData.Notebook.Card.Port as Port
-import SlamData.Effects (Slam)
+import SlamData.Quasar.Query as Quasar
 
 import Text.Markdown.SlamDown as SD
 import Text.Markdown.SlamDown.Traverse as SDT
@@ -213,8 +206,7 @@ evalEmbeddedQueries dir cardId =
       Nothing → Err.throwError $ Exn.error "Cannot evaluate markdown without a saved notebook path"
       Just dir' → do
         n ← freshInt
-        let tempPath = dir' </> Path.file ("tmp" ⊕ CID.cardIdToString cardId ⊕ "-" ⊕ show n)
-        result ← AffF.fromAff ∘ Auth.authed $ Quasar.queryPrecise tempPath code
+        result ← Quasar.queryPrecise dir' code
         either
           (Err.throwError ∘ Exn.error)
           (pure ∘ A.mapMaybe rowToLiteral)

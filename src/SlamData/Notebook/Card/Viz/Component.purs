@@ -18,7 +18,6 @@ module SlamData.Notebook.Card.Viz.Component where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff (attempt)
 import Control.Monad.Error.Class (throwError)
 
 import Data.Argonaut (JCursor)
@@ -26,6 +25,7 @@ import Data.Array (length, null, cons, index)
 import Data.Int as Int
 import Data.Lens ((.~), view, preview)
 import Data.Map as M
+import Data.Path.Pathy (printPath)
 import Data.Set as Set
 
 import CSS.Geometry (marginBottom)
@@ -40,10 +40,9 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
-import Quasar.Aff as Api
-import Quasar.Auth as Auth
+import Quasar.Types (FilePath)
 
-import SlamData.FileSystem.Resource as R
+import SlamData.Effects (Slam)
 import SlamData.Form.Select (Select, autoSelect, newSelect, (<->), ifSelected, trySelect', _value)
 import SlamData.Notebook.Card.CardType (CardType(Viz))
 import SlamData.Notebook.Card.Chart.Aggregation (aggregationSelect)
@@ -60,7 +59,7 @@ import SlamData.Notebook.Card.Viz.Component.State (State, _needToUpdate, _availa
 import SlamData.Notebook.Card.Viz.Form.Component (formComponent)
 import SlamData.Notebook.Card.Viz.Form.Component as Form
 import SlamData.Notebook.Card.Viz.Model as Model
-import SlamData.Effects (Slam)
+import SlamData.Quasar.Query as Api
 import SlamData.Render.Common (row)
 import SlamData.Render.CSS as Rc
 
@@ -257,12 +256,10 @@ cardEval (EvalCard info continue) =
           lift $ updateForms r
           records <-
             Api.all r
-              # Auth.authed
-              # attempt
               # liftWithCancelerP'
               # lift
               >>= either
-                  (const $ throwError $ "Can't get resource: " <> R.resourcePath r)
+                  (const $ throwError $ "Can't get resource: " <> printPath r)
                   pure
           when (length records > 10000)
             $ throwError
@@ -279,6 +276,7 @@ cardEval (EvalCard info continue) =
     pure a
 cardEval (SetupCard _ next) = pure next
 cardEval (NotifyRunCard next) = pure next
+cardEval (NotifyStopCard next) = pure next
 cardEval (Save k) = do
   st <- H.get
   config <- H.query st.chartType $ left $ H.request Form.GetConfiguration
@@ -313,12 +311,10 @@ responsePort = do
     , height: state.height
     }
 
-updateForms :: R.Resource -> VizDSL Unit
+updateForms :: FilePath -> VizDSL Unit
 updateForms file = do
   jarr <-
     Api.sample file 0 20
-      # Auth.authed
-      # attempt
       # liftWithCancelerP'
       >>= either (const $ pure []) pure
   if null jarr

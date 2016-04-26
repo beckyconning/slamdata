@@ -21,13 +21,15 @@ module SlamData.AuthRedirect
 import SlamData.Prelude
 
 import Control.Monad.Aff as Aff
+import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console as Console
 import Control.Monad.Eff.Exception as Exn
+import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Maybe.Trans as MBT
 
 import Data.Foldable as F
+import Data.Date as Date
 
 import DOM as DOM
 import DOM.HTML (window)
@@ -38,21 +40,19 @@ import Network.HTTP.Affjax as AX
 
 import OIDCCryptUtils as OIDC
 
-import Quasar.Aff as Quasar
-import Quasar.Auth as Auth
-import Quasar.Auth.OpenIDConfiguration (getOpenIDConfiguration)
-import Quasar.Auth.Provider (Provider(..))
-
 import SlamData.AuthRedirect.RedirectHashPayload as Payload
+import SlamData.Quasar as Quasar
+import SlamData.Quasar.Auth as Auth
 
 type RedirectEffects =
-  Quasar.RetryEffects
-    ( console :: Console.CONSOLE
-    , err :: Exn.EXCEPTION
-    , dom :: DOM.DOM
-    , rsaSignTime :: OIDC.RSASIGNTIME
-    , ajax :: AX.AJAX
-    )
+  ( ajax :: AX.AJAX
+  , avar :: AVar.AVAR
+  , dom :: DOM.DOM
+  , err :: Exn.EXCEPTION
+  , now :: Date.Now
+  , ref ∷ Ref.REF
+  , rsaSignTime :: OIDC.RSASIGNTIME
+  )
 
 type RedirectState =
   { payload :: Payload.RedirectHashPayload
@@ -114,27 +114,25 @@ verifyRedirect st issuer jwk = do
 main :: Eff RedirectEffects Unit
 main = do
   -- We're getting token too fast. It isn't valid until next second (I think)
-  Aff.runAff Exn.throwException (\_ -> pure unit)  do
+  Aff.runAff Exn.throwException (const (pure unit)) do
     state <- liftEff retrieveRedirectState
     -- First, retrieve the provider that matches our stored ClientID.
-    Provider provider <- do
+    { openIDConfiguration } <- do
       providers <-
         Quasar.retrieveAuthProviders
-          >>= maybe
+          >>= either (const Nothing) id
+          >>> maybe
                 (liftEff
                  $ Exn.throw "Failed to retrieve auth providers from Quasar")
                 pure
 
-      F.find (\(Provider pr) -> pr.clientID == state.clientID) providers
+      F.find (\{ clientID } -> clientID == state.clientID) providers
         # maybe
             (liftEff
              $ Exn.throw
              $ "Could not find provider matching client ID '"
              <> OIDC.runClientID state.clientID <> "'")
             pure
-
-    let openIDConfiguration =
-          getOpenIDConfiguration provider.openIDConfiguration
 
     liftEff do
       -- Try to verify the IdToken against each of the provider's jwks,
@@ -145,7 +143,6 @@ main = do
             # foldl ((<|>)) empty
             # MBT.runMaybeT
           >>= maybe (Exn.throw "Failed to verify redirect") pure
-
 
       Auth.storeIdToken state.payload.idToken
       window

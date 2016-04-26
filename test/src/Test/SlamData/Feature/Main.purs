@@ -80,7 +80,7 @@ makeDownloadCapabilities FireFox path = buildFFProfile do
   setBoolPreference "browser.download.manager.showAlertOnComplete" false
   setBoolPreference "browser.download.manager.useWindow" false
   setStringPreference "browser.helperApps.neverAsk.saveToDisk"
-    "text/csv, application/ldjson"
+    "text/csv, application/ldjson, application/json"
 makeDownloadCapabilities _ _ = mempty
 
 tests :: SlamFeature Unit
@@ -126,7 +126,7 @@ runTests config =
     res ←
       attempt
       $ flip runReaderT readerInp do
-          setWindowSize { height: 1280, width: 1024 }
+          setWindowSize { height: 800, width: 1024 }
           tests
     quit driver
     either throwError (const $ pure unit) res

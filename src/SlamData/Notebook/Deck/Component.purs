@@ -24,11 +24,13 @@ module SlamData.Notebook.Deck.Component
 import SlamData.Prelude
 
 import Control.Monad.Aff.Console (log)
+import Control.Monad.Eff.Exception as Exn
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.UI.Browser (newTab, locationObject)
 import Control.Monad.Aff.Free (fromEff)
 
 import CSS.Geometry (width)
-import CSS.Size (pct, Size(..), Rel, nil)
+import CSS.Size (pct, Size(..), nil)
 import CSS.String (fromString)
 import CSS.Transform (transform, translate)
 
@@ -53,46 +55,42 @@ import Ace.Halogen.Component as Ace
 import DOM.HTML.Location as Location
 
 import Halogen as H
-import Halogen.Component.ChildPath (ChildPath, injSlot, injState)
+import Halogen.Component.ChildPath (injSlot, injState)
 import Halogen.Component.Utils (forceRerender')
 import Halogen.HTML.CSS.Indexed (style)
-import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Events.Handler as HEH
+import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
-
 import Halogen.Themes.Bootstrap3 as B
-import Quasar.Aff as Quasar
-import Quasar.Auth as Auth
 
 import SlamData.Config as Config
 import SlamData.Effects (Slam)
 import SlamData.FileSystem.Resource as R
 import SlamData.Notebook.AccessType (AccessType(..), isEditable)
 import SlamData.Notebook.Action as NA
-import SlamData.Notebook.Card.CardId (CardId(), runCardId, cardIdToString)
-import SlamData.Notebook.Card.CardType
-  (CardType(..), AceMode(..), cardName, cardGlyph, autorun, nextCardTypes)
+import SlamData.Notebook.Card.CardId (CardId(), cardIdToString)
+import SlamData.Notebook.Card.CardType (CardType(..), nextCardTypes)
 import SlamData.Notebook.Card.Common.EvalQuery (CardEvalQuery(..))
-import SlamData.Notebook.Card.Component
-  (CardQueryP(), CardQuery(..), InnerCardQuery, CardStateP, AnyCardQuery(..), _NextQuery, initEditorCardState)
+import SlamData.Notebook.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery(..), _NextQuery, initialCardState)
 import SlamData.Notebook.Card.Next.Component as Next
+import SlamData.Notebook.Card.OpenResource.Component as Open
 import SlamData.Notebook.Card.Port (Port(..))
-import SlamData.Notebook.Deck.Component.Query (QueryP, Query(..))
-import SlamData.Notebook.Deck.Component.State (CardConstructor, CardDef, DebounceTrigger, State, StateP, StateMode(Error, Loading, Ready), _accessType, _activeCardId, _backsided, _browserFeatures, _cards, _dependencies, _fresh, _globalVarMap, _initialSliderX, _name, _nextActionCardElement, _path, _pendingCards, _runTrigger, _saveTrigger, _sliderTransition, _sliderTranslateX, _stateMode, _viewingCard, activeCardIndex, addCard, addCard', addPendingCard, cardIsLinkedCardOf, cardsOfType, findChildren, findDescendants, findLast, findLastCardType, findParent, findRoot, fromModel, getCardType, initialDeck, notebookPath, removeCards)
-import SlamData.Notebook.Deck.Model as Model
-import SlamData.Notebook.FileInput.Component as Fi
-import SlamData.Notebook.Routing (mkNotebookHash, mkNotebookCardHash, mkNotebookURL)
-import SlamData.Render.Common (glyph, fadeWhen)
-import SlamData.Render.CSS as CSS
-import SlamData.Notebook.Deck.Component.ChildSlot (cpBackSide, cpCard, ChildQuery, ChildState, ChildSlot, CardSlot(..))
 import SlamData.Notebook.Deck.BackSide.Component as Back
+import SlamData.Notebook.Deck.Component.ChildSlot (cpBackSide, cpCard, ChildQuery, ChildState, ChildSlot, CardSlot(..))
+import SlamData.Notebook.Deck.Component.Query (QueryP, Query(..))
+import SlamData.Notebook.Deck.Component.State (CardConstructor, CardDef, DebounceTrigger, State, StateP, StateMode(..), _accessType, _activeCardId, _browserFeatures, _cards, _dependencies, _fresh, _globalVarMap, _name, _path, _pendingCards, _runTrigger, _saveTrigger, _stateMode, _viewingCard, _backsided, addCard, addCard', addPendingCard,  cardsOfType, findChildren, findDescendants, findParent, findRoot, fromModel, getCardType, initialDeck, notebookPath, removeCards, findLast, findLastCardType, activeCardIndex, _initialSliderX, _sliderTransition, _sliderTranslateX, _nextActionCardElement)
+import SlamData.Notebook.Deck.Model as Model
+import SlamData.Notebook.Routing (mkNotebookHash, mkNotebookCardHash, mkNotebookURL)
+import SlamData.Quasar.Data (save, load) as Quasar
+import SlamData.Quasar.FS (move, getNewName) as Quasar
+import SlamData.Render.CSS as CSS
 
-import Utils.Debounced (debouncedEventSource)
-import Utils.Path (DirPath)
-import Utils.DOM (getBoundingClientRect, offsetLeft)
 import Utils.CSS (transition)
+import Utils.Debounced (debouncedEventSource)
+import Utils.DOM (getBoundingClientRect)
+import Utils.Path (DirPath)
 
 type NotebookHTML = H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
 type NotebookDSL = H.ParentDSL State ChildState Query ChildQuery Slam ChildSlot
@@ -220,7 +218,6 @@ render state =
 
   viewingStyle cardDef cid =
     guard (not (cardDef.id ≡ cid))
-    *> guard (not (cardIsLinkedCardOf { childId: cardDef.id, parentId: cid} state))
     $> (HP.class_ CSS.invisible)
 
   shouldHideNextAction =
@@ -239,7 +236,7 @@ render state =
     , cardGripper true
     , HH.slot' cpCard (CardSlot top) \_ →
        { component: Next.nextCardComponent
-       , initialState: H.parentState $ initEditorCardState
+       , initialState: H.parentState initialCardState
        }
     ]
 
@@ -278,7 +275,7 @@ eval (RunActiveCard next) =
 eval (LoadNotebook fs dir next) = do
   state ← H.get
   H.modify (_stateMode .~ Loading)
-  json ← H.fromAff $ Auth.authed $ Quasar.load $ dir </> Pathy.file "index"
+  json ← Quasar.load $ dir </> Pathy.file "index"
   case Model.decode =<< json of
     Left err → do
       H.fromAff $ log err
@@ -313,17 +310,16 @@ eval (ExploreFile fs res next) = do
   setDeckState $ initialDeck fs
   H.modify
     $ (_path .~ Pathy.parentDir res)
-    ∘ (addCard Explore Nothing)
+    ∘ (addCard OpenResource Nothing)
   forceRerender'
   H.query' cpCard (CardSlot zero)
     $ right
     $ H.ChildF unit
     $ right
-    $ ExploreQuery
+    $ OpenResourceQuery
     $ right
-    $ H.ChildF unit
     $ H.action
-    $ Fi.SelectFile
+    $ Open.ResourceSelected
     $ R.File res
   forceRerender'
   runCard zero
@@ -382,18 +378,18 @@ eval (StartSliding mouseEvent next) =
     $> next
   where
   setInitialSliderX =
-    H.modify <<< (_initialSliderX .~)
+    H.modify <<< (_initialSliderX .~ _)
   setSliderTransition =
-    H.modify <<< (_sliderTransition .~)
+    H.modify <<< (_sliderTransition .~ _)
   setBacksided =
-    H.modify <<< (_backsided .~)
+    H.modify <<< (_backsided .~ _)
 eval (StopSlidingAndSnap mouseEvent next) =
   startTransition *> snap *> stopSliding $> next
   where
   stopSliding =
     setInitialX Nothing *> setTranslateX 0.0
   setInitialX =
-    H.modify <<< (_initialSliderX .~)
+    H.modify <<< (_initialSliderX .~ _)
   getBoundingClientWidth =
     fromEff <<< map _.width <<< getBoundingClientRect
   getNextActionCardElement =
@@ -401,9 +397,9 @@ eval (StopSlidingAndSnap mouseEvent next) =
   getCardWidth =
     traverse getBoundingClientWidth =<< getNextActionCardElement
   setActiveCardId =
-    H.modify <<< (_activeCardId .~)
+    H.modify <<< (_activeCardId .~ _)
   setTranslateX =
-    H.modify <<< (_sliderTranslateX .~)
+    H.modify <<< (_sliderTranslateX .~ _)
   snapActiveCardIndex translateX (Just cardWidth) | translateX < (-(cardWidth / 2.0)) =
     add 1
   snapActiveCardIndex translateX (Just cardWidth) | translateX > (cardWidth / 2.0) =
@@ -419,7 +415,7 @@ eval (StopSlidingAndSnap mouseEvent next) =
   snap =
     setActiveCardId =<< (snapActiveCardId <$> H.get <*> getCardWidth)
   setSliderTransition =
-    H.modify <<< (_sliderTransition .~)
+    H.modify <<< (_sliderTransition .~ _)
   startTransition =
     setSliderTransition true
 eval (UpdateSliderPosition mouseEvent next) =
@@ -430,17 +426,17 @@ eval (UpdateSliderPosition mouseEvent next) =
   translateXCalc initialX =
     mouseEvent.screenX - initialX
   setTranslateX =
-    H.modify <<< (_sliderTranslateX .~)
+    H.modify <<< (_sliderTranslateX .~ _)
 eval (SetNextActionCardElement element next) =
   Debug.Trace.traceAnyA element *> setNextActionCardElement element *> (Debug.Trace.traceAnyA =<< H.get) $> next
   where
   setNextActionCardElement =
-    H.modify <<< (_nextActionCardElement .~)
+    H.modify <<< (_nextActionCardElement .~ _)
 eval (StopSliderTransition next) =
   setSliderTransition false $> next
   where
   setSliderTransition =
-    H.modify <<< (_sliderTransition .~)
+    H.modify <<< (_sliderTransition .~ _)
 
 
 peek ∷ ∀ a. H.ChildF ChildSlot ChildQuery a → NotebookDSL Unit
@@ -688,27 +684,34 @@ saveNotebook _ = H.get >>= \st → do
 
       let json = Model.encode { cards, dependencies: st.dependencies }
 
-      savedName ← case st.name of
-        This name → save path name json
+      savedName ← runExceptT case st.name of
+        This name → ExceptT $ save path name json
         That name → do
-          newName ← getNewName' path name
-          save path newName json
+          newName ← ExceptT $ getNewName' path name
+          ExceptT $ save path newName json
         Both oldName newName → do
-          save path oldName json
+          ExceptT $ save path oldName json
           if newName ≡ nameFromDirName oldName
             then pure oldName
-            else rename path oldName newName
+            else ExceptT $ rename path oldName newName
 
-      H.modify (_name .~ This savedName)
-      -- We need to get the modified version of the notebook state.
-      H.gets notebookPath >>= traverse_ \path' →
-        let notebookHash =
-              case st.viewingCard of
-                Nothing →
-                  mkNotebookHash path' (NA.Load st.accessType) st.globalVarMap
-                Just cid →
-                  mkNotebookCardHash path' cid st.accessType st.globalVarMap
-        in H.fromEff $ locationObject >>= Location.setHash notebookHash
+      case savedName of
+        Left err →
+          -- TODO: do something to notify the user saving failed
+          pure unit
+        Right savedName' → do
+          H.modify (_name .~ This savedName')
+          -- We need to get the modified version of the notebook state.
+          H.gets notebookPath >>= traverse_ \path' →
+            let notebookHash =
+                  case st.viewingCard of
+                    Nothing →
+                      mkNotebookHash path' (NA.Load st.accessType) st.globalVarMap
+                    Just cid →
+                      mkNotebookCardHash path' cid st.accessType st.globalVarMap
+            in H.fromEff $ locationObject >>= Location.setHash notebookHash
+
+      pure unit
 
   where
 
@@ -722,29 +725,33 @@ saveNotebook _ = H.get >>= \st → do
       nameHasntBeenModified = theseRight name ≡ Just Config.newNotebookName
     in
       nameHasntBeenModified
-      ∧ (cardArrays ≡ [ Explore ] ∨ cardArrays ≡ [ Explore, JTable ])
+      ∧ (cardArrays ≡ [ OpenResource ] ∨ cardArrays ≡ [ OpenResource, JTable ])
 
   -- Finds a new name for a notebook in the specified parent directory, using
   -- a name value as a basis to start with.
-  getNewName' ∷ DirPath → String → NotebookDSL Pathy.DirName
+  getNewName' ∷ DirPath → String → NotebookDSL (Either Exn.Error Pathy.DirName)
   getNewName' dir name =
     let baseName = name ⊕ "." ⊕ Config.notebookExtension
-    in H.fromAff $ Pathy.DirName <$> Auth.authed (Quasar.getNewName dir baseName)
+    in map Pathy.DirName <$> Quasar.getNewName dir baseName
 
   -- Saves a notebook and returns the name it was saved as.
-  save ∷ DirPath → Pathy.DirName → Json → NotebookDSL Pathy.DirName
+  save ∷ DirPath → Pathy.DirName → Json → NotebookDSL (Either Exn.Error Pathy.DirName)
   save dir name json = do
     let notebookPath = dir </> Pathy.dir' name </> Pathy.file "index"
-    H.fromAff $ Auth.authed $ Quasar.save notebookPath json
-    pure name
+    Quasar.save notebookPath json
+    pure (Right name)
 
   -- Renames a notebook and returns the new name it was changed to.
-  rename ∷ DirPath → Pathy.DirName → String → NotebookDSL Pathy.DirName
-  rename dir oldName newName = do
-    newName' ← getNewName' dir newName
+  rename
+    ∷ DirPath
+    → Pathy.DirName
+    → String
+    → NotebookDSL (Either Exn.Error Pathy.DirName)
+  rename dir oldName newName = runExceptT do
+    newName' ← ExceptT $ getNewName' dir newName
     let oldPath = dir </> Pathy.dir' oldName
         newPath = dir </> Pathy.dir' newName'
-    H.fromAff $ Auth.authed $ Quasar.move (R.Directory oldPath) (Right newPath)
+    ExceptT $ Quasar.move (R.Directory oldPath) (Left newPath)
     pure newName'
 
 -- | Takes a `DirName` for a saved notebook and returns the name part without

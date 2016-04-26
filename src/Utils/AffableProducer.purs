@@ -14,15 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.Notebook.Card.Explore.Component.Query where
+module Utils.AffableProducer where
 
 import SlamData.Prelude
 
-import Halogen (ChildF)
+import Control.Coroutine (Producer)
+import Control.Coroutine.Aff as CCA
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff.Free (class Affable, fromAff)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Free.Trans (hoistFreeT)
 
-import SlamData.Notebook.Card.Common.EvalQuery (CardEvalQuery)
-import SlamData.Notebook.FileInput.Component as FI
-
-data Query a = UpdateExplore String a
-
-type QueryP = Coproduct CardEvalQuery (ChildF Unit FI.Query)
+produce
+  :: forall a r m eff
+   . (Functor m, Affable (avar :: AVAR | eff) m)
+  => ((Either a r -> Eff (avar :: AVAR | eff) Unit) -> Eff (avar :: AVAR | eff) Unit)
+  -> Producer a m r
+produce = hoistFreeT fromAff <<< CCA.produce

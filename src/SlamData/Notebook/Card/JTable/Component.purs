@@ -23,24 +23,25 @@ module SlamData.Notebook.Card.JTable.Component
 
 import SlamData.Prelude
 
+import Control.Monad.Eff.Exception (message)
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
+
 import Data.Argonaut.Core as JSON
 import Data.Int as Int
 import Data.Lens ((.~), (?~))
 
 import Halogen as H
 
-import Quasar.Aff as Quasar
-import Quasar.Auth as Auth
-
 import SlamData.Effects (Slam)
+import SlamData.Notebook.Card.CardType as Ct
 import SlamData.Notebook.Card.Common.EvalQuery (CardEvalQuery(..), CardEvalResult)
 import SlamData.Notebook.Card.Component (CardQueryP, CardStateP, makeCardComponent, makeQueryPrism, _JTableState, _JTableQuery)
 import SlamData.Notebook.Card.JTable.Component.Query (QueryP, PageStep(..), Query(..))
 import SlamData.Notebook.Card.JTable.Component.Render (render)
 import SlamData.Notebook.Card.JTable.Component.State (Input, PageInfo, State, _input, _isEnteringPageSize, _page, _pageSize, _resource, _result, _size, currentPageInfo, fromModel, initialState, pendingPageInfo, resizePage, setPage, setPageSize, stepPage, toModel)
-import SlamData.Notebook.Card.CardType as Ct
 import SlamData.Notebook.Card.JTable.Model as Model
 import SlamData.Notebook.Card.Port (Port(..))
+import SlamData.Quasar.Query as Quasar
 
 jtableComponent ∷ H.Component CardStateP CardQueryP Slam
 jtableComponent = makeCardComponent
@@ -62,37 +63,40 @@ queryShouldRun = coproduct (const false) pred
 evalCard ∷ Natural CardEvalQuery (H.ComponentDSL State QueryP Slam)
 evalCard (NotifyRunCard next) =
   pure next
+evalCard (NotifyStopCard next) =
+  pure next
 evalCard (EvalCard value k) =
   case value.inputPort of
     Just (TaggedResource { tag, resource }) → do
-      oldInput ← H.gets _.input
+      done ← runExceptT do
+        oldInput ← lift $ H.gets _.input
 
-      when (((oldInput <#> _.resource) ≠ pure resource)
-            || ((oldInput >>= _.tag) ≠ tag))
-        $ H.set initialState
+        when (((oldInput <#> _.resource) ≠ pure resource)
+              || ((oldInput >>= _.tag) ≠ tag))
+          $ lift $ H.set initialState
 
-      size ← H.fromAff $ Auth.authed (Quasar.count resource)
+        size ← ExceptT $ Quasar.count resource
 
-      H.modify $ _input ?~ { resource, size, tag }
+        lift $ H.modify $ _input ?~ { resource, size, tag }
 
-      p ← H.gets pendingPageInfo
+        p ← lift $ H.gets pendingPageInfo
 
-      items ←
-        H.fromAff
-        $ Auth.authed
-        $ Quasar.sample
-            resource
-            ((p.page - 1) * p.pageSize)
-            p.pageSize
+        items ← ExceptT
+          $ Quasar.sample
+              resource
+              ((p.page - 1) * p.pageSize)
+              p.pageSize
 
-      H.modify
-        $ (_isEnteringPageSize .~ false)
-        ∘ (_result ?~
-              { json: JSON.fromArray items
-              , page: p.page
-              , pageSize: p.pageSize
-              })
-      pure $ k (result value.inputPort)
+        lift $ H.modify
+          $ (_isEnteringPageSize .~ false)
+          ∘ (_result ?~
+                { json: JSON.fromArray items
+                , page: p.page
+                , pageSize: p.pageSize
+                })
+      case done of
+        Left err → pure $ k $ error (message err)
+        Right _ → pure $ k (result value.inputPort)
 
     Just Blocked → do
       H.set initialState

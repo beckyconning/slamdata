@@ -24,7 +24,7 @@ import SlamData.Prelude
 
 import Control.UI.Browser (newTab)
 
-import Data.Array (sort)
+import Data.Array (sort, nub)
 import Data.Lens ((.~), (%~), (<>~), _Left, _Right)
 import Data.String as Str
 
@@ -44,7 +44,7 @@ comp = H.component { render, eval }
 
 eval :: Natural Query (H.ComponentDSL State Query Slam)
 eval (SourceTyped s next) = do
-  H.modify (_source .~ maybe (Left s) (Right <<< either File Directory)
+  H.modify (_source .~ maybe (Left s) (Right <<< either Directory File)
           (parseAnyPath s))
   H.modify validate
   pure next
@@ -89,9 +89,9 @@ eval (Dismiss next) =
   pure next
 eval (SetSources srcs next) = do
   H.modify (_sources .~ srcs)
-  H.modify (_sources %~ sort)
+  H.modify (_sources %~ sort ∘ nub)
   pure next
 eval (AddSources srcs next) = do
   H.modify (_sources <>~ srcs)
-  H.modify (_sources %~ sort)
+  H.modify (_sources %~ sort ∘ nub)
   pure next

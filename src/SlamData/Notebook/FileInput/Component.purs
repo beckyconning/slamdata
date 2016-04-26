@@ -25,11 +25,14 @@ import SlamData.Prelude
 
 import Control.Coroutine as CR
 import Control.Monad.Aff (Aff)
+import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Free.Trans as FT
 
 import Data.Array as A
 import Data.Path.Pathy as P
+import Data.Date as Date
 
 import DOM (DOM)
 
@@ -43,16 +46,17 @@ import Halogen.Themes.Bootstrap3 as B
 
 import Network.HTTP.Affjax (AJAX)
 
-import Quasar.Aff as API
-import Quasar.Auth (retrieveIdToken)
-import Quasar.Auth.Permission (retrievePermissionTokens)
+import Quasar.Types (FilePath)
 
 import SlamData.FileSystem.Resource as R
+import SlamData.Quasar.FS as API
 import SlamData.Render.CSS as CSS
+
+import Utils.Path as PU
 
 type State =
   { files :: Array R.Resource
-  , selectedFile :: Either String R.Resource
+  , selectedFile :: Either String FilePath
   , currentFilePath :: String
   , showFiles :: Boolean
   }
@@ -68,12 +72,14 @@ initialState =
 data Query a
   = ToggleFileList a
   | SelectFile R.Resource a
-  | GetSelectedFile (Either String R.Resource -> a)
+  | GetSelectedFile (Either String FilePath -> a)
   | UpdateFile String a
 
 type Effects e =
-  API.RetryEffects
-    ( ajax :: AJAX
+    ( avar :: AVar.AVAR
+    , now :: Date.Now
+    , ref :: Ref.REF
+    , ajax :: AJAX
     , err :: EXCEPTION
     , dom :: DOM
     | e
@@ -95,26 +101,24 @@ eval q =
       shouldShowFiles <- H.get <#> _.showFiles >>> not
       H.modify (_ { showFiles = shouldShowFiles })
       when shouldShowFiles $ do
-        idToken <- H.fromEff retrieveIdToken
-        perms <- H.fromEff retrievePermissionTokens
         let
           fileProducer =
-            FT.hoistFreeT H.liftH $
-              API.transitiveChildrenProducer P.rootDir idToken perms
+            FT.hoistFreeT H.liftH $ API.transitiveChildrenProducer P.rootDir
           fileConsumer =
-            CR.consumer \fs -> do
-              H.modify $ appendFiles fs
-              pure Nothing
+            CR.consumer \fs -> H.modify (appendFiles fs) $> Nothing
         CR.runProcess (fileProducer CR.$$ fileConsumer)
       pure next
-    SelectFile r next -> do
-      H.modify \state ->
-        state
-          { selectedFile = pure r
-          , currentFilePath = R.resourcePath r
-          , showFiles = false
-          }
-      pure next
+    SelectFile r next ->
+      case R.getPath r of
+        Left _ -> pure next
+        Right file -> do
+          H.modify \state ->
+            state
+              { selectedFile = pure file
+              , currentFilePath = R.resourcePath r
+              , showFiles = false
+              }
+          pure next
     GetSelectedFile k ->
       k <$> H.gets _.selectedFile
     UpdateFile "" next -> do
@@ -124,8 +128,8 @@ eval q =
       pure next
     UpdateFile path next -> do
       H.modify $ _{ selectedFile =
-                     lmap (\x -> "\"" <> x <> "\" is incorrect path for file")
-                     $ R.fileResourceFromString path
+                     lmap (\x -> "\"" <> x <> "\" is an incorrect path for a file")
+                     $ fileFromString path
                 , currentFilePath = path
                 }
       pure next
@@ -180,3 +184,6 @@ renderItem r =
     ]
     [ HH.text $ R.resourcePath r
     ]
+
+fileFromString :: String -> Either String FilePath
+fileFromString path = maybe (Left path) Right (PU.parseFilePath path)

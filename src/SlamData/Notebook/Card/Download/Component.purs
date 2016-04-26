@@ -18,8 +18,6 @@ module SlamData.Notebook.Card.Download.Component where
 
 import SlamData.Prelude
 
-import Control.UI.Browser (encodeURIComponent)
-
 import Data.Lens ((?~), (.~), (%~), _Left, _Right, preview)
 import Data.Path.Pathy (printPath)
 
@@ -30,14 +28,11 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
-import Quasar.Aff (reqHeadersToJSON, encodeURI)
 import Quasar.Paths as Paths
 
 import SlamData.Download.Model as D
 import SlamData.Download.Render as Rd
 import SlamData.Effects (Slam)
-import SlamData.FileSystem.Resource (resourcePath)
-import SlamData.FileSystem.Resource as R
 import SlamData.Notebook.Card.CardType (CardType(Download))
 import SlamData.Notebook.Card.Common.EvalQuery as Ec
 import SlamData.Notebook.Card.Component (makeCardComponent, makeQueryPrism, _DownloadState, _DownloadQuery)
@@ -45,8 +40,11 @@ import SlamData.Notebook.Card.Component as Cc
 import SlamData.Notebook.Card.Download.Component.Query (QueryP, Query(..))
 import SlamData.Notebook.Card.Download.Component.State (State, _compress, _options, _source, decode, encode, initialState)
 import SlamData.Notebook.Card.Port as P
+import SlamData.Quasar (reqHeadersToJSON, encodeURI)
 import SlamData.Render.Common (row)
 import SlamData.Render.CSS as Rc
+
+import Utils.Path as PU
 
 type DownloadHTML = H.ComponentHTML QueryP
 type DownloadDSL = H.ComponentDSL State QueryP Slam
@@ -118,15 +116,14 @@ compress state =
         , HH.input
             [ HP.inputType HP.InputCheckbox
             , HP.checked $ compressed state
-            , HP.enabled $ fromMaybe false (R.isFile <$> state.source)
+            , HP.enabled $ isJust state.source
             , HE.onValueChange (HE.input_ (right ∘ ToggleCompress))
             ]
         ]
     ]
   where
   compressed ∷ State → Boolean
-  compressed state =
-    fromMaybe false (not R.isFile <$> state.source) || state.compress
+  compressed state = isJust state.source || state.compress
 
 downloadButton ∷ State → DownloadHTML
 downloadButton state =
@@ -138,18 +135,14 @@ downloadButton state =
     ]
     [ HH.text "Download" ]
   where
-  url ∷ R.Resource → String
-  url res =
-    (encodeURI
-     (printPath Paths.dataUrl
-      ⊕ resourcePath res))
-    ⊕ headersPart
-
+  url ∷ PU.FilePath → String
+  url file =
+    (encodeURI (printPath Paths.data_ ⊕ printPath file)) ⊕ headersPart
 
   headersPart ∷ String
   headersPart =
    "?request-headers="
-   ⊕ (encodeURIComponent $ show $ reqHeadersToJSON $ D.toHeaders state)
+   ⊕ (Global.encodeURIComponent $ show $ reqHeadersToJSON $ D.toHeaders state)
 
 eval ∷ Natural QueryP DownloadDSL
 eval = coproduct cardEval downloadEval
@@ -162,6 +155,7 @@ cardEval (Ec.EvalCard { inputPort } continue) = do
     _ → pure unit
   pure $ continue { output: Just P.Blocked, messages: [] }
 cardEval (Ec.NotifyRunCard next) = pure next
+cardEval (Ec.NotifyStopCard next) = pure next
 cardEval (Ec.Save k) = map (k ∘ encode) H.get
 cardEval (Ec.Load json next) = for_ (decode json) H.set $> next
 cardEval (Ec.SetupCard { inputPort } next) = do
