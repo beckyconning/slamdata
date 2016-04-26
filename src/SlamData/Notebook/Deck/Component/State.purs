@@ -472,4 +472,4 @@ fromModel browserFeatures path name { cards, dependencies } state =
 activeCardIndex :: State -> Int
 activeCardIndex st = fromMaybe (L.length st.cards) (L.findIndex isActiveCard st.cards)
   where
-  isActiveCard = (== st.activeCardId) <<< Just <<< _.id
+  isActiveCard = eq st.activeCardId <<< Just <<< _.id
