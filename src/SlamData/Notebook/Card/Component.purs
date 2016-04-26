@@ -47,7 +47,7 @@ import Halogen.Query.EventSource (EventSource(..))
 import Halogen.Query.HalogenF (HalogenFP(..))
 
 import SlamData.Effects (Slam)
-import SlamData.Notebook.Card.CardType (nextCardTypes)
+import SlamData.Notebook.Card.CardType (nextCardTypes, cardClasses)
 import SlamData.Notebook.Card.Common.EvalQuery (prepareCardEvalInput)
 import SlamData.Notebook.Card.Component.Def (CardDef, makeQueryPrism, makeQueryPrism')
 import SlamData.Notebook.Card.Component.Query (CardEvalInputPre, CardQueryP, InnerCardQuery, AnyCardQuery(..), CardEvalQuery(..), CardQuery(..), _APIQuery, _APIResultsQuery, _AceQuery, _AnyCardQuery, _CardEvalQuery, _ChartQuery, _DownloadQuery, _JTableQuery, _MarkdownQuery, _SearchQuery, _VizQuery, _NextQuery, _SaveQuery, _OpenResourceQuery)
@@ -80,31 +80,25 @@ makeCardComponent def = makeCardComponentPart def render
       then HH.text ""
       else shown cs
     where
-    canHaveOutput =
-      not $ Arr.null $ nextCardTypes $ Just def.cardType
-    shouldCollapse =
-      cs.isCollapsed || isJust (cs.input >>= preview _Blocked)
-    collapsedClass  =
-      (guard shouldCollapse) $> CSS.collapsed
-
-    hideIfCollapsed =
-      ARIA.hidden $ show shouldCollapse
 
     shown ∷ CardState → CardHTML
     shown cs =
-      HH.div [ HP.classes $ join [ containerClasses, collapsedClass  ] ]
-      $ fold
-          [
-            header def.cardType cs
-          , [ HH.div [ HP.classes ([])
-                     , hideIfCollapsed
-                     ]
-              [ HH.slot unit \_ → {component, initialState} ]
+      HH.div
+        [ HP.classes $ [ CSS.notebookCard ] <> collapsedClass ]
+        $ fold
+          [ header def.cardType cs
+          , [ HH.div
+                [ hideIfCollapsed
+                , HP.classes $ cardClasses def.cardType
+                ]
+                [ HH.slot unit \_ → {component, initialState} ]
             ]
-          , (guard canHaveOutput) $> statusBar cs.hasResults cs
+          , guard canHaveOutput $> statusBar cs.hasResults cs
           ]
-containerClasses ∷ Array (HH.ClassName)
-containerClasses = [CSS.notebookCard]
+    canHaveOutput = not $ Arr.null $ nextCardTypes $ Just def.cardType
+    shouldCollapse = cs.isCollapsed || isJust (cs.input >>= preview _Blocked)
+    collapsedClass = guard shouldCollapse $> CSS.collapsed
+    hideIfCollapsed = ARIA.hidden $ show shouldCollapse
 
 -- | Constructs a card component from a record with the necessary properties and
 -- | a render function.
