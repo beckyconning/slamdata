@@ -5,13 +5,18 @@ import Control.Monad.Eff.Class (liftEff)
 import Data.Array as Arr
 import Data.Map as Map
 import Data.String as Str
-import Selenium.Monad (tryRepeatedlyTo, get, refresh, getCurrentUrl)
+import Selenium.Monad (get, refresh, getCurrentUrl)
 import Test.Feature as Feature
 import Test.SlamData.Feature.Monad (SlamFeature, getConfig, waitTime)
 import Test.SlamData.Feature.XPaths as XPaths
 import Test.SlamData.Feature.Expectations as Expect
 import Test.Utils (appendToCwd)
 import XPath as XPath
+
+followingLastPreviousCardGripper :: String -> String
+followingLastPreviousCardGripper = XPath.following lastPreviousCardGripperXPath
+  where
+  lastPreviousCardGripperXPath = XPath.last $ XPath.anywhere XPaths.previousCardGripper
 
 launchSlamData ∷ SlamFeature Unit
 launchSlamData = get ∘ _.slamdataUrl =<< getConfig
@@ -122,111 +127,61 @@ reopenCurrentNotebook = waitTime 2000 *> refresh
 expandNewCardMenu ∷ SlamFeature Unit
 expandNewCardMenu = Feature.click (XPath.anywhere XPaths.insertCard)
 
-accessFirstCard :: SlamFeature Unit
-accessFirstCard =
-  tryRepeatedlyTo
-    $ accessPreviousCard
-    *> expectNotPresenentedNotRepeatedly (XPath.anywhere XPaths.previousCardGripperXPath)
+accessNextCardInLastDeck ∷ SlamFeature Unit
+accessNextCardInLastDeck =
+  Feature.dragAndDrop
+    (XPath.last $ XPath.anywhere $ XPaths.enabledNextCardGripper)
+    (XPath.last $ XPath.anywhere $ XPaths.previousCardGripper)
 
-accessNextActionCard :: SlamFeature Unit
-accessNextActionCard =
-  tryRepeatedlyTo
-    $ accessNextCard
-    *> expectNotPresenentedNotRepeatedly (XPath.anywhere XPaths.nextCardGripperXPath)
+accessPreviousCardInLastDeck ∷ SlamFeature Unit
+accessPreviousCardInLastDeck =
+  Feature.dragAndDrop
+    (XPath.last $ XPath.anywhere $ XPaths.enabledPreviousCardGripper)
+    (XPath.last $ XPath.anywhere $ XPaths.nextCardGripper)
 
-accessNextCard ∷ SlamFeature Unit
-accessNextCard =
-  drag
-    (XPath.anywhere XPaths.nextCardGripperXPath)
-    (XPath.anywhere XPaths.previousCardGripperXPath)
+insertSearchCardInLastDeck ∷ SlamFeature Unit
+insertSearchCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertSearchCard
 
-accessPreviousCard ∷ SlamFeature Unit
-accessPreviousCard =
-  drag
-    (XPath.anywhere XPaths.previousCardGripperXPath)
-    (XPath.anywhere XPaths.nextCardGripperXPath)
+insertQueryCardInLastDeck ∷ SlamFeature Unit
+insertQueryCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertQueryCard
 
-insertQueryCardAsFirstCardInNewDeck ∷ SlamFeature Unit
-insertQueryCardAsFirstCardInNewDeck =
-  accessNextActionCard *> Feature.click (XPath.anywhere XPaths.insertQueryCard)
+insertMdCardInLastDeck ∷ SlamFeature Unit
+insertMdCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertMdCard
 
-insertSaveCardAsNextAction ∷ SlamFeature Unit
-insertSaveCardAsNextAction =
-  accessNextActionCard *> Feature.click (XPath.anywhere XPaths.insertSaveCard)
+insertExploreCardInLastDeck ∷ SlamFeature Unit
+insertExploreCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertExploreCard
 
-insertMdCardAsFirstCardInNewDeck ∷ SlamFeature Unit
-insertMdCardAsFirstCardInNewDeck =
-  accessNextActionCard *> Feature.click (XPath.anywhere XPaths.insertMdCard)
+insertVisualizeCardInLastDeck ∷ SlamFeature Unit
+insertVisualizeCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertVisualizeCard
 
-insertExploreCardAsFirstCardInNewDeck ∷ SlamFeature Unit
-insertExploreCardAsFirstCardInNewDeck =
-  accessNextActionCard *> Feature.click (XPath.anywhere XPaths.insertExploreCard)
+insertFormCardInLastDeck ∷ SlamFeature Unit
+insertFormCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertFormCard
 
-insertSearchCardAsFirstCardInNewDeck ∷ SlamFeature Unit
-insertSearchCardAsFirstCardInNewDeck =
-  accessNextActionCard *> Feature.click (XPath.anywhere XPaths.insertSearchCard)
+insertJTableCardInLastDeck ∷ SlamFeature Unit
+insertJTableCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertJTableCard
 
-insertApiCardAsFirstCardInNewDeck ∷ SlamFeature Unit
-insertApiCardAsFirstCardInNewDeck =
-  Feature.click (XPath.anywhere XPaths.insertApiCard)
+insertChartCardInLastDeck ∷ SlamFeature Unit
+insertChartCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertChartCard
 
-insertSearchCardAsNextAction ∷ SlamFeature Unit
-insertSearchCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertSearchCardAsNextAction
+insertSaveCardInLastDeck ∷ SlamFeature Unit
+insertSaveCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertSaveCard
 
-insertQueryCardAsNextAction ∷ SlamFeature Unit
-insertQueryCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertQueryCardAsNextAction
+insertApiCardInLastDeck ∷ SlamFeature Unit
+insertApiCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertApiCard
 
-insertMdCardAsNextAction ∷ SlamFeature Unit
-insertMdCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertMdCardAsNextAction
-
-insertExploreCardAsNextAction ∷ SlamFeature Unit
-insertExploreCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertExploreCardAsNextAction
-
-insertVisualizeCardAsNextAction ∷ SlamFeature Unit
-insertVisualizeCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertVisualizeCardAsNextAction
-
-insertFormCardAsNextAction ∷ SlamFeature Unit
-insertFormCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertFormCardAsNextAction
-
-insertJTableCardAsNextAction ∷ SlamFeature Unit
-insertJTableCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertJTableCardAsNextAction
-
-insertAPIResultsCardAsNextAction ∷ SlamFeature Unit
-insertAPIResultsCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertAPIResultsCardAsNextAction
-
-insertChartCardAsNextAction ∷ SlamFeature Unit
-insertChartCardAsNextAction =
-  click
-    $ XPath.last (XPath.anywhere XPaths.cardHeading)
-    `XPath.following` XPaths.insertChartCardAsNextAction
-
-playLastCard ∷ SlamFeature Unit
-playLastCard =
-  Feature.click $ XPath.last $ XPath.anywhere XPaths.playButton
+insertApiResultsCardInLastDeck ∷ SlamFeature Unit
+insertApiResultsCardInLastDeck =
+  Feature.click $ followingLastPreviousCardGripper XPaths.insertApiResultsCard
 
 selectFileForLastExploreCard ∷ String → SlamFeature Unit
 selectFileForLastExploreCard p = do
@@ -279,35 +234,35 @@ doSaveInLastSaveCard ∷ SlamFeature Unit
 doSaveInLastSaveCard =
   Feature.click (XPath.last $ XPath.anywhere XPaths.saveSubmitButton)
 
-Feature.provideFieldValueInLastMdCard ∷ String → String → SlamFeature Unit
-Feature.provideFieldValueInLastMdCard labelText =
+provideFieldValueInLastDeck ∷ String → String → SlamFeature Unit
+provideFieldValueInLastDeck labelText =
   Feature.provideFieldValue
-    $ (XPath.anywhere $ XPaths.formCardTitle)
-    `XPath.following` "input" `XPath.withLabelWithExactText` labelText
+    $ followingLastPreviousCardGripper
+    $ "input" `XPath.withLabelWithExactText` labelText
 
-checkFieldInLastMdCard ∷ String → SlamFeature Unit
-checkFieldInLastMdCard labelText =
+checkFieldInLastDeck ∷ String → SlamFeature Unit
+checkFieldInLastDeck labelText =
   Feature.check
-    $ (XPath.anywhere $ XPaths.formCardTitle)
-    `XPath.following` "input" `XPath.withLabelWithExactText` labelText
+    $ followingLastPreviousCardGripper
+    $ "input" `XPath.withLabelWithExactText` labelText
 
-uncheckFieldInLastMdCard ∷ String → SlamFeature Unit
-uncheckFieldInLastMdCard labelText =
+uncheckFieldInLastDeck ∷ String → SlamFeature Unit
+uncheckFieldInLastDeck labelText =
   Feature.uncheck
-    $ (XPath.anywhere $ XPaths.formCardTitle)
-    `XPath.following` "input" `XPath.withLabelWithExactText` labelText
+    $ followingLastPreviousCardGripper
+    $ "input" `XPath.withLabelWithExactText` labelText
 
-Feature.pushRadioButtonInLastMdCard ∷ String → SlamFeature Unit
-Feature.pushRadioButtonInLastMdCard labelText =
+pushRadioButtonInLastDeck ∷ String → SlamFeature Unit
+pushRadioButtonInLastDeck labelText =
   Feature.pushRadioButton
-    $ (XPath.last $ XPath.anywhere $ XPaths.mdCardTitle)
-    `XPath.following` "input" `XPath.withLabelWithExactText` labelText
+    $ followingLastPreviousCardGripper
+    $ "input" `XPath.withLabelWithExactText` labelText
 
-Feature.selectFromDropdownInLastMdCard ∷ String → String → SlamFeature Unit
-Feature.selectFromDropdownInLastMdCard labelText =
+selectFromDropdownInLastDeck ∷ String → String → SlamFeature Unit
+selectFromDropdownInLastDeck labelText =
   Feature.selectFromDropdown
-    $ (XPath.last $ XPath.anywhere $ XPaths.mdCardTitle)
-    `XPath.following` "select" `XPath.withLabelWithExactText` labelText
+    $ followingLastPreviousCardGripper
+    $ "select" `XPath.withLabelWithExactText` labelText
 
 accessSharingUrl ∷ SlamFeature Unit
 accessSharingUrl = Feature.accessUrlFromFieldValue $ XPath.anywhere XPaths.sharingUrl

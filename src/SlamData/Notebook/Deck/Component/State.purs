@@ -305,6 +305,7 @@ addCard' cardType parent st =
       { fresh = st.fresh + 1
       , cards = st.cards `L.snoc` mkCardDef cardType cardId st
       , activeCardId = Just cardId
+      , sliderSelectedCardId = Just cardId
       , cardTypes = M.insert cardId cardType st.cardTypes
       , dependencies =
           maybe st.dependencies (flip (M.insert cardId) st.dependencies) parent

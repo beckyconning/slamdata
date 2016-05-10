@@ -108,7 +108,9 @@ render state =
   case state.stateMode of
     DCS.Loading →
       HH.div
-        [ HP.classes [ B.alert, B.alertInfo ] ]
+        [ HP.classes [ B.alert, B.alertInfo ]
+        , HP.key "board"
+        ]
         [ HH.h1
           [ HP.class_ B.textCenter ]
           [ HH.text "Loading..." ]
@@ -123,7 +125,9 @@ render state =
     DCS.Ready →
       -- WARNING: Very strange things happen when this is not in a div; see SD-1326.
       HH.div
-        ([ HP.class_ CSS.board ] ++ Slider.containerProperties state)
+        ([ HP.class_ CSS.board
+         , HP.key "board"
+         ] ++ Slider.containerProperties state)
         [ HH.div
             [ HP.class_ CSS.deck
             , HP.key "deck-container"
@@ -269,7 +273,7 @@ eval (GetActiveCardId k) = map k $ H.gets DCS.findLast
 eval (StartSliding mouseEvent next) =
   Slider.startSliding mouseEvent $> next
 eval (StopSlidingAndSnap mouseEvent next) =
-  Slider.stopSlidingAndSnap $> next
+  Slider.stopSlidingAndSnap mouseEvent $> next
 eval (UpdateSliderPosition mouseEvent next) =
   Slider.updateSliderPositionAndSetSliderSelectedCardId mouseEvent $> next
 eval (SetNextActionCardElement element next) =
