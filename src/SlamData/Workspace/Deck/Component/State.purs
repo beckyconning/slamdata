@@ -58,9 +58,12 @@ module SlamData.Workspace.Deck.Component.State
   , cardsOfType
   , fromModel
   , deckPath
-  , virtualState
   , cardIndexFromId
   , activeCardIndex
+
+  , VirtualState()
+  , runVirtualState
+  , virtualState
   ) where
 
 import SlamData.Prelude
@@ -456,13 +459,19 @@ cardsOfType cardType =
        then Just cid
        else Nothing
 
+newtype VirtualState = VirtualState State
+
+runVirtualState ∷ VirtualState → State
+runVirtualState (VirtualState st) = st
+
 -- | Equip the state for presentation by inserting Error cards
 -- | in the appropriate places.
-virtualState ∷ State → State
+virtualState ∷ State → VirtualState
 virtualState st =
-  case findFirst hasError st.cards of
-    Just c → insertErrorCard c.id st
-    Nothing → st
+  VirtualState
+    case findFirst hasError st.cards of
+      Just c → insertErrorCard c.id st
+      Nothing → st
   where
 
   -- in case you're wondering, Data.Foldable.find does not find the *first*
@@ -550,12 +559,16 @@ fromModel browserFeatures path deckId { cards, dependencies, name } state =
         , ctor: H.SlotConstructor (CardSlot cardId) \_ → { component, initialState }
         }
 
-activeCardIndex :: State -> Int
-activeCardIndex state =
+activeCardIndex :: VirtualState -> Int
+activeCardIndex vstate =
   fromMaybe (L.length state.cards) (L.findIndex isActiveCard state.cards)
   where
+  state = runVirtualState vstate
   isActiveCard = eq state.activeCardId <<< Just <<< _.id
 
-cardIndexFromId :: State -> Maybe CardId -> Maybe Int
-cardIndexFromId state =
+cardIndexFromId :: VirtualState -> Maybe CardId -> Maybe Int
+cardIndexFromId vstate =
   maybe (Just $ L.length state.cards) (flip L.elemIndex (_.id <$> state.cards))
+  where
+  state = runVirtualState vstate
+

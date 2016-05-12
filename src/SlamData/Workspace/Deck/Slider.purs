@@ -53,26 +53,28 @@ import SlamData.Workspace.Deck.Component.Query (Query)
 import SlamData.Workspace.Deck.Component.Query as Query
 import SlamData.Workspace.Deck.Component.ChildSlot as ChildSlot
 import SlamData.Workspace.Card.Next.Component as Next
-import SlamData.Workspace.Deck.Component.State (State, CardDef)
+import SlamData.Workspace.Deck.Component.State (VirtualState, State, CardDef)
 import SlamData.Workspace.Deck.Component.State as State
 import SlamData.Prelude
 import SlamData.Render.CSS as ClassNames
 import Utils.CSS as CSSUtils
 import Utils.DOM (getBoundingClientRect)
 
-render :: State -> Boolean -> DeckHTML
-render state visible =
+render :: VirtualState -> Boolean -> DeckHTML
+render virtualState visible =
   HH.div
     ([ HP.key "deck-cards"
      , HP.classes [ ClassNames.cardSlider ]
      , HE.onTransitionEnd $ HE.input_ Query.StopSliderTransition
      , style
          $ (cardSliderWidthCSS $ List.length state.cards + 1)
-         *> (cardSliderTransformCSS (List.length state.cards + 1) (State.activeCardIndex state) state.sliderTranslateX)
+         *> (cardSliderTransformCSS (List.length state.cards + 1) (State.activeCardIndex virtualState) state.sliderTranslateX)
          *> (cardSliderTransitionCSS state.sliderTransition)
      ]
        ⊕ (guard (not visible) $> (HP.class_ ClassNames.invisible)))
     ((List.fromList (map (renderCard state) state.cards)) ⊕ [ renderNextActionCard state ])
+  where
+    state = State.runVirtualState virtualState
 
 startSliding :: Event MouseEvent -> DeckDSL Unit
 startSliding mouseEvent =
@@ -137,15 +139,18 @@ snapActiveCardIndex translateX cardWidth
 offsetCardSpacing :: Number -> Number
 offsetCardSpacing = add $ cardSpacingGridSquares * Config.gridPx
 
-snapActiveCardId :: State -> Maybe CardId
-snapActiveCardId st =
+snapActiveCardId :: VirtualState -> Maybe CardId
+snapActiveCardId virtualState =
   getCardIdByIndex st.cards
     $ maybe' (const id) (snapActiveCardIndex st.sliderTranslateX) st.initialSliderCardWidth
-    $ State.activeCardIndex st
+    $ State.activeCardIndex virtualState
+  where
+  st = State.runVirtualState virtualState
 
 snap :: DeckDSL Unit
 snap =
-  setLens State._activeCardId =<< getSnappedActiveCardId
+  setLens State._activeCardId
+    =<< getSnappedActiveCardId
 
 startTransition :: DeckDSL Unit
 startTransition =

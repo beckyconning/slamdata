@@ -94,8 +94,8 @@ comp =
     , peek: Just peek
     }
 
-render ∷ DCS.State → DeckHTML
-render state =
+render ∷ DCS.VirtualState → DeckHTML
+render vstate =
   case state.stateMode of
     DCS.Loading →
       HH.div
@@ -111,7 +111,7 @@ render state =
           -- is in the same place in both `Loading` and `Ready` states.
         , HH.div
             [ HP.key "deck-container" ]
-            [ Slider.render state $ not state.backsided ]
+            [ Slider.render vstate $ not state.backsided ]
         ]
     DCS.Ready →
       -- WARNING: Very strange things happen when this is not in a div; see SD-1326.
@@ -130,7 +130,7 @@ render state =
                 , HP.title "Flip deck"
                 ]
                 [ HH.text "" ]
-            , Slider.render state $ not state.backsided
+            , Slider.render vstate $ not state.backsided
             , renderBackside state.backsided
             ]
         ]
@@ -144,6 +144,7 @@ render state =
         ]
 
   where
+  state = DCS.runVirtualState vstate
   renderBackside visible =
     HH.div
       ([ HP.classes [ CSS.cardSlider ]
@@ -485,7 +486,7 @@ updateCard inputPort cardId = do
   runCardDescendants parentId value = do
     -- Crucially, we run the card descendents according to the virtual graph;
     -- this enables the correct behavior of virtual cards, including the Error Card.
-    children ← H.gets $ DCS.findChildren parentId ∘ DCS.virtualState
+    children ← H.gets $ DCS.findChildren parentId ∘ DCS.runVirtualState ∘ DCS.virtualState
     traverse_ (updateCard (Just value)) children
 
 -- | Triggers the H.query for autosave. This does not immediate perform the save
