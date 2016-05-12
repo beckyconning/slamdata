@@ -123,7 +123,7 @@ getCardIdByIndex cards =
 
 getSnappedActiveCardId :: DeckDSL (Maybe CardId)
 getSnappedActiveCardId =
-  snapActiveCardId <$> H.get
+  snapActiveCardId ∘ State.virtualState <$> H.get
 
 snapActiveCardIndex :: Number -> Number -> Int -> Int
 snapActiveCardIndex translateX cardWidth
