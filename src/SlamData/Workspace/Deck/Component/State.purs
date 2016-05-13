@@ -42,7 +42,6 @@ module SlamData.Workspace.Deck.Component.State
   , _initialSliderCardWidth
   , _sliderTransition
   , _sliderTranslateX
-  , _sliderSelectedCardId
   , _nextActionCardElement
   , addCard
   , addCard'
@@ -146,7 +145,6 @@ type State =
   , initialSliderCardWidth :: Maybe Number
   , sliderTransition :: Boolean
   , sliderTranslateX :: Number
-  , sliderSelectedCardId :: Maybe CardId
   , nextActionCardElement :: Maybe HTMLElement
   }
 
@@ -181,7 +179,6 @@ initialDeck browserFeatures =
   , initialSliderCardWidth: Nothing
   , sliderTransition: false
   , sliderTranslateX: 0.0
-  , sliderSelectedCardId: Nothing
   , nextActionCardElement: Nothing
   }
 
@@ -280,11 +277,6 @@ _sliderTransition = lens _.sliderTransition _{sliderTransition = _}
 _sliderTranslateX :: LensP State Number
 _sliderTranslateX = lens _.sliderTranslateX _{sliderTranslateX = _}
 
--- | The card to be selected (made active) when the slide interation ends.
--- | `Nothing` indicates the next action card.
-_sliderSelectedCardId :: LensP State (Maybe CardId)
-_sliderSelectedCardId = lens _.sliderSelectedCardId _{sliderSelectedCardId = _}
-
 -- | The next action card HTML element
 _nextActionCardElement :: LensP State (Maybe HTMLElement)
 _nextActionCardElement = lens _.nextActionCardElement _{nextActionCardElement = _}
@@ -308,7 +300,6 @@ addCard' cardType parent st =
       { fresh = st.fresh + 1
       , cards = st.cards `L.snoc` mkCardDef cardType cardId st
       , activeCardId = Just cardId
-      , sliderSelectedCardId = Just cardId
       , cardTypes = M.insert cardId cardType st.cardTypes
       , dependencies =
           maybe st.dependencies (flip (M.insert cardId) st.dependencies) parent
@@ -539,7 +530,6 @@ fromModel browserFeatures path deckId { cards, dependencies, name } state =
         , path = path
         , runTrigger = Nothing
         , pendingCards = S.empty
-        , sliderSelectedCardId = activeCardId
         }) :: State)
   where
   cardDefs = foldMap cardDefFromModel cards

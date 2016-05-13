@@ -17,7 +17,7 @@ limitations under the License.
 module SlamData.Workspace.Deck.Slider
   ( startSliding
   , stopSlidingAndSnap
-  , updateSliderPositionAndSetSliderSelectedCardId
+  , updateSliderPosition
   , setLens
   , cardWidthCSS
   , render
@@ -85,18 +85,17 @@ startSliding mouseEvent =
 
 stopSlidingAndSnap :: Event MouseEvent -> DeckDSL Unit
 stopSlidingAndSnap mouseEvent =
-  updateSliderPositionAndSetSliderSelectedCardId mouseEvent
+  updateSliderPosition mouseEvent
     *> startTransition
     *> snap
     *> stopSliding
 
-updateSliderPositionAndSetSliderSelectedCardId :: Event MouseEvent -> DeckDSL Unit
-updateSliderPositionAndSetSliderSelectedCardId mouseEvent =
-  (updateSliderPosition mouseEvent.screenX =<< H.gets _.initialSliderX)
-    *> (setLens State._sliderSelectedCardId =<< getSnappedActiveCardId)
+updateSliderPosition :: Event MouseEvent -> DeckDSL Unit
+updateSliderPosition mouseEvent =
+  (f mouseEvent.screenX =<< H.gets _.initialSliderX)
 
-updateSliderPosition :: Number -> Maybe Number -> DeckDSL Unit
-updateSliderPosition screenX =
+f :: Number -> Maybe Number -> DeckDSL Unit
+f screenX =
   maybe (pure unit) (setLens State._sliderTranslateX <<< translateXCalc screenX)
 
 translateXCalc :: Number -> Number -> Number
@@ -123,10 +122,6 @@ getCardIdByIndex :: List.List CardDef -> Int -> Maybe CardId
 getCardIdByIndex cards =
   map _.id <<< List.index cards
 
-getSnappedActiveCardId :: DeckDSL (Maybe CardId)
-getSnappedActiveCardId =
-  snapActiveCardId ∘ State.virtualState <$> H.get
-
 snapActiveCardIndex :: Number -> Number -> Int -> Int
 snapActiveCardIndex translateX cardWidth
   | translateX <= -(offsetCardSpacing cardWidth / 2.0) =
@@ -142,15 +137,15 @@ offsetCardSpacing = add $ cardSpacingGridSquares * Config.gridPx
 snapActiveCardId :: VirtualState -> Maybe CardId
 snapActiveCardId virtualState =
   getCardIdByIndex st.cards
-    $ maybe' (const id) (snapActiveCardIndex st.sliderTranslateX) st.initialSliderCardWidth
+    $ maybe id (snapActiveCardIndex st.sliderTranslateX) st.initialSliderCardWidth
     $ State.activeCardIndex virtualState
   where
   st = State.runVirtualState virtualState
 
 snap :: DeckDSL Unit
 snap =
-  setLens State._activeCardId
-    =<< getSnappedActiveCardId
+  H.modify $ \st →
+    st # State._activeCardId .~ snapActiveCardId (State.virtualState st)
 
 startTransition :: DeckDSL Unit
 startTransition =
@@ -158,7 +153,7 @@ startTransition =
 
 willChangeActiveCardWhenDropped :: State -> Boolean
 willChangeActiveCardWhenDropped st =
-  st.activeCardId ≠ st.sliderSelectedCardId
+  st.activeCardId ≠ snapActiveCardId (State.virtualState st)
 
 cardWidthPct :: Int -> Number
 cardWidthPct cardsCount =

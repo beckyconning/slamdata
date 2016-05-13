@@ -265,7 +265,7 @@ eval (StartSliding mouseEvent next) =
 eval (StopSlidingAndSnap mouseEvent next) =
   Slider.stopSlidingAndSnap mouseEvent $> next
 eval (UpdateSliderPosition mouseEvent next) =
-  Slider.updateSliderPositionAndSetSliderSelectedCardId mouseEvent $> next
+  Slider.updateSliderPosition mouseEvent $> next
 eval (SetNextActionCardElement element next) =
   Slider.setLens DCS._nextActionCardElement element $> next
 eval (StopSliderTransition next) =
