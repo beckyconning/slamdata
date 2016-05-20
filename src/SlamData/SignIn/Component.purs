@@ -1,12 +1,9 @@
 {-
 Copyright 2016 SlamData, Inc.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,7 +25,7 @@ module SlamData.SignIn.Component
 
 import SlamData.Prelude
 
-import Control.UI.Browser (reload)
+import Control.UI.Browser as Browser
 
 import Halogen as H
 import Halogen.HTML.Core (className)
@@ -43,6 +40,7 @@ import OIDCCryptUtils as Crypt
 
 import Quasar.Advanced.Types (ProviderR)
 
+import SlamData.Config as Config
 import SlamData.Effects (Slam)
 import SlamData.Quasar as Api
 import SlamData.Quasar.Auth as Auth
@@ -165,13 +163,15 @@ submenuPeek (HalogenMenu.SelectSubmenuItem v _) = do
   {loggedIn} ← H.get
   if loggedIn
     then logOut
-    else for_ v $ H.fromEff ∘ requestAuthentication
+    else for_ v $ f
   where
   logOut ∷ SignInDSL Unit
   logOut = do
     H.fromEff do
       Auth.clearIdToken
-      reload
+      Browser.reload
+  appendAuthPath s = s ++ Config.redirectURIString
+  f pr = H.fromEff $ requestAuthentication pr ∘ appendAuthPath =<< Browser.locationString
 
 
 queryMenu
