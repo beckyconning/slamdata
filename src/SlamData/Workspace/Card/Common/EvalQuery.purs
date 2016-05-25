@@ -20,6 +20,7 @@ module SlamData.Workspace.Card.Common.EvalQuery
   , CardEvalInput
   , CardSetupInfo
   , CardEvalT
+  , Dimensions
   , runCardEvalT
   , temporaryOutputResource
   , liftWithCanceler
@@ -40,6 +41,8 @@ import Data.Argonaut.Core (Json)
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
 
+import DOM.HTML.Types (HTMLElement)
+
 import SlamData.Workspace.Card.CardId as CID
 import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Card.Port.VarMap as VM
@@ -49,6 +52,9 @@ import Utils.Path (DirPath, FilePath)
 
 import Halogen (ParentDSL, ComponentDSL)
 import Halogen.Component.Utils as Hu
+
+type Dimensions =
+  { width ∷ Number, height ∷ Number }
 
 type CardEvalInput =
   { path ∷ Maybe DirPath
@@ -102,7 +108,7 @@ data CardEvalQuery a
   | SetCanceler (Canceler SlamDataEffects) a
   | Save (Json → a)
   | Load Json a
-  | SetDimensions { width ∷ Number, height ∷ Number } a
+  | UpdateCardElementAndDimensions HTMLElement Dimensions a
 
 -- | The result value produced when evaluating a card.
 -- |

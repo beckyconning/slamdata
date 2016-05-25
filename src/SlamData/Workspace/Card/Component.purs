@@ -144,12 +144,13 @@ makeCardComponentPart def render =
       $ (CS._runState %~ finishRun)
       ∘ (CS._output .~ (_.output =<< result))
       ∘ (CS._messages .~ (maybe [] _.messages result))
+    updateDimensions
     maybe (liftF HaltHF) (pure ∘ k ∘ _.output) result
   eval (CQ.RefreshCard next) = pure next
   eval (CQ.ToggleMessages next) =
     H.modify (CS._messageVisibility %~ toggleVisibility) $> next
   eval (CQ.Tick elapsed next) =
-    H.modify (CS._runState .~ RunElapsed elapsed) $> next
+    updateDimensions *> H.modify (CS._runState .~ RunElapsed elapsed) $> next
   eval (CQ.GetOutput k) = k <$> H.gets (_.output)
   eval (CQ.SaveCard cardId cardType k) = do
     { hasResults } ← H.get
@@ -167,11 +168,14 @@ makeCardComponentPart def render =
     H.modify (CS._accessType .~ at) $> next
   eval (CQ.SetHTMLElement el next) =
     H.modify (CS._element .~ el) $> next
-  eval (CQ.UpdateDimensions next) = do
+  eval (CQ.UpdateDimensions next) =
+    updateDimensions $> next
+
+  updateDimensions ∷ CardDSL Unit
+  updateDimensions =
     H.gets _.element >>= traverse_ \el -> do
       { width, height } ← H.fromEff (DOMUtils.getBoundingClientRect el)
-      H.queryAll $ left $ H.action (CQ.SetDimensions { width, height })
-    pure next
+      H.queryAll $ left $ H.action (CQ.UpdateCardElementAndDimensions el { width, height })
 
   peek ∷ ∀ a. CQ.InnerCardQuery a → CardDSL Unit
   peek = coproduct cardEvalPeek (const $ pure unit)

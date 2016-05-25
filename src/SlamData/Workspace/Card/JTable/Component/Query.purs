@@ -26,6 +26,7 @@ data Query a
   | SetCustomPage String a
   | SetCustomPageSize String a
   | StartEnterCustomPageSize a
+  | UpdateLevelOfDetail a
 
 data PageStep
   = First

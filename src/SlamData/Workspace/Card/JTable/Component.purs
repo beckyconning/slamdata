@@ -23,12 +23,16 @@ module SlamData.Workspace.Card.JTable.Component
 
 import SlamData.Prelude
 
+import Control.Apply (lift3)
+import Control.Monad.Aff.Free (fromEff)
 import Control.Monad.Eff.Exception as Exn
 import Control.Monad.Error.Class (throwError)
 
 import Data.Argonaut.Core as JSON
 import Data.Int as Int
 import Data.Lens ((.~), (?~))
+
+import DOM.HTML.Types (HTMLElement)
 
 import Halogen as H
 
@@ -38,19 +42,31 @@ import SlamData.Workspace.Card.CardType as Ct
 import SlamData.Workspace.Card.Common.EvalQuery as CEQ
 import SlamData.Workspace.Card.Component (CardQueryP, CardStateP, makeCardComponent, makeQueryPrism, _JTableState, _JTableQuery)
 import SlamData.Workspace.Card.JTable.Component.Query (QueryP, PageStep(..), Query(..))
-import SlamData.Workspace.Card.JTable.Component.Render (render)
+import SlamData.Workspace.Card.JTable.Component.Render as JTR
 import SlamData.Workspace.Card.JTable.Component.State as JTS
 import SlamData.Workspace.Card.JTable.Model as Model
 import SlamData.Workspace.Card.Port as Port
 
+import Utils.DOM as DOMUtils
+
+type JTableDSL = H.ComponentDSL JTS.State QueryP Slam
+
+type Dimensions = { width ∷ Number, height ∷ Number }
+
 jtableComponent ∷ H.Component CardStateP CardQueryP Slam
-jtableComponent = makeCardComponent
-  { cardType: Ct.JTable
-  , component: H.component { render, eval: coproduct evalCard evalJTable }
-  , initialState: JTS.initialState
-  , _State: _JTableState
-  , _Query: makeQueryPrism _JTableQuery
-  }
+jtableComponent =
+  makeCardComponent
+    { cardType: Ct.JTable
+    , component: H.lifecycleComponent
+                   { render: JTR.render
+                   , eval: coproduct evalCard evalJTable
+                   , initializer: Just $ right $ H.action UpdateLevelOfDetail
+                   , finalizer: Nothing
+                   }
+    , initialState: JTS.initialState
+    , _State: _JTableState
+    , _Query: makeQueryPrism _JTableQuery
+    }
 
 queryShouldRun ∷ ∀ a. QueryP a → Boolean
 queryShouldRun = coproduct (const false) pred
@@ -60,8 +76,8 @@ queryShouldRun = coproduct (const false) pred
   pred _ = false
 
 -- | Evaluates generic card queries.
-evalCard ∷ Natural CEQ.CardEvalQuery (H.ComponentDSL JTS.State QueryP Slam)
-evalCard (CEQ.NotifyRunCard next) = pure next
+evalCard ∷ Natural CEQ.CardEvalQuery JTableDSL
+evalCard (CEQ.NotifyRunCard next) = updateLevelOfDetail $> next
 evalCard (CEQ.NotifyStopCard next) = pure next
 evalCard (CEQ.EvalCard value k) = do
   k <$> CEQ.runCardEvalT (runTable value.inputPort)
@@ -70,9 +86,54 @@ evalCard (CEQ.Save k) =
   pure ∘ k =<< H.gets (Model.encode ∘ JTS.toModel)
 evalCard (CEQ.Load json next) = do
   either (const (pure unit)) H.set $ JTS.fromModel <$> Model.decode json
+  updateLevelOfDetail
   pure next
 evalCard (CEQ.SetCanceler _ next) = pure next
-evalCard (CEQ.SetDimensions _ next) = pure next
+evalCard (CEQ.UpdateCardElementAndDimensions cardElement cardDimensions next) =
+  H.modify ((JTS._cardElement .~ Just cardElement) ∘ (JTS._cardDimensions .~ Just cardDimensions))
+    *> updateLevelOfDetail
+    $> next
+
+updateLevelOfDetail :: JTableDSL Unit
+updateLevelOfDetail = (H.modify <<< (JTS._levelOfDetail .~ _) =<< getLevelOfDetail)
+
+getTableBoundingClientRect ∷ HTMLElement → JTableDSL (Maybe DOMUtils.DOMRect)
+getTableBoundingClientRect =
+  fromEff <<< DOMUtils.querySelectorBoundingClientRect "table"
+
+getNumberOfRows ∷ JTableDSL Int
+getNumberOfRows =
+  JTS.numberOfRows <$> H.get
+
+getNumberOfRowsWidthPx ∷ JTableDSL Number
+getNumberOfRowsWidthPx =
+  fromEff <<< DOMUtils.getTextWidth JTR.numberOfRowsFont <<< show =<< getNumberOfRows
+
+getNumberOfRowsHeightPx ∷ JTableDSL Number
+getNumberOfRowsHeightPx =
+  fromEff $ DOMUtils.remToPx JTR.numberOfRowsFontSizeRem
+
+getNumberOfRowsDimensionsPx ∷ JTableDSL Dimensions
+getNumberOfRowsDimensionsPx =
+  { width: _, height: _ } <$> getNumberOfRowsWidthPx <*> getNumberOfRowsHeightPx
+
+getLevelOfDetail ∷ JTableDSL (Maybe JTS.LevelOfDetail)
+getLevelOfDetail =
+  (lift3 levelOfDetail)
+    <$> H.gets _.cardDimensions
+    <*> (maybe (pure Nothing) getTableBoundingClientRect =<< H.gets _.cardElement)
+    <*> (Just <$> getNumberOfRowsDimensionsPx)
+
+numberOfRowsFitsInCard ∷ Dimensions → Dimensions → Boolean
+numberOfRowsFitsInCard cardDimensions numberOfRowsDimensions =
+  cardDimensions.width >= numberOfRowsDimensions.width
+    && cardDimensions.height >= numberOfRowsDimensions.height
+
+levelOfDetail ∷ Dimensions → DOMUtils.DOMRect → Dimensions → JTS.LevelOfDetail
+levelOfDetail cardDimensions tableDimensions numberOfRowsDimensions
+  | cardDimensions.width >= tableDimensions.width = JTS.Table
+  | numberOfRowsFitsInCard cardDimensions numberOfRowsDimensions = JTS.NumberOfRows
+  | otherwise = JTS.TooSmall
 
 runTable
   ∷ Maybe Port.Port
@@ -127,3 +188,6 @@ evalJTable (SetCustomPageSize size next) =
   H.modify (JTS.setPageSize size) $> next
 evalJTable (SetCustomPage page next) =
   H.modify (JTS.setPage page) $> next
+evalJTable (UpdateLevelOfDetail next) = do
+  Debug.Trace.traceAnyA "update lod"
+  updateLevelOfDetail $> next

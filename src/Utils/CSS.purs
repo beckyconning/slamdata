@@ -38,3 +38,12 @@ transform = key (fromString "transform")
 
 translate3d :: String -> String -> String -> String
 translate3d x y z = "translate3d(" ++ x ++ "," ++ y ++ "," ++ z ++ ")"
+
+visibility :: String -> CSS
+visibility = key (fromString "visibility")
+
+position :: String -> CSS
+position = key (fromString "position")
+
+marginRight :: String -> CSS
+marginRight = key (fromString "margin-right")

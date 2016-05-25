@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.Workspace.Card.JTable.Component.Render (render) where
+module SlamData.Workspace.Card.JTable.Component.Render
+  (render, numberOfRowsFontSizeRem, numberOfRowsFont) where
 
 import SlamData.Prelude
+
+import CSS.Stylesheet (CSS)
 
 import Data.Array as A
 import Data.Char (fromCharCode)
@@ -30,12 +33,28 @@ import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import Halogen.Themes.Bootstrap3 as B
+import Halogen.HTML.CSS.Indexed (style)
 
+import SlamData.Config as Config
+import SlamData.Render.CSS.New as ClassNames
 import SlamData.Render.Common (glyph)
-import SlamData.Render.CSS.New as CSS
 import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery(..))
 import SlamData.Workspace.Card.JTable.Component.Query (QueryP, PageStep(..), Query(..))
-import SlamData.Workspace.Card.JTable.Component.State (State, currentPageInfo)
+import SlamData.Workspace.Card.JTable.Component.State (State, LevelOfDetail(..), currentPageInfo)
+
+import Utils.CSS as CSS
+
+numberOfRowsFontSizeRem ∷ Number
+numberOfRowsFontSizeRem = 2.0
+
+numberOfRowsFont ∷ String
+numberOfRowsFont = "normal " ++ show numberOfRowsFontSizeRem ++ "rem \"Ubuntu\""
+
+tableHiddenStyle ∷ CSS
+tableHiddenStyle =
+  CSS.visibility "hidden"
+    *> CSS.position "absolute"
+    *> CSS.marginRight (show Config.gridRem ++ "rem")
 
 -- | A value that holds all possible states for an inputtable value: the current
 -- | actual value, and a possible pending user-entered or selected value.
@@ -51,14 +70,21 @@ fromInputValue { current, pending } =
     Nothing → show current
     Just pending' → either id show pending'
 
+f (Just Table) = "table"
+f (Just NumberOfRows) = "number of rows"
+f (Just TooSmall) = "too small"
+f Nothing = "nothing"
+
 render ∷ State → H.ComponentHTML QueryP
 render { result: Nothing } = HH.div_ []
 render st@{ result: Just result } =
   let p = currentPageInfo st
-  in HH.div_
-    [ right <$> JT.renderJTable jTableOpts result.json
+  in HH.div
+    [ HE.onClick $ HE.input_ (right <<< UpdateLevelOfDetail) ]
+    [ HH.text $ f st.levelOfDetail
+    , right <$> JT.renderJTable jTableOpts result.json
     , HH.div
-        [ HP.classes [CSS.pagination, CSS.form] ]
+        [ HP.classes [ClassNames.pagination, ClassNames.form] ]
         [ prevButtons (p.page <= 1)
         , pageField { current: p.page, pending: st.page } p.totalPages
         , nextButtons (p.page >= p.totalPages)
@@ -75,15 +101,15 @@ jTableOpts = JT.jTableOptsDefault
 prevButtons ∷ Boolean → H.ComponentHTML QueryP
 prevButtons enabled =
   HH.div
-    [ HP.class_ CSS.formButtonGroup ]
+    [ HP.class_ ClassNames.formButtonGroup ]
     [ HH.button
-        [ HP.class_ CSS.formButton
+        [ HP.class_ ClassNames.formButton
         , HP.disabled enabled
         , HE.onClick $ HE.input_ (right <<< StepPage First)
         ]
         [ glyph B.glyphiconFastBackward ]
     , HH.button
-        [ HP.class_ CSS.formButton
+        [ HP.class_ ClassNames.formButton
         , HP.disabled enabled
         , HE.onClick $ HE.input_ (right <<< StepPage Prev)
         ]
@@ -114,7 +140,7 @@ submittable =
 nextButtons ∷ Boolean → H.ComponentHTML QueryP
 nextButtons enabled =
   HH.div
-    [ HP.class_ CSS.formButtonGroup ]
+    [ HP.class_ ClassNames.formButtonGroup ]
     [ HH.button
         [ HP.disabled enabled
         , HE.onClick $ HE.input_ (right <<< StepPage Next)

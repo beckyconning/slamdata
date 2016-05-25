@@ -102,7 +102,7 @@ eval q =
         H.query unit $ H.action (FB.SetItems (L.toList items) >>> left)
       pure next
     NC.SetCanceler _ next -> pure next
-    NC.SetDimensions _ next -> pure next
+    NC.UpdateCardElementAndDimensions _ _ next -> pure next
 
 queryShouldRun
   :: forall a

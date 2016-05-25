@@ -95,4 +95,4 @@ evalCard q =
     NC.Save k -> pure $ k J.jsonEmptyObject
     NC.Load json next -> pure next
     NC.SetCanceler _ next -> pure next
-    NC.SetDimensions _ next -> pure next
+    NC.UpdateCardElementAndDimensions _ _ next -> pure next

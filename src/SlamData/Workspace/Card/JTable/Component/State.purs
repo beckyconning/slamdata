@@ -16,6 +16,7 @@ limitations under the License.
 
 module SlamData.Workspace.Card.JTable.Component.State
   ( State
+  , LevelOfDetail(..)
   , Result
   , Input
   , initialState
@@ -23,6 +24,9 @@ module SlamData.Workspace.Card.JTable.Component.State
   , _result
   , _page
   , _pageSize
+  , _levelOfDetail
+  , _cardElement
+  , _cardDimensions
   , _isEnteringPageSize
   , _resource
   , _size
@@ -35,6 +39,7 @@ module SlamData.Workspace.Card.JTable.Component.State
   , setPageSize
   , toModel
   , fromModel
+  , numberOfRows
   ) where
 
 import SlamData.Prelude
@@ -44,10 +49,15 @@ import Data.Foldable (maximum)
 import Data.Int as Int
 import Data.Lens ((^?), (?~), LensP, lens, _Just)
 
+import DOM.HTML.Types (HTMLElement)
+
 import SlamData.Workspace.Card.JTable.Component.Query (PageStep(..))
+import SlamData.Workspace.Card.Common.EvalQuery as CEQ
 import SlamData.Workspace.Card.JTable.Model (Model)
 
 import Utils.Path (FilePath)
+
+data LevelOfDetail = TooSmall | NumberOfRows | Table
 
 -- | The state for the JTable card component.
 type State =
@@ -56,6 +66,9 @@ type State =
   , page :: Maybe (Either String Int)
   , pageSize :: Maybe (Either String Int)
   , isEnteringPageSize :: Boolean
+  , levelOfDetail :: Maybe LevelOfDetail
+  , cardDimensions :: Maybe CEQ.Dimensions
+  , cardElement :: Maybe HTMLElement
   }
 
 -- | The current result value being displayed.
@@ -72,6 +85,9 @@ initialState =
   , result: Nothing
   , page: Nothing
   , pageSize: Nothing
+  , levelOfDetail: Nothing
+  , cardDimensions: Nothing
+  , cardElement: Nothing
   , isEnteringPageSize: false
   }
 
@@ -88,6 +104,15 @@ _page = lens _.page (_ { page = _ })
 
 _pageSize :: LensP State (Maybe (Either String Int))
 _pageSize = lens _.pageSize (_ { pageSize = _ })
+
+_levelOfDetail :: LensP State (Maybe LevelOfDetail)
+_levelOfDetail = lens _.levelOfDetail (_ { levelOfDetail = _ })
+
+_cardElement :: LensP State (Maybe HTMLElement)
+_cardElement = lens _.cardElement (_ { cardElement = _ })
+
+_cardDimensions :: LensP State (Maybe CEQ.Dimensions)
+_cardDimensions = lens _.cardDimensions (_ { cardDimensions = _ })
 
 -- | Specifies whether the custom page size entry is currently enabled.
 _isEnteringPageSize :: LensP State Boolean
@@ -111,18 +136,20 @@ _size = lens _.size (_ { size = _ })
 -- | This is used to determine if query producing temporary resource has
 -- | been changed. It holds sql query.
 _tag :: LensP Input (Maybe String)
-_tag = lens _.tag _{tag = _}
+_tag = lens _.tag (_ { tag = _ })
 
 -- | A record with information about the current page number, page size, and
 -- | total number of pages.
 type PageInfo = { page :: Int, pageSize :: Int, totalPages :: Int }
 
+numberOfRows :: State -> Int
+numberOfRows st = fromMaybe 0 $ st ^? _input <<< _Just <<< _size
+
 currentPageInfo :: State -> PageInfo
 currentPageInfo st =
   let page = fromMaybe 1 $ _.page <$> st.result
       pageSize = fromMaybe 0 $ _.pageSize <$> st.result
-      total = fromMaybe 0 $ st ^? _input <<< _Just <<< _size
-      totalPages = calcTotalPages pageSize total
+      totalPages = calcTotalPages pageSize $ numberOfRows st
   in { page, pageSize, totalPages }
 
 -- | Compute page info from the current state, preferring user-entered pending

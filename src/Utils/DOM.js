@@ -41,11 +41,17 @@ exports.offsetLeft = function(el) {
 };
 
 
-exports.getTextWidth = function(text, font) {
-    return function() {
-        var canvas = document.createElement("canvas");
-        var context = canvas.getContext("2d");
-        context.font = font;
-        return context.measureText(text).width;
+exports.getTextWidth = function(text) {
+    return function (font) {
+        return function() {
+            var canvas = document.createElement("canvas");
+            var context = canvas.getContext("2d");
+            context.font = font;
+            return context.measureText(text).width;
+        };
     };
 };
+
+exports.getRootElementFontSizePx = function() {
+    return window.parseFloat(window.getComputedStyle(document.documentElement).fontSize);
+}
