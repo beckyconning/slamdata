@@ -2,6 +2,7 @@ module Test.Feature
   ( Properties
   , XPath
   , FilePath
+  , DropPosition(..)
   , accessUrlFromFieldValue
   , accessUrlFromFieldValueWithProperties
   , check
@@ -22,6 +23,7 @@ module Test.Feature
   , expectPresentedNotRepeatedly
   , expectPresentedWithPropertiesNotRepeatedly
   , expectSelectValue
+  , expectPresentedVisuallyAbove
   , hover
   , hoverWithProperties
   , paste
@@ -67,7 +69,7 @@ import Node.FS.Aff (readFile, readTextFile, readdir, unlink)
 import Selenium.ActionSequence as Sequence
 import Selenium.Monad (get, getAttribute, clickEl, attempt, later, byXPath, tryRepeatedlyTo, findElements, isDisplayed, getLocation, getSize, saveScreenshot, sendKeysEl)
 import Selenium.Monad as Selenium
-import Selenium.Types (Element, Location)
+import Selenium.Types (Element, Location, Size)
 
 import Test.Feature.ActionSequence as FeatureSequence
 import Test.Feature.Monad (Feature, getModifierKey, await)
@@ -427,7 +429,7 @@ expectSelectValue ∷ ∀ eff o. String → XPath → Feature eff o Unit
 expectSelectValue value xPath =
   tryRepeatedlyTo $ getOptionValue >>= expectPresentedWithValue
   where
-  optionXPath = xPath ⊕ "/descendant::option[text()='" ⊕ value ⊕ "']"
+  optionXPath = xPath ⊕ "/descendant∷option[text()='" ⊕ value ⊕ "']"
   getOptionValue = flip getAttribute "value" =<< find optionXPath
   valueProperty = Map.singleton "value"
   expectPresentedWithValue value = expectPresentedWithProperties (valueProperty value) xPath
@@ -460,6 +462,21 @@ expectDownloadedTextFileToMatchFile downloadFolder downloadedFileName expectedFi
       ⊕ fileContents
       ⊕ "\n\n to match file "
       ⊕ expectedFilePath
+
+expectPresentedVisuallyAbove ∷ ∀ eff o. XPath → XPath → Feature eff o Unit
+expectPresentedVisuallyAbove aboveXPath belowXPath =
+  ifFalse throwNotAboveError =<< isAbove
+  where
+  getY = map _.y ∘ Selenium.getLocation
+  abovePosition = getY =<< find aboveXPath
+  belowPosition = getY =<< find belowXPath
+  isAbove = (>) <$> abovePosition <*> belowPosition
+  throwNotAboveError =
+    liftEff $ throw
+      $ "Expected element found using: "
+      ++ aboveXPath
+      ++ "to be visually presented above the element found using: "
+      ++ belowXPath
 
 -- Interaction utilities
 checkedProperty ∷ Maybe String → Properties
@@ -504,12 +521,6 @@ clickAll xPath = clickAllWithProperties Map.empty xPath
 clickNotRepeatedly ∷ ∀ eff o. XPath → Feature eff o Unit
 clickNotRepeatedly xPath = clickWithPropertiesNotRepeatedly Map.empty xPath
 
--- | Drag node found with the first provided XPath to the node found with the
--- | second provided XPath.
-dragAndDrop ∷ ∀ eff o. XPath → XPath → Feature eff o Unit
-dragAndDrop fromXPath toXPath =
-  dragAndDropWithProperties Map.empty fromXPath Map.empty toXPath
-
 -- | Hover over the node found with the provided XPath.
 hover ∷ ∀ eff o. XPath → Feature eff o Unit
 hover xPath = hoverWithProperties Map.empty xPath
@@ -524,6 +535,20 @@ provideFileInputValue xPath fileName = provideFileInputValueWithProperties Map.e
 -- | function allows feature tests to access such URLs.
 accessUrlFromFieldValue ∷ ∀ eff o. XPath → Feature eff o Unit
 accessUrlFromFieldValue xPath = accessUrlFromFieldValueWithProperties Map.empty xPath
+
+-- | Drag node found with the first provided XPath to the node found with the
+-- | second provided XPath.
+-- | Uses the first and second functions to determine the x and y positions of the drop
+-- | location based on the position of the drag element, position of the drop element and the
+-- | size of the drop element.
+dragAndDrop
+  ∷ ∀ eff o
+  . DropPosition
+  → XPath
+  → XPath
+  → Feature eff o Unit
+dragAndDrop dropPosition dragXPath dropXPath =
+  dragAndDropWithProperties dropPosition Map.empty dragXPath Map.empty dropXPath
 
 -- XPath and property dependent interactions
 checkWithProperties'
@@ -612,7 +637,6 @@ clickWithPropertiesNotRepeatedly
 clickWithPropertiesNotRepeatedly properties =
   clickEl <=< findWithPropertiesNotRepeatedly properties
 
-
 -- | Click node with the provided properties or attributes found with the
 -- | provided XPath.
 clickWithProperties
@@ -631,34 +655,94 @@ clickAllWithProperties properties =
     ∘ (traverse_ clickEl)
     <=< findAtLeastOneWithProperties properties
 
+data DropPosition
+  = Top
+  | Middle
+  | Bottom
+  | Left
+  | Center
+  | Right
+  | TopLeft
+  | TopCenter
+  | TopRight
+  | MiddleLeft
+  | MiddleCenter
+  | MiddleRight
+  | BottomLeft
+  | BottomCenter
+  | BottomRight
+
 -- | Drag node with the first provided properties or attributes found with the first
 -- | provided XPath to the node with the second provided properties or attributes found with
 -- | the second provided XPath.
+-- | Uses the first and second functions to determine the x and y positions of the drop
+-- | location based on the position of the drag element, position of the drop element and the
+-- | size of the drop element.
 dragAndDropWithProperties
   ∷ ∀ eff o
-  . Properties
+  . DropPosition
+  → Properties
   → XPath
   → Properties
   → XPath
   → Feature eff o Unit
-dragAndDropWithProperties fromProperties fromXPath toProperties toXPath =
+dragAndDropWithProperties dropPosition dragProperties dragXPath dropProperties dropXPath =
   tryRepeatedlyTo do
-    from <- findWithPropertiesNotRepeatedly fromProperties fromXPath
-    fromLocation <- getCenterLocation from
-    toLocation <- getCenterLocation =<< findWithPropertiesNotRepeatedly toProperties toXPath
-    dragAndDropElement from $ offset fromLocation toLocation
+    dragElement ← getDropElement
+    dropLocation ← getDropLocation dragElement =<< getDropElement
+    drag dragElement dropLocation
   where
-  offset from to =
-    { x: to.x - from.x
-    , y: to.y - from.y
+  difference ∷ Location → Location → Location
+  difference dragLocation dropLocation =
+    { x: dropLocation.x - dragLocation.x, y: dropLocation.y - dragLocation.y }
+
+  dropPositionFunctions ∷ { x ∷ Int → Int → Int → Int, y ∷ Int → Int → Int → Int }
+  dropPositionFunctions =
+    case dropPosition of
+      Top → { x: startPosition, y: nearPosition }
+      Middle → { x: startPosition, y: centerPosition }
+      Bottom → { x: startPosition, y: farPosition }
+      Left → { x: nearPosition, y: startPosition }
+      Center → { x: centerPosition, y: startPosition }
+      Right → { x: farPosition, y: startPosition }
+      TopLeft → { x: nearPosition, y: nearPosition }
+      TopCenter → { x: centerPosition, y: nearPosition }
+      TopRight → { x: farPosition, y: nearPosition }
+      MiddleLeft → { x: nearPosition, y: centerPosition }
+      MiddleCenter → { x: centerPosition, y: centerPosition }
+      MiddleRight → { x: farPosition, y: centerPosition }
+      BottomLeft → { x: nearPosition, y: farPosition }
+      BottomCenter → { x: centerPosition, y: farPosition }
+      BottomRight → { x: farPosition, y: farPosition }
+
+  calcDropLocation ∷ Location → Location → Size → Location
+  calcDropLocation dragLocation dropLocation size =
+    { x: dropPositionFunctions.x dragLocation.x dropLocation.x size.width
+    , y: dropPositionFunctions.y dragLocation.y dropLocation.y size.height
     }
-  getCenterLocation element = do
-    location <- getLocation element
-    size <- getSize element
-    pure
-      { x: location.x + (size.width / 2)
-      , y: location.y + (size.height / 2)
-      }
+
+  getDropLocation ∷ Element → Element → Feature eff o Location
+  getDropLocation dragElement dropElement =
+    calcDropLocation
+      <$> getLocation dragElement
+      <*> getLocation dropElement
+      <*> getSize dropElement
+
+  getDifference ∷ Element → Location → Feature eff o Location
+  getDifference dragElement dropLocation =
+    flip difference dropLocation <$> getLocation dragElement
+
+  getDragElement ∷ Feature eff o Element
+  getDragElement =
+     findWithPropertiesNotRepeatedly dragProperties dragXPath
+
+  getDropElement ∷ Feature eff o Element
+  getDropElement =
+    findWithPropertiesNotRepeatedly dropProperties dropXPath
+
+  drag ∷ Element → Location → Feature eff o Unit
+  drag dragElement dropLocation =
+    dragAndDropElement dragElement =<< getDifference dragElement dropLocation
 
 -- | Hover over the node with the provided properties or attributes found with
 -- | the provided XPath.
@@ -689,6 +773,23 @@ accessUrlFromFieldValueWithProperties properties xPath =
     XPath.errorMessage (withPropertiesMessage properties rawNullValueErrorMessage) xPath
   rawNullValueErrorMessage =
     "Expected a non null value attribute or property for the element found with"
+
+-- Position functions
+nearPosition ∷ Int → Int → Int → Int
+nearPosition startLocation endLocation endSize =
+  startLocation
+
+centerPosition ∷ Int → Int → Int → Int
+centerPosition startLocation endLocation endSize =
+  endLocation + (endSize / 2)
+
+farPosition ∷ Int → Int → Int → Int
+farPosition startLocation endLocation endSize =
+  endLocation + endSize
+
+startPosition ∷ Int → Int → Int → Int
+startPosition startLocation endLocation endSize =
+  startLocation
 
 -- Independent interactions
 typeString ∷ ∀ eff o. String → Feature eff o Unit

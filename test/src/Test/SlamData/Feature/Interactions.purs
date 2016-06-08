@@ -134,12 +134,14 @@ expandNewCardMenu = Feature.click (XPath.anywhere XPaths.insertCard)
 accessNextCardInLastDeck ∷ SlamFeature Unit
 accessNextCardInLastDeck =
   Feature.dragAndDrop
+    Feature.Center
     (XPath.last $ XPath.anywhere $ XPaths.enabledNextCardGripper)
     (XPath.last $ XPath.anywhere $ XPaths.previousCardGripper)
 
 accessPreviousCardInLastDeck ∷ SlamFeature Unit
 accessPreviousCardInLastDeck =
   Feature.dragAndDrop
+    Feature.Center
     (XPath.last $ XPath.anywhere $ XPaths.enabledPreviousCardGripper)
     (XPath.last $ XPath.anywhere $ XPaths.nextCardGripper)
 
@@ -338,6 +340,14 @@ provideCategoryForLastVisualizeCard str =
     (XPath.last $ XPath.anywhere $ XPaths.chartCategorySelector)
     str
 
+provideDimensionForLastVisualizeCard
+  ∷ String
+  → SlamFeature Unit
+provideDimensionForLastVisualizeCard str =
+  Feature.selectFromDropdown
+    (XPath.last $ XPath.anywhere $ XPaths.chartDimensionSelector)
+    str
+
 provideSeriesForLastVizualizeCard ∷ String → SlamFeature Unit
 provideSeriesForLastVizualizeCard str =
   Feature.selectFromDropdown
@@ -348,9 +358,13 @@ switchToBarChart ∷ SlamFeature Unit
 switchToBarChart =
   Feature.click $ XPath.anywhere $ XPaths.chartSwitchToBar
 
-flipDeck ∷ SlamFeature Unit
-flipDeck =
-  Feature.click $ XPath.anywhere $ XPath.anyWithExactAriaLabel "Flip deck"
+switchToLineChart ∷ SlamFeature Unit
+switchToLineChart =
+  Feature.click $ XPath.anywhere $ XPaths.chartSwitchToLine
+
+flipLastDeck ∷ SlamFeature Unit
+flipLastDeck =
+  Feature.click $ XPath.last $ XPath.anywhere $ XPath.anyWithExactAriaLabel "Flip deck"
 
 trashActiveOrLastCard ∷ SlamFeature Unit
 trashActiveOrLastCard =
@@ -367,3 +381,27 @@ publishDeck =
 filterActions ∷ String → SlamFeature Unit
 filterActions =
   Feature.provideFieldValue (XPath.anywhere $ XPath.anyWithExactAriaLabel "Filter actions")
+
+wrapLastDeck ∷ SlamFeature Unit
+wrapLastDeck =
+  flipLastDeck *> pressLastWrapButton
+  where
+  pressLastWrapButton = Feature.click $ XPath.last $ XPath.anywhere $ XPaths.wrap
+
+moveLastDeckToLeft :: SlamFeature Unit
+moveLastDeckToLeft =
+  Feature.dragAndDrop
+    Feature.Left
+    (XPath.last $ XPath.anywhere $ XPaths.deckGripper)
+    (XPath.first $ XPath.anywhere $ XPaths.previousCardGripper)
+
+resizeLastDeckAllTheWayToTheRight ∷ SlamFeature Unit
+resizeLastDeckAllTheWayToTheRight =
+  Feature.dragAndDrop
+    Feature.Left
+    (XPath.last $ XPath.anywhere $ XPaths.resizeDeck)
+    (XPath.first $ XPath.anywhere $ XPaths.nextCardGripper)
+
+insertNewDeckInLastBoardCard ∷ SlamFeature Unit
+insertNewDeckInLastBoardCard =
+  Feature.click $ XPath.last $ XPath.anywhere $ XPaths.boardCard

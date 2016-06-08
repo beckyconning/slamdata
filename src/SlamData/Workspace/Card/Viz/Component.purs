@@ -50,7 +50,7 @@ import SlamData.Workspace.Card.Chart.Axis (analyzeJArray, Axis)
 import SlamData.Workspace.Card.Chart.Axis as Ax
 import SlamData.Workspace.Card.Chart.ChartConfiguration (ChartConfiguration, depends, dependsOnArr)
 import SlamData.Workspace.Card.Chart.ChartOptions (buildOptions)
-import SlamData.Workspace.Card.Chart.ChartType (ChartType(..), isPie)
+import SlamData.Workspace.Card.Chart.ChartType (ChartType(..), isPie, printChartType)
 import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery(..), CardEvalT, runCardEvalT, liftWithCancelerP')
 import SlamData.Workspace.Card.Component (CardStateP, CardQueryP, makeCardComponent, makeQueryPrism', _VizState, _VizQuery)
 import SlamData.Workspace.Card.Port as P
@@ -167,6 +167,7 @@ renderChartTypeSelector state =
     flip cons accum $
       HH.img
         [ HP.src $ src current
+        , ARIA.label $ "Select " ++ printChartType current ++ " chart"
         , HP.classes
             $ [ cls state.chartType ]
             ⊕ (guard (selected ≡ current) $> B.active)

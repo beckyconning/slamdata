@@ -322,6 +322,9 @@ apiCardDefaultValueFor name =
 chartCategorySelector ∷ String
 chartCategorySelector = XPath.anyWithExactAriaLabel "Category"
 
+chartDimensionSelector ∷ String
+chartDimensionSelector = XPath.anyWithExactAriaLabel "Dimension"
+
 chartSeriesOneSelector ∷ String
 chartSeriesOneSelector = XPath.anyWithExactAriaLabel "Second Series"
 
@@ -329,7 +332,10 @@ chartMeasureOneSelector ∷ String
 chartMeasureOneSelector = XPath.anyWithExactAriaLabel "First Measure"
 
 chartSwitchToBar ∷ String
-chartSwitchToBar = XPath.anyWithExactSrc "img/bar.svg"
+chartSwitchToBar = XPath.anyWithExactAriaLabel "Select bar chart"
+
+chartSwitchToLine ∷ String
+chartSwitchToLine = XPath.anyWithExactAriaLabel "Select line chart"
 
 chartContainer ∷ String
 chartContainer = "div[@_echarts_instance_]"
@@ -380,4 +386,20 @@ enabledNextCardGripper =
 
 deck :: String
 deck =
-  XPath.anyWithExactAriaLabel $ "Deck"
+  XPath.anyWithExactAriaLabel "Deck"
+
+wrap :: String
+wrap =
+  XPath.anyWithExactText "Wrap"
+
+deckGripper :: String
+deckGripper =
+  XPath.anyWithExactAriaLabel "Grab deck"
+
+resizeDeck :: String
+resizeDeck =
+  XPath.anyWithExactAriaLabel "Resize deck"
+
+boardCard :: String
+boardCard =
+  XPath.anyWithExactAriaLabel "Draftboard card"

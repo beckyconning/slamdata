@@ -26,6 +26,7 @@ import Test.Feature.Log (warnMsg)
 import Test.Feature.Monad (Feature)
 import Test.SlamData.Feature.Config (Config)
 import Test.SlamData.Feature.Effects (SlamFeatureEffects)
+import Selenium.Monad (tryRepeatedlyTo, script)
 
 type SlamFeature = Feature (SlamFeatureEffects ()) (config :: Config)
 
@@ -36,3 +37,19 @@ waitTime :: Int -> SlamFeature Unit
 waitTime t = do
   warnMsg $ "Warning: Tests manually waited for " ++ show t ++ " milliseconds."
   later t $ pure unit
+
+makeEChartsPresentConfig :: SlamFeature Unit
+makeEChartsPresentConfig =
+  void $ tryRepeatedlyTo $ script """
+    var run = function() {
+      var __init = echarts.init;
+      echarts.init = function (el) {
+        var chart = __init.call(echarts, el);
+        chart.setOption = function (options) {
+          el.innerHTML = "<pre>" + JSON.stringify(options) + "</pre>";
+        };
+        return chart;
+      };
+    };
+    run();
+  """
