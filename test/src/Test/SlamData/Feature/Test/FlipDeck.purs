@@ -17,7 +17,6 @@ flipDeckScenario =
     (Interact.createWorkspaceInTestFolder "Flipped deck")
     (Interact.deleteFileInTestFolder "Untitled Workspace.slam")
 
-
 mkTwoCardTestDeck ∷ SlamFeature Unit
 mkTwoCardTestDeck = do
     Interact.insertQueryCardInLastDeck
@@ -31,9 +30,9 @@ test ∷ SlamFeature Unit
 test = do
   flipDeckScenario "Flip deck" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipLastDeck
     Expect.backsideMenuPresented
-    Interact.flipDeck
+    Interact.flipLastDeck
     Expect.backsideMenuNotPresented
     Expect.tableColumnsAre ["measureOne"]
     successMsg "Ok, 'flip deck' button works"
@@ -41,7 +40,7 @@ test = do
   -- Note: Trash button deletes last or active card
   flipDeckScenario "Trash last card" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipLastDeck
     Expect.backsideMenuPresented
     Interact.trashActiveOrLastCard
     -- Note, user should see that last|active card has been deleted
@@ -59,7 +58,7 @@ test = do
     Expect.lastCardToBeFinished
     warnMsg "SD-1538, we don't know if workspace has been saved already"
     later 1000 $ pure unit
-    Interact.flipDeck
+    Interact.flipLastDeck
     Expect.backsideMenuPresented
     Interact.shareDeck
     Interact.accessSharingUrl
@@ -69,7 +68,7 @@ test = do
 
   flipDeckScenario "Filter backside buttons" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipLastDeck
     Expect.backsideMenuPresented
     Interact.filterActions "rem"
     Expect.onlyTrashActionPresented

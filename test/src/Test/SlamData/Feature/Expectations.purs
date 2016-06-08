@@ -5,6 +5,7 @@ import SlamData.Prelude
 import Data.Map as Map
 import Selenium.Monad (tryRepeatedlyTo)
 import Test.Feature (expectPresented, expectNotPresented, expectPresentedWithProperties, expectDownloadedTextFileToMatchFile, expectSelectValue, expectPresentedNotRepeatedly)
+import Test.Feature as Feature
 import Test.SlamData.Feature.Monad (SlamFeature)
 import Test.SlamData.Feature.XPaths as XPaths
 
@@ -281,3 +282,12 @@ onlyPublishActionPresented = do
     , XPaths.trashCardAction
     ]
     backsideActionNotPresented
+
+nthDeckToBeAboveMthDeck :: Int -> Int -> SlamFeature Unit
+nthDeckToBeAboveMthDeck aboveIndex belowIndex =
+  Feature.expectPresentedVisuallyAbove
+    (XPath.index (XPath.anywhere $ XPaths.deck) aboveIndex)
+    (XPath.index (XPath.anywhere $ XPaths.deck) belowIndex)
+
+nthDeckToBeFullWidth :: Int -> SlamFeature Unit
+nthDeckToBeFullWidth = const $ pure unit

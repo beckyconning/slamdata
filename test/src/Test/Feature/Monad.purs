@@ -31,7 +31,7 @@ import Node.Process (PROCESS)
 import Platform (PLATFORM, getPlatform, runOs, runPlatform)
 import Selenium.Combinators as Combinators
 import Selenium.Key (metaKey, controlKey)
-import Selenium.Monad (Selenium, attempt)
+import Selenium.Monad (Selenium, attempt, script)
 import Selenium.Types (ControlKey)
 
 type FeatureEffects eff =
