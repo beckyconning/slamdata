@@ -36,27 +36,27 @@ test :: SlamFeature Unit
 test = do
   searchScenario "Search for a city" [] do
     --Test.SlamData.Feature.Monad.waitTime 30000
-    Interact.insertExploreCardInLastDeck
+    Interact.insertExploreCardInNthDeck 1
     Interact.selectFileForLastExploreCard "/test-mount/testDb/zips"
-    Interact.accessNextCardInLastDeck
-    Interact.insertSearchCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertSearchCardInNthDeck 1
     Interact.provideSearchStringInLastSearchCard "springfield"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToContain 10 "city" "SPRINGFIELD"
     successMsg "Successfully searched for a city"
 
   searchScenario "Search within results" [] do
-    Interact.insertExploreCardInLastDeck
+    Interact.insertExploreCardInNthDeck 1
     Interact.selectFileForLastExploreCard "/test-mount/testDb/zips"
-    Interact.accessNextCardInLastDeck
-    Interact.insertSearchCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertSearchCardInNthDeck 1
     Interact.provideSearchStringInLastSearchCard "springfield"
-    Interact.accessNextCardInLastDeck
-    Interact.insertSearchCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertSearchCardInNthDeck 1
     Interact.provideSearchStringInLastSearchCard "OR"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToContain 2 "city" "SPRINGFIELD"
     Expect.cardsInTableColumnInLastCardToContain 2 "state" "OR"
     successMsg "Successfully searched within results"
@@ -84,27 +84,27 @@ test = do
     --      , Tuple "pop" "30001"
     --      ]
     --  ]
-    Interact.insertExploreCardInLastDeck
+    Interact.insertExploreCardInNthDeck 1
     Interact.selectFileForLastExploreCard "/test-mount/testDb/zips"
-    Interact.accessNextCardInLastDeck
-    Interact.insertSearchCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertSearchCardInNthDeck 1
     Interact.provideSearchStringInLastSearchCard
       "city:springfield state:or pop:>30000"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToContain 1 "city" "SPRINGFIELD"
     Expect.cardsInTableColumnInLastCardToContain 1 "state" "OR"
     Expect.cardsInTableColumnInLastCardToBeGT 1 "pop" "30000"
     successMsg "Successfully searched with field names"
 
   searchScenario "Suppress search results" [] do
-    Interact.insertExploreCardInLastDeck
+    Interact.insertExploreCardInNthDeck 1
     Interact.selectFileForLastExploreCard "/test-mount/testDb/zips"
-    Interact.accessNextCardInLastDeck
-    Interact.insertSearchCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertSearchCardInNthDeck 1
     Interact.provideSearchStringInLastSearchCard "city:portland -state:OR"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToContain 10 "city" "PORTLAND"
     Expect.cardsInTableColumnInLastCardToNotEq 10 "state" "OR"
     successMsg "Successfully suppressed search results"

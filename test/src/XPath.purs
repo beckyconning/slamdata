@@ -13,8 +13,20 @@ ancestorString = "/ancestor::"
 followingString ∷ String
 followingString = "/following::"
 
+descendantString ∷ String
+descendantString = "/descendant::"
+
+normalizedTextString ∷ String
+normalizedTextString = "normalize-space(text())"
+
 following ∷ String → String → String
 following x y = x ⊕ followingString ⊕ y
+
+descendant ∷ String → String → String
+descendant x y = x ⊕ descendantString ⊕ y
+
+descendantOrFollowing ∷ String → String → String
+descendantOrFollowing x y = "(" ⊕ descendant x y `union` following x y ⊕ ")"
 
 ancestorOrSelf ∷ String → String → String
 ancestorOrSelf x y = x ⊕ ancestorOrSelfString ⊕ y
@@ -38,13 +50,13 @@ indexString ∷ String → String → String
 indexString xPath i = "(" ⊕ xPath ⊕ ")[" ⊕ i ⊕ "]"
 
 withTextGreaterThan ∷ String → String
-withTextGreaterThan s = "text() > '" ⊕ s ⊕ "'"
+withTextGreaterThan s = normalizedTextString ⊕ " > '" ⊕ s ⊕ "'"
 
 withTextLessThan ∷ String → String
-withTextLessThan s = "text() > '" ⊕ s ⊕ "'"
+withTextLessThan s = normalizedTextString ⊕ " > '" ⊕ s ⊕ "'"
 
 withText ∷ String → String
-withText s = "text() = '" ⊕ s ⊕ "'"
+withText s = normalizedTextString ⊕ " = '" ⊕ s ⊕ "'"
 
 ariaLabel ∷ String → String
 ariaLabel s = "@aria-label = '" ⊕ s ⊕ "'"
@@ -53,10 +65,10 @@ ariaDisabled ∷ String → String
 ariaDisabled s = "@aria-disabled = '" ⊕ s ⊕ "'"
 
 withoutText ∷ String → String
-withoutText s = "text() != '" ⊕ s ⊕ "'"
+withoutText s = normalizedTextString ⊕ " != '" ⊕ s ⊕ "'"
 
 withTextContaining ∷ String → String
-withTextContaining s = "contains(text(), '" ⊕ s ⊕ "')"
+withTextContaining s = "contains(" ⊕ normalizedTextString ⊕ ", '" ⊕ s ⊕ "')"
 
 predicate ∷ String → String
 predicate s = "[" ⊕ s ⊕ "]"
@@ -68,7 +80,7 @@ nodeWithExactText ∷ String → String → String
 nodeWithExactText name text = name ⊕ (predicate $ withText text)
 
 nodeWithText ∷ String → String → String
-nodeWithText name text = name ⊕ "[contains(text(), '" ⊕ text ⊕ "')]"
+nodeWithText name text = name ⊕ "[contains("⊕ normalizedTextString ⊕ ", '" ⊕ text ⊕ "')]"
 
 nodeWithExactAttribute ∷ String → String → String → String
 nodeWithExactAttribute attribute name value = name ⊕ "[@" ⊕ attribute ⊕ "='" ⊕ value ⊕ "']"
@@ -117,10 +129,10 @@ withLabelWithExactText ∷ String → String → String
 withLabelWithExactText xPath = withLabel xPath ∘ labelXPath
   where
   labelXPath text =
-    "label[text()= '" ⊕ text ⊕ "' or descendant::*[text()= '" ⊕ text ⊕ "']]"
+    "label[" ⊕ normalizedTextString ⊕ " = '" ⊕ text ⊕ "' or descendant::*[" ⊕ normalizedTextString ⊕ " = '" ⊕ text ⊕ "']]"
 
 thWithExactText ∷ String → String
-thWithExactText thText = "thead/tr/th[text()='" ⊕ thText ⊕ "']"
+thWithExactText thText = "thead/tr/th[" ⊕ normalizedTextString ⊕ "='" ⊕ thText ⊕ "']"
 
 tdWithTh ∷ String → String → String → String
 tdWithTh tableXPath thXPath tdXPath =
@@ -180,7 +192,7 @@ precedingSibling ∷ String → String → String
 precedingSibling x y = x ⊕ "/preceding-sibling::" ⊕ y
 
 not :: String -> String
-not s = "not(" ++ s ++ ")"
+not s = "not(" ⊕ s ⊕ ")"
 
 any ∷ String
 any = "*"
@@ -222,6 +234,9 @@ tdWithThAndTextNotEqOneOf ∷ String → String → Array String → String
 tdWithThAndTextNotEqOneOf tableXPath thXPath =
   tdWithThAndPredicate tableXPath thXPath ∘ anyOfThesePredicates ∘ map withoutText
 
+union ∷ String -> String → String
+union x y = x ⊕ " | " ⊕ y
+
 anyOfThesePredicates ∷ Array String → String
 anyOfThesePredicates = joinWith " or "
 
@@ -236,3 +251,6 @@ numberInput = nodeWithExactAttribute "type" "input" "number"
 
 anyWithExactSrc ∷ String → String
 anyWithExactSrc = nodeWithExactAttribute "src" "img"
+
+notAriaHidden xPath =
+  xPath ⊕ "[not(ancestor-or-self::*[@aria-hidden='true'])]"

@@ -46,11 +46,11 @@ embedCardOutputTitle =
 
 mdCardTitle ∷ String
 mdCardTitle =
-  XPath.anyWithExactText "Markdown"
+  XPath.anyWithExactText "Markdown card"
 
 queryCardTitle ∷ String
 queryCardTitle =
-  XPath.anyWithExactText "Query"
+  XPath.anyWithExactText "Query card"
 
 displayMarkdownCardTitle ∷ String
 displayMarkdownCardTitle =
@@ -58,7 +58,7 @@ displayMarkdownCardTitle =
 
 chartCardTitle ∷ String
 chartCardTitle =
-  XPath.anyWithExactText "Chart"
+  XPath.anyWithExactText "Chart card"
 
 eChartOptions ∷ String → String
 eChartOptions string =
@@ -75,11 +75,11 @@ displayMarkdownCardHeader =
 
 apiResultsCardHeader ∷ String
 apiResultsCardHeader =
-  XPath.anyWithExactAriaLabel "API Results card"
+  XPath.anyWithExactText "API Results card"
 
 tableCardHeader ∷ String
 tableCardHeader =
-  XPath.anyWithExactAriaLabel "Table card"
+  XPath.anyWithExactText "Table card"
 
 exploreInput ∷ String
 exploreInput =
@@ -100,7 +100,6 @@ saveDestinationInput =
 saveSubmitButton ∷ String
 saveSubmitButton =
   XPath.anyWithExactAriaLabel "Confirm saving file"
-
 
 insertCacheCard ∷ String
 insertCacheCard =
@@ -324,17 +323,27 @@ apiCardDefaultValueFor name =
   XPath.anyWithExactAriaLabel
     $ "Default value for \"" <> name <> "\" API variable"
 
-chartCategorySelector ∷ String
-chartCategorySelector = XPath.anyWithExactAriaLabel "Category"
+chartCategory ∷ String
+chartCategory =
+  XPath.notAriaHidden $ XPath.any `XPath.withLabelWithExactText` "Category"
 
-chartSeriesOneSelector ∷ String
-chartSeriesOneSelector = XPath.anyWithExactAriaLabel "Second Series"
+chartDimension ∷ String
+chartDimension =
+  XPath.notAriaHidden $ XPath.any `XPath.withLabelWithExactText` "Dimension"
 
-chartMeasureOneSelector ∷ String
-chartMeasureOneSelector = XPath.anyWithExactAriaLabel "First Measure"
+chartSeries ∷ String
+chartSeries =
+  XPath.notAriaHidden $ XPath.any `XPath.withLabelWithExactText` "Series"
+
+chartMeasure ∷ String
+chartMeasure =
+  XPath.notAriaHidden $ XPath.anyWithExactAriaLabel "Measure"
 
 chartSwitchToBar ∷ String
-chartSwitchToBar = XPath.anyWithExactSrc "img/bar.svg"
+chartSwitchToBar = XPath.anyWithExactAriaLabel "Select bar chart"
+
+chartSwitchToLine ∷ String
+chartSwitchToLine = XPath.anyWithExactAriaLabel "Select line chart"
 
 chartContainer ∷ String
 chartContainer = "div[@_echarts_instance_]"
@@ -385,4 +394,20 @@ enabledNextCardGripper =
 
 deck :: String
 deck =
-  XPath.anyWithExactAriaLabel $ "Deck"
+  XPath.anyWithExactAriaLabel "Deck"
+
+wrap :: String
+wrap =
+  XPath.anyWithExactText "Wrap"
+
+deckGripper :: String
+deckGripper =
+  XPath.anyWithExactAriaLabel "Grab deck"
+
+resizeDeck :: String
+resizeDeck =
+  XPath.anyWithExactAriaLabel "Resize deck"
+
+draftboard :: String
+draftboard =
+  XPath.anyWithExactAriaLabel "Draftboard"

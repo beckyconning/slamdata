@@ -5,6 +5,7 @@ import SlamData.Prelude
 import Data.Map as Map
 import Selenium.Monad (tryRepeatedlyTo)
 import Test.Feature (expectPresented, expectNotPresented, expectPresentedWithProperties, expectDownloadedTextFileToMatchFile, expectSelectValue, expectPresentedNotRepeatedly)
+import Test.Feature as Feature
 import Test.SlamData.Feature.Monad (SlamFeature)
 import Test.SlamData.Feature.XPaths as XPaths
 
@@ -148,7 +149,7 @@ measureDisabledInLastVisualizeCard
 measureDisabledInLastVisualizeCard =
   expectPresentedWithProperties
     (Map.singleton "disabled" (Just "true"))
-    (XPath.last $ XPath.anywhere $ XPaths.chartMeasureOneSelector)
+    (XPath.last $ XPath.anywhere $ XPaths.chartMeasure)
 
 measureInLastVisualizeCard
   ∷ String
@@ -156,7 +157,7 @@ measureInLastVisualizeCard
 measureInLastVisualizeCard value =
   expectSelectValue
     value
-    (XPath.last $ XPath.anywhere $ XPaths.chartMeasureOneSelector)
+    (XPath.last $ XPath.anywhere $ XPaths.chartMeasure)
 
 fileSearchString ∷ String → SlamFeature Unit
 fileSearchString string =
@@ -297,3 +298,12 @@ onlyPublishActionPresented = do
     , XPaths.trashCardAction
     ]
     backsideActionNotPresented
+
+nthDeckToBeAboveMthDeck :: Int -> Int -> SlamFeature Unit
+nthDeckToBeAboveMthDeck aboveIndex belowIndex =
+  Feature.expectPositionComparison Feature.Above
+    (XPath.index (XPath.anywhere $ XPaths.deck) aboveIndex)
+    (XPath.index (XPath.anywhere $ XPaths.deck) belowIndex)
+
+nthDeckToBeFullWidth :: Int -> SlamFeature Unit
+nthDeckToBeFullWidth = const $ pure unit

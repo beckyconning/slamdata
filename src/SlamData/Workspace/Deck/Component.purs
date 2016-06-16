@@ -117,6 +117,7 @@ render st =
         [ HH.div
             [ HP.class_ CSS.deck
             , HP.key "deck-container"
+            , ARIA.label "Deck"
             ]
             [ HH.button
                 [ HP.classes [ CSS.flipDeck ]

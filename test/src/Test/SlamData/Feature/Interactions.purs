@@ -14,10 +14,11 @@ import Test.SlamData.Feature.Expectations as Expect
 import Test.Utils (appendToCwd)
 import XPath as XPath
 
-followingLastPreviousCardGripper :: String -> String
-followingLastPreviousCardGripper = XPath.following lastPreviousCardGripperXPath
-  where
-  lastPreviousCardGripperXPath = XPath.last $ XPath.anywhere XPaths.previousCardGripper
+nthDeckXPath :: Int -> String
+nthDeckXPath = XPath.index $ XPath.anywhere $ XPaths.deck
+
+inNthDeck :: Int -> String -> String
+inNthDeck index = XPath.descendant $ nthDeckXPath index
 
 launchSlamData ∷ SlamFeature Unit
 launchSlamData = get ∘ _.slamdataUrl =<< getConfig
@@ -136,61 +137,63 @@ reopenCurrentWorkspace = waitTime 2000 *> refresh
 expandNewCardMenu ∷ SlamFeature Unit
 expandNewCardMenu = Feature.click (XPath.anywhere XPaths.insertCard)
 
-accessNextCardInLastDeck ∷ SlamFeature Unit
-accessNextCardInLastDeck =
+accessNextCardInNthDeck ∷ Int → SlamFeature Unit
+accessNextCardInNthDeck index =
   Feature.dragAndDrop
-    (XPath.last $ XPath.anywhere $ XPaths.enabledNextCardGripper)
-    (XPath.last $ XPath.anywhere $ XPaths.previousCardGripper)
+    Feature.Center
+    (inNthDeck index XPaths.enabledNextCardGripper)
+    (inNthDeck index XPaths.previousCardGripper)
 
-accessPreviousCardInLastDeck ∷ SlamFeature Unit
-accessPreviousCardInLastDeck =
+accessPreviousCardInNthDeck ∷ Int → SlamFeature Unit
+accessPreviousCardInNthDeck index =
   Feature.dragAndDrop
-    (XPath.last $ XPath.anywhere $ XPaths.enabledPreviousCardGripper)
-    (XPath.last $ XPath.anywhere $ XPaths.nextCardGripper)
+    Feature.Center
+    (inNthDeck index XPaths.enabledPreviousCardGripper)
+    (inNthDeck index XPaths.nextCardGripper)
 
-insertSearchCardInLastDeck ∷ SlamFeature Unit
-insertSearchCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertSearchCard
+insertSearchCardInNthDeck ∷ Int → SlamFeature Unit
+insertSearchCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertSearchCard
 
-insertQueryCardInLastDeck ∷ SlamFeature Unit
-insertQueryCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertQueryCard
+insertQueryCardInNthDeck ∷ Int → SlamFeature Unit
+insertQueryCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertQueryCard
 
-insertMdCardInLastDeck ∷ SlamFeature Unit
-insertMdCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertMdCard
+insertMdCardInNthDeck ∷ Int → SlamFeature Unit
+insertMdCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertMdCard
 
-insertExploreCardInLastDeck ∷ SlamFeature Unit
-insertExploreCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertExploreCard
+insertExploreCardInNthDeck ∷ Int → SlamFeature Unit
+insertExploreCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertExploreCard
 
-insertVisualizeCardInLastDeck ∷ SlamFeature Unit
-insertVisualizeCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertVisualizeCard
+insertVisualizeCardInNthDeck ∷ Int → SlamFeature Unit
+insertVisualizeCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertVisualizeCard
 
-insertDisplayMarkdownCardInLastDeck ∷ SlamFeature Unit
-insertDisplayMarkdownCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertDisplayMarkdownCard
+insertDisplayMarkdownCardInNthDeck ∷ Int → SlamFeature Unit
+insertDisplayMarkdownCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertDisplayMarkdownCard
 
-insertJTableCardInLastDeck ∷ SlamFeature Unit
-insertJTableCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertJTableCard
+insertJTableCardInNthDeck ∷ Int → SlamFeature Unit
+insertJTableCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertJTableCard
 
-insertChartCardInLastDeck ∷ SlamFeature Unit
-insertChartCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertChartCard
+insertChartCardInNthDeck ∷ Int → SlamFeature Unit
+insertChartCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertChartCard
 
-insertCacheCardInLastDeck ∷ SlamFeature Unit
-insertCacheCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertCacheCard
+insertCacheCardInNthDeck ∷ Int → SlamFeature Unit
+insertCacheCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertCacheCard
 
-insertApiCardInLastDeck ∷ SlamFeature Unit
-insertApiCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertApiCard
+insertApiCardInNthDeck ∷ Int → SlamFeature Unit
+insertApiCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertApiCard
 
-insertApiResultsCardInLastDeck ∷ SlamFeature Unit
-insertApiResultsCardInLastDeck =
-  Feature.click $ followingLastPreviousCardGripper XPaths.insertApiResultsCard
+insertApiResultsCardInNthDeck ∷ Int → SlamFeature Unit
+insertApiResultsCardInNthDeck index =
+  Feature.click $ inNthDeck index XPaths.insertApiResultsCard
 
 selectFileForLastExploreCard ∷ String → SlamFeature Unit
 selectFileForLastExploreCard p = do
@@ -243,34 +246,34 @@ doSaveInLastCacheCard ∷ SlamFeature Unit
 doSaveInLastCacheCard =
   Feature.click (XPath.last $ XPath.anywhere XPaths.saveSubmitButton)
 
-provideFieldValueInLastDeck ∷ String → String → SlamFeature Unit
-provideFieldValueInLastDeck labelText =
+provideFieldValueInNthDeck ∷ Int → String → String → SlamFeature Unit
+provideFieldValueInNthDeck index labelText =
   Feature.provideFieldValue
-    $ followingLastPreviousCardGripper
+    $ inNthDeck index
     $ "input" `XPath.withLabelWithExactText` labelText
 
-checkFieldInLastDeck ∷ String → SlamFeature Unit
-checkFieldInLastDeck labelText =
+checkFieldInNthDeck ∷ Int → String → SlamFeature Unit
+checkFieldInNthDeck index labelText =
   Feature.check
-    $ followingLastPreviousCardGripper
+    $ inNthDeck index
     $ "input" `XPath.withLabelWithExactText` labelText
 
-uncheckFieldInLastDeck ∷ String → SlamFeature Unit
-uncheckFieldInLastDeck labelText =
+uncheckFieldInNthDeck ∷ Int → String → SlamFeature Unit
+uncheckFieldInNthDeck index labelText =
   Feature.uncheck
-    $ followingLastPreviousCardGripper
+    $ inNthDeck index
     $ "input" `XPath.withLabelWithExactText` labelText
 
-pushRadioButtonInLastDeck ∷ String → SlamFeature Unit
-pushRadioButtonInLastDeck labelText =
+pushRadioButtonInNthDeck ∷ Int → String → SlamFeature Unit
+pushRadioButtonInNthDeck index labelText =
   Feature.pushRadioButton
-    $ followingLastPreviousCardGripper
+    $ inNthDeck index
     $ "input" `XPath.withLabelWithExactText` labelText
 
-selectFromDropdownInLastDeck ∷ String → String → SlamFeature Unit
-selectFromDropdownInLastDeck labelText =
+selectFromDropdownInNthDeck ∷ Int → String → String → SlamFeature Unit
+selectFromDropdownInNthDeck index labelText =
   Feature.selectFromDropdown
-    $ followingLastPreviousCardGripper
+    $ inNthDeck index
     $ "select" `XPath.withLabelWithExactText` labelText
 
 accessSharingUrl ∷ SlamFeature Unit
@@ -315,8 +318,7 @@ provideApiVariableBindingsForApiCard name ty val =
   where
   provideValueForApiCard ∷ String → SlamFeature Unit
   provideValueForApiCard name = do
-    Feature.provideFieldValueUntilExpectedValue
-      name
+    Feature.provideFieldValue
       (XPath.first $ XPath.anywhere $ XPaths.apiCardVariableName)
       name
     Feature.pressEnter
@@ -329,8 +331,7 @@ provideApiVariableBindingsForApiCard name ty val =
 
   provideDefaultValueForApiCard ∷ String → String → SlamFeature Unit
   provideDefaultValueForApiCard name val = do
-    Feature.provideFieldValueUntilExpectedValue
-      val
+    Feature.provideFieldValue
       (XPath.first $ XPath.anywhere $ XPaths.apiCardDefaultValueFor name)
       val
     Feature.pressEnter
@@ -340,22 +341,34 @@ provideCategoryForLastVisualizeCard
   → SlamFeature Unit
 provideCategoryForLastVisualizeCard str =
   Feature.selectFromDropdown
-    (XPath.last $ XPath.anywhere $ XPaths.chartCategorySelector)
+    (XPath.last $ XPath.anywhere $ XPaths.chartCategory)
+    str
+
+provideDimensionForLastVisualizeCard
+  ∷ String
+  → SlamFeature Unit
+provideDimensionForLastVisualizeCard str =
+  Feature.selectFromDropdown
+    (XPath.last $ XPath.anywhere $ XPaths.chartDimension)
     str
 
 provideSeriesForLastVizualizeCard ∷ String → SlamFeature Unit
 provideSeriesForLastVizualizeCard str =
   Feature.selectFromDropdown
-    (XPath.last $ XPath.anywhere $ XPaths.chartSeriesOneSelector)
+    (XPath.last $ XPath.anywhere $ XPaths.chartSeries)
     str
 
 switchToBarChart ∷ SlamFeature Unit
 switchToBarChart =
   Feature.click $ XPath.anywhere $ XPaths.chartSwitchToBar
 
-flipDeck ∷ SlamFeature Unit
-flipDeck =
-  Feature.click $ XPath.anywhere $ XPath.anyWithExactAriaLabel "Flip deck"
+switchToLineChart ∷ SlamFeature Unit
+switchToLineChart =
+  Feature.click $ XPath.anywhere $ XPaths.chartSwitchToLine
+
+flipNthDeck ∷ Int → SlamFeature Unit
+flipNthDeck index =
+  Feature.click $ XPath.last $ XPath.anywhere $ XPath.anyWithExactAriaLabel "Flip deck"
 
 trashActiveOrLastCard ∷ SlamFeature Unit
 trashActiveOrLastCard =
@@ -372,3 +385,27 @@ publishDeck =
 filterActions ∷ String → SlamFeature Unit
 filterActions =
   Feature.provideFieldValue (XPath.anywhere $ XPath.anyWithExactAriaLabel "Filter actions")
+
+wrapNthDeck ∷ Int → SlamFeature Unit
+wrapNthDeck index =
+  flipNthDeck index *> pressLastWrapButton
+  where
+  pressLastWrapButton = Feature.click $ XPath.last $ XPath.anywhere $ XPaths.wrap
+
+moveNthDeckToLeftOfMthDeck ∷ Int → Int → SlamFeature Unit
+moveNthDeckToLeftOfMthDeck dragIndex dropIndex =
+  Feature.dragAndDrop
+    Feature.Left
+    (XPath.index (inNthDeck dragIndex XPaths.deckGripper) 1)
+    (XPath.index (inNthDeck dropIndex XPaths.previousCardGripper) 1)
+
+resizeNthDeckAllTheWayToTheRightOfMthDeck ∷ Int → Int → SlamFeature Unit
+resizeNthDeckAllTheWayToTheRightOfMthDeck dragIndex dropIndex =
+  Feature.dragAndDrop
+    Feature.Left
+    (XPath.index (inNthDeck dragIndex XPaths.resizeDeck) 1)
+    (XPath.index (inNthDeck dropIndex XPaths.nextCardGripper) 1)
+
+insertNewDeckInLastDraftboard ∷ SlamFeature Unit
+insertNewDeckInLastDraftboard =
+  Feature.click $ XPath.last $ XPath.anywhere $ XPaths.draftboard

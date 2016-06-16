@@ -2,6 +2,8 @@ module Test.Feature
   ( Properties
   , XPath
   , FilePath
+  , DropPosition(..)
+  , PositionComparison(..)
   , accessUrlFromFieldValue
   , accessUrlFromFieldValueWithProperties
   , check
@@ -23,13 +25,15 @@ module Test.Feature
   , expectPresentedNotRepeatedly
   , expectPresentedWithPropertiesNotRepeatedly
   , expectSelectValue
+  , expectPositionComparison
+  , expectPositionComparisonWithProperties
+  , expectPositionComparisonNotRepeatedly
+  , expectPositionComparisonWithPropertiesNotRepeatedly
   , hover
   , hoverWithProperties
   , pressEnter
   , provideFieldValue
-  , provideFieldValueUntilExpectedValue
   , provideFieldValueWithProperties
-  , provideFieldValueWithPropertiesUntilExpectedValue
   , provideFileInputValue
   , provideFileInputValueWithProperties
   , pushRadioButton
@@ -65,7 +69,7 @@ import Node.FS.Aff (readFile, readTextFile, readdir, unlink)
 import Selenium.ActionSequence as Sequence
 import Selenium.Monad (get, getAttribute, clickEl, attempt, later, byXPath, tryRepeatedlyTo, findElements, isDisplayed, getLocation, getSize, saveScreenshot, sendKeysEl)
 import Selenium.Monad as Selenium
-import Selenium.Types (Element, Location)
+import Selenium.Types (Element, Location, Size)
 
 import Test.Feature.ActionSequence as FeatureSequence
 import Test.Feature.Monad (Feature, await)
@@ -184,6 +188,15 @@ findWithProperties properties xPath =
   expectPresentedWithProperties properties xPath
     *> findWithPropertiesNotRepeatedly properties xPath
 
+-- Property and XPath dependent getters
+getXWithPropertiesNotRepeatedly ∷ ∀ eff o. Properties → XPath → Feature eff o Int
+getXWithPropertiesNotRepeatedly properties =
+  map _.x ∘ Selenium.getLocation <=< findWithPropertiesNotRepeatedly properties
+
+getYWithPropertiesNotRepeatedly ∷ ∀ eff o. Properties → XPath → Feature eff o Int
+getYWithPropertiesNotRepeatedly properties =
+  map _.y ∘ Selenium.getLocation <=< findWithPropertiesNotRepeatedly properties
+
 -- Errors
 printPropertyValue ∷ Maybe String → String
 printPropertyValue = maybe "null" show
@@ -214,6 +227,19 @@ withPropertiesMessage mp s
   | Map.isEmpty mp = s
 withPropertiesMessage xs s =
   s ⊕ " with the attributes or properties: " ⊕ printProperties xs
+
+visualPositionError ∷ String → Properties → XPath → Properties → XPath → String
+visualPositionError direction aProperties aXPath bProperties bXPath =
+  "Expected element "
+    ⊕ withPropertiesMessage aProperties ""
+    ⊕ " found using: "
+    ⊕ aXPath
+    ⊕ " to be visually presented "
+    ⊕ direction
+    ⊕ " the element "
+    ⊕ withPropertiesMessage bProperties ""
+    ⊕ " found using: "
+    ⊕ bXPath
 
 -- Expectations
 expectNotPresentedNotRepeatedly ∷ ∀ eff o. XPath → Feature eff o Unit
@@ -251,7 +277,7 @@ expectNotPresentedAria properties xPath =
     =<< findAllWithPropertiesNotRepeatedly properties notHiddenXPath
   where
   notHiddenXPath =
-    xPath `XPath.ancestorOrSelf` "*[not(@aria-hidden='true')]"
+    XPath.notAriaHidden xPath
 
   message =
     XPath.errorMessage
@@ -299,7 +325,6 @@ expectNotPresentedWithProperties
 expectNotPresentedWithProperties properties xPath =
   tryRepeatedlyTo
     $ expectNotPresentedWithPropertiesNotRepeatedly properties xPath
-
 
 -- `expectNotPresentedAria` should check if the element's parent has `aria-hidden`
 -- then we can switch from `<|>` to `*>` again
@@ -363,6 +388,91 @@ expectPresentedWithPropertiesNotRepeatedly properties xPath =
   ariaMessage =
     "Expected no true values for \"aria-hidden\" on elements or their ancestors found"
 
+data PositionComparison = Above | Below | ToTheLeft | ToTheRight | TopAligned | LeftAligned
+
+expectPositionComparisonWithPropertiesNotRepeatedly
+  ∷ ∀ eff o
+  . PositionComparison
+  → Properties
+  → XPath
+  → Properties
+  → XPath
+  → Feature eff o Unit
+expectPositionComparisonWithPropertiesNotRepeatedly comparison aProperties aXPath bProperties bXPath =
+  ifFalse throwNotAboveError =<< expectation
+  where
+  getPosition = getPositionForPositionComparison comparison
+  calc = positionComparisonCalc comparison
+  s = printPositionComparison comparison
+  expectation = calc <$> getPosition aProperties aXPath <*> getPosition bProperties bXPath
+  throwNotAboveError =
+    liftEff $ throw $ visualPositionError s aProperties aXPath bProperties bXPath
+
+expectPositionComparisonNotRepeatedly
+  ∷ ∀ eff o
+  . PositionComparison
+  → XPath
+  → XPath
+  → Feature eff o Unit
+expectPositionComparisonNotRepeatedly comparison aXPath bXPath =
+  expectPositionComparisonWithPropertiesNotRepeatedly comparison Map.empty aXPath Map.empty bXPath
+
+expectPositionComparisonWithProperties
+  ∷ ∀ eff o
+  . PositionComparison
+  → Properties
+  → XPath
+  → Properties
+  → XPath
+  → Feature eff o Unit
+expectPositionComparisonWithProperties comparison aProperties aXPath bProperties =
+  tryRepeatedlyTo
+    <<< expectPositionComparisonWithPropertiesNotRepeatedly comparison aProperties aXPath bProperties
+
+expectPositionComparison
+  ∷ ∀ eff o
+  . PositionComparison
+  → XPath
+  → XPath
+  → Feature eff o Unit
+expectPositionComparison comparison aXPath =
+  tryRepeatedlyTo <<< expectPositionComparisonNotRepeatedly comparison aXPath
+
+getPositionForPositionComparison
+  ∷ ∀ eff o
+  . PositionComparison
+  → Properties
+  → XPath
+  → Feature eff o Int
+getPositionForPositionComparison =
+  case _ of
+    Above → getYWithPropertiesNotRepeatedly
+    Below → getYWithPropertiesNotRepeatedly
+    TopAligned → getYWithPropertiesNotRepeatedly
+    ToTheLeft → getXWithPropertiesNotRepeatedly
+    ToTheRight → getXWithPropertiesNotRepeatedly
+    LeftAligned → getXWithPropertiesNotRepeatedly
+
+positionComparisonCalc ∷ ∀ eff o. PositionComparison → Int → Int → Boolean
+positionComparisonCalc =
+  case _ of
+    Above → (<)
+    ToTheLeft → (<)
+    Below → (>)
+    ToTheRight → (>)
+    TopAligned → (==)
+    LeftAligned → (==)
+
+printPositionComparison ∷ ∀ eff o. PositionComparison → String
+printPositionComparison =
+  case _ of
+    Above → "above"
+    Below → "below"
+    ToTheLeft → "to the left of"
+    ToTheRight → "to the right of"
+    TopAligned → "top aligned with"
+    LeftAligned → "left aligned with"
+
 -- | Expect a screenshot of the node found with the provided XPath to match any
 -- | of the images with the provided image paths.
 -- |
@@ -425,7 +535,7 @@ expectSelectValue ∷ ∀ eff o. String → XPath → Feature eff o Unit
 expectSelectValue value xPath =
   tryRepeatedlyTo $ getOptionValue >>= expectPresentedWithValue
   where
-  optionXPath = xPath ⊕ "/descendant::option[text()='" ⊕ value ⊕ "']"
+  optionXPath = xPath ⊕ "/descendant∷option[text()='" ⊕ value ⊕ "']"
   getOptionValue = flip getAttribute "value" =<< find optionXPath
   valueProperty = Map.singleton "value"
   expectPresentedWithValue value = expectPresentedWithProperties (valueProperty value) xPath
@@ -506,12 +616,6 @@ clickAll xPath = clickAllWithProperties Map.empty xPath
 clickNotRepeatedly ∷ ∀ eff o. XPath → Feature eff o Unit
 clickNotRepeatedly xPath = clickWithPropertiesNotRepeatedly Map.empty xPath
 
--- | Drag node found with the first provided XPath to the node found with the
--- | second provided XPath.
-dragAndDrop ∷ ∀ eff o. XPath → XPath → Feature eff o Unit
-dragAndDrop fromXPath toXPath =
-  dragAndDropWithProperties Map.empty fromXPath Map.empty toXPath
-
 -- | Hover over the node found with the provided XPath.
 hover ∷ ∀ eff o. XPath → Feature eff o Unit
 hover xPath = hoverWithProperties Map.empty xPath
@@ -526,6 +630,20 @@ provideFileInputValue xPath fileName = provideFileInputValueWithProperties Map.e
 -- | function allows feature tests to access such URLs.
 accessUrlFromFieldValue ∷ ∀ eff o. XPath → Feature eff o Unit
 accessUrlFromFieldValue xPath = accessUrlFromFieldValueWithProperties Map.empty xPath
+
+-- | Drag node found with the first provided XPath to the node found with the
+-- | second provided XPath.
+-- | Uses the first and second functions to determine the x and y positions of the drop
+-- | location based on the position of the drag element, position of the drop element and the
+-- | size of the drop element.
+dragAndDrop
+  ∷ ∀ eff o
+  . DropPosition
+  → XPath
+  → XPath
+  → Feature eff o Unit
+dragAndDrop dropPosition dragXPath dropXPath =
+  dragAndDropWithProperties dropPosition Map.empty dragXPath Map.empty dropXPath
 
 -- XPath and property dependent interactions
 clearWithProperties
@@ -576,38 +694,6 @@ provideFieldValueWithProperties
 provideFieldValueWithProperties properties xPath value =
   tryRepeatedlyTo $ provideFieldValueElement value =<< findWithProperties properties xPath
 
--- | Repeatedly provide the first value for the text or number field found with the
--- | provided XPath until the field has the second value.
-provideFieldValueUntilExpectedValue
-  ∷ ∀ eff o
-  .  String
-  → XPath
-  → String
-  → Feature eff o Unit
-provideFieldValueUntilExpectedValue expectedValue xPath value =
-  provideFieldValueWithPropertiesUntilExpectedValue Map.empty expectedValue xPath value
-
--- | Repeatedly provide the first value for the text or number field with the
--- | provided properties found with the provided XPath until the field has the
--- | second value.
-provideFieldValueWithPropertiesUntilExpectedValue
-  ∷ ∀ eff o
-  . Properties
-  → String
-  → XPath
-  → String
-  → Feature eff o Unit
-provideFieldValueWithPropertiesUntilExpectedValue properties expectedValue xPath value  =
-  tryRepeatedlyTo $ action *> (later smallWaitTime expectation)
-  where
-  action =
-    provideFieldValueElement value
-      =<< findWithPropertiesNotRepeatedly properties xPath
-  expectation =
-    expectPresentedWithPropertiesNotRepeatedly
-      (updateProperty "value" (Just expectedValue) properties)
-      xPath
-
 -- | Select option with the provided text from the select node with the provided
 -- | attributes or properties found with the provided XPath.
 selectFromDropdownWithProperties ∷ ∀ eff o. Properties → XPath → String → Feature eff o Unit
@@ -621,7 +707,6 @@ clickWithPropertiesNotRepeatedly
   → Feature eff o Unit
 clickWithPropertiesNotRepeatedly properties =
   clickEl <=< findWithPropertiesNotRepeatedly properties
-
 
 -- | Click node with the provided properties or attributes found with the
 -- | provided XPath.
@@ -641,34 +726,94 @@ clickAllWithProperties properties =
     ∘ (traverse_ clickEl)
     <=< findAtLeastOneWithProperties properties
 
+data DropPosition
+  = Top
+  | Middle
+  | Bottom
+  | Left
+  | Center
+  | Right
+  | TopLeft
+  | TopCenter
+  | TopRight
+  | MiddleLeft
+  | MiddleCenter
+  | MiddleRight
+  | BottomLeft
+  | BottomCenter
+  | BottomRight
+
 -- | Drag node with the first provided properties or attributes found with the first
 -- | provided XPath to the node with the second provided properties or attributes found with
 -- | the second provided XPath.
+-- | Uses the first and second functions to determine the x and y positions of the drop
+-- | location based on the position of the drag element, position of the drop element and the
+-- | size of the drop element.
 dragAndDropWithProperties
   ∷ ∀ eff o
-  . Properties
+  . DropPosition
+  → Properties
   → XPath
   → Properties
   → XPath
   → Feature eff o Unit
-dragAndDropWithProperties fromProperties fromXPath toProperties toXPath =
+dragAndDropWithProperties dropPosition dragProperties dragXPath dropProperties dropXPath =
   tryRepeatedlyTo do
-    from ← findWithPropertiesNotRepeatedly fromProperties fromXPath
-    fromLocation ← getCenterLocation from
-    toLocation ← getCenterLocation =<< findWithPropertiesNotRepeatedly toProperties toXPath
-    dragAndDropElement from $ offset fromLocation toLocation
+    dragElement ← getDragElement
+    dropLocation ← getDropLocation dragElement =<< getDropElement
+    drag dragElement dropLocation
   where
-  offset from to =
-    { x: to.x - from.x
-    , y: to.y - from.y
+  difference ∷ Location → Location → Location
+  difference dragLocation dropLocation =
+    { x: dropLocation.x - dragLocation.x, y: dropLocation.y - dragLocation.y }
+
+  dropPositionFunctions ∷ { x ∷ Int → Int → Int → Int, y ∷ Int → Int → Int → Int }
+  dropPositionFunctions =
+    case dropPosition of
+      Top → { x: startPosition, y: nearPosition }
+      Middle → { x: startPosition, y: centerPosition }
+      Bottom → { x: startPosition, y: farPosition }
+      Left → { x: nearPosition, y: startPosition }
+      Center → { x: centerPosition, y: startPosition }
+      Right → { x: farPosition, y: startPosition }
+      TopLeft → { x: nearPosition, y: nearPosition }
+      TopCenter → { x: centerPosition, y: nearPosition }
+      TopRight → { x: farPosition, y: nearPosition }
+      MiddleLeft → { x: nearPosition, y: centerPosition }
+      MiddleCenter → { x: centerPosition, y: centerPosition }
+      MiddleRight → { x: farPosition, y: centerPosition }
+      BottomLeft → { x: nearPosition, y: farPosition }
+      BottomCenter → { x: centerPosition, y: farPosition }
+      BottomRight → { x: farPosition, y: farPosition }
+
+  calcDropLocation ∷ Location → Location → Size → Location
+  calcDropLocation dragLocation dropLocation dropSize =
+    { x: dropPositionFunctions.x dragLocation.x dropLocation.x dropSize.width
+    , y: dropPositionFunctions.y dragLocation.y dropLocation.y dropSize.height
     }
-  getCenterLocation element = do
-    location ← getLocation element
-    size ← getSize element
-    pure
-      { x: location.x + (size.width / 2)
-      , y: location.y + (size.height / 2)
-      }
+
+  getDropLocation ∷ Element → Element → Feature eff o Location
+  getDropLocation dragElement dropElement =
+    calcDropLocation
+      <$> getLocation dragElement
+      <*> getLocation dropElement
+      <*> getSize dropElement
+
+  getDifference ∷ Element → Location → Feature eff o Location
+  getDifference dragElement dropLocation =
+    flip difference dropLocation <$> getLocation dragElement
+
+  getDragElement ∷ Feature eff o Element
+  getDragElement =
+    findWithPropertiesNotRepeatedly dragProperties dragXPath
+
+  getDropElement ∷ Feature eff o Element
+  getDropElement =
+    findWithPropertiesNotRepeatedly dropProperties dropXPath
+
+  drag ∷ Element → Location → Feature eff o Unit
+  drag dragElement dropLocation =
+    dragAndDropElement dragElement =<< getDifference dragElement dropLocation
 
 -- | Hover over the node with the provided properties or attributes found with
 -- | the provided XPath.
@@ -699,6 +844,23 @@ accessUrlFromFieldValueWithProperties properties xPath =
     XPath.errorMessage (withPropertiesMessage properties rawNullValueErrorMessage) xPath
   rawNullValueErrorMessage =
     "Expected a non null value attribute or property for the element found with"
+
+-- Position functions
+nearPosition ∷ Int → Int → Int → Int
+nearPosition startLocation endLocation endSize =
+  endLocation
+
+centerPosition ∷ Int → Int → Int → Int
+centerPosition startLocation endLocation endSize =
+  endLocation + (endSize / 2)
+
+farPosition ∷ Int → Int → Int → Int
+farPosition startLocation endLocation endSize =
+  endLocation + endSize
+
+startPosition ∷ Int → Int → Int → Int
+startPosition startLocation endLocation endSize =
+  startLocation
 
 -- Independent interactions
 typeString ∷ ∀ eff o. String → Feature eff o Unit
@@ -740,7 +902,6 @@ clearElement element =
 
   typeRightArrow ∷ Int → Feature eff o Unit
   typeRightArrow = Selenium.sequence ∘ FeatureSequence.sendRights
-
 
 hoverElement ∷ ∀ eff o. Element → Feature eff o Unit
 hoverElement = Selenium.sequence ∘ Sequence.hover
@@ -827,7 +988,6 @@ expectScreenshotOfElementToMatchAny diffPath maxPercent presentedPath expectedPa
       }
     {percent} ← nonWhite diffPath
     pure $ percent < maxPercent
-
 
 -- File utilities
 showImageFile ∷ ∀ eff o. FilePath → Feature eff o String

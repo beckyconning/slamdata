@@ -52,6 +52,8 @@ import Test.SlamData.Feature.Test.Markdown as Markdown
 import Test.SlamData.Feature.Test.Search as Search
 import Test.SlamData.Feature.Test.CacheCard as Cache
 import Test.SlamData.Feature.Test.FlipDeck as FlipDeck
+import Test.SlamData.Feature.Test.Dashboard as Dashboard
+
 import Text.Chalky (green, yellow, magenta, gray, red)
 
 foreign import getConfig ∷ ∀ e. Eff (fs ∷ FS|e) Config
@@ -74,7 +76,7 @@ tests ∷ SlamFeature Unit
 tests = do
   launchSlamData
   mountTestDatabase
-
+  Dashboard.test
   File.test
   Search.test
   Markdown.test

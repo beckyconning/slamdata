@@ -39,6 +39,7 @@ import SlamData.Prelude
 
 import Data.Argonaut (JCursor)
 import Data.Array ((!!), null, range, length, catMaybes)
+import Data.String as String
 
 import Halogen as H
 import Halogen.Component.ChildPath (ChildPath, cpL, cpR, (:>))
@@ -48,6 +49,7 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Effects (Slam)
+import SlamData.Form.Common as Common
 import SlamData.Form.Select (Select(..))
 import SlamData.Form.Select.Component as S
 import SlamData.Form.SelectPair.Component as P
@@ -146,9 +148,9 @@ render conf =
         [ CP.nonSubmit
         , HP.classes [ Rc.chartConfigureForm, Rc.chartDimension ]
         ]
-        [ dimensionLabel
+        [ label ix "Dimension" "dimension"
         , HH.slot' cpDimension ix \_ →
-            { component: S.primarySelect (pure "Dimension")
+            { component: S.primarySelect ix "Dimension"
             , initialState: sel
             }
         ]
@@ -164,7 +166,7 @@ render conf =
             , Rc.withAggregation
             ]
         ]
-        [ measureLabel
+        [ label ix "Measure" "measure"
         , HH.slot' cpMeasure ix \_ →
             { component: childMeasure ix sel
             , initialState: H.parentState $ P.initialState aggregationSelect
@@ -181,9 +183,9 @@ render conf =
             , Rc.chartSeriesOne
             ]
         ]
-      [ seriesLabel
+      [ label ix "Series" "series"
       , HH.slot' cpSeries ix \_ →
-          { component: S.secondarySelect $ renderLabel ix "Series"
+          { component: S.secondarySelect ix "Series"
           , initialState: sel
           }
       ]
@@ -198,9 +200,9 @@ render conf =
             , Rc.chartCategory
             ]
         ]
-        [ categoryLabel
+        [ label ix "Category" "category"
         , HH.slot' cpSeries ix \_ →
-            { component: S.primarySelect $ pure "Category"
+            { component: S.primarySelect ix "Category"
             , initialState: sel
             }
         ]
@@ -212,13 +214,15 @@ render conf =
       then { disableWhen: (_ < 2)
            , defaultWhen: (_ > 1)
            , mainState: sel
-           , ariaLabel: renderLabel i "Measure"
+           , label: "Measure"
+           , ix: i
            , classes: [Rc.aggregation, B.btnPrimary]
            }
       else { disableWhen: (_ < 1)
            , defaultWhen: (const true)
            , mainState: sel
-           , ariaLabel: renderLabel i "Measure"
+           , label: "Measure"
+           , ix: i
            , classes: [Rc.aggregation, B.btnPrimary]
            }
 
@@ -230,26 +234,13 @@ render conf =
       , value: Just Sum
       }
 
-  label ∷ String → FormHTML
-  label str = HH.label [ HP.classes [ B.controlLabel ] ] [ HH.text str ]
-
-  categoryLabel ∷ FormHTML
-  categoryLabel = label "Category"
-
-  dimensionLabel ∷ FormHTML
-  dimensionLabel = label "Dimension"
-
-  measureLabel ∷ FormHTML
-  measureLabel = label "Measure"
-
-  seriesLabel ∷ FormHTML
-  seriesLabel = label "Series"
-
-  renderLabel ∷ Int → String → Maybe String
-  renderLabel 0 str = pure $ "First " ⊕ str
-  renderLabel 1 str = pure $ "Second " ⊕ str
-  renderLabel 2 str = pure $ "Third " ⊕ str
-  renderLabel n str = pure $ show n ⊕ "th " ⊕ str
+  label ∷ Int → String → String → FormHTML
+  label ix str for =
+    HH.label
+      [ HP.classes [ B.controlLabel ]
+      , HP.for $ Common.renderId ix for
+      ]
+      [ HH.text str ]
 
 eval ∷ Natural Query FormDSL
 eval (SetConfiguration conf next) = do

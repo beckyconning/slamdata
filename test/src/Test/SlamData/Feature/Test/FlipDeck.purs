@@ -17,23 +17,22 @@ flipDeckScenario =
     (Interact.createWorkspaceInTestFolder "Flipped deck")
     (Interact.deleteFileInTestFolder "Untitled Workspace.slam")
 
-
 mkTwoCardTestDeck ∷ SlamFeature Unit
 mkTwoCardTestDeck = do
-    Interact.insertQueryCardInLastDeck
+    Interact.insertQueryCardInNthDeck 1
     Interact.provideQueryInLastQueryCard
       "select measureOne from `/test-mount/testDb/flatViz`"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.tableColumnsAre ["measureOne"]
 
 test ∷ SlamFeature Unit
 test = do
   flipDeckScenario "Flip deck" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipNthDeck 1
     Expect.backsideMenuPresented
-    Interact.flipDeck
+    Interact.flipNthDeck 1
     Expect.backsideMenuNotPresented
     Expect.tableColumnsAre ["measureOne"]
     successMsg "Ok, 'flip deck' button works"
@@ -41,7 +40,7 @@ test = do
   -- Note: Trash button deletes last or active card
   flipDeckScenario "Trash last card" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipNthDeck 1
     Expect.backsideMenuPresented
     Interact.trashActiveOrLastCard
     -- Note, user should see that last|active card has been deleted
@@ -51,14 +50,14 @@ test = do
     successMsg "Successfuly deleted last|active card"
 
   flipDeckScenario "Share deck" [] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard "Quarterly"
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertDisplayMarkdownCardInNthDeck 1
     Expect.textInDisplayMarkdownCard "Quarterly"
     warnMsg "SD-1538, we don't know if workspace has been saved already"
     later 1000 $ pure unit
-    Interact.flipDeck
+    Interact.flipNthDeck 1
     Expect.backsideMenuPresented
     Interact.shareDeck
     Interact.accessSharingUrl
@@ -68,7 +67,7 @@ test = do
 
   flipDeckScenario "Filter backside buttons" [] do
     mkTwoCardTestDeck
-    Interact.flipDeck
+    Interact.flipNthDeck 1
     Expect.backsideMenuPresented
     Interact.filterActions "rem"
     Expect.onlyTrashActionPresented

@@ -32,6 +32,7 @@ import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Effects (Slam)
 import SlamData.Form.Select as S
+import SlamData.Form.Common as Common
 
 data Query s a
   = Choose Int a
@@ -43,25 +44,28 @@ data Query s a
 type SelectConfig r =
   { disableWhen :: Int -> Boolean
   , defaultWhen :: Int -> Boolean
-  , ariaLabel :: Maybe String
+  , label :: String
+  , ix :: Int
   | r
   }
 
 primarySelect
   :: forall a
    . (S.OptionVal a)
-  => Maybe String
+  => Int
+  -> String
   -> H.Component (S.Select a) (Query a) Slam
-primarySelect mbLabel =
-  select { disableWhen: (_ < 2), defaultWhen: (_ > 1), ariaLabel: mbLabel }
+primarySelect ix label =
+  select { disableWhen: (_ < 2), defaultWhen: (_ > 1), ix, label }
 
 secondarySelect
   :: forall a
    . (S.OptionVal a)
-  => Maybe String
+  => Int
+  -> String
   -> H.Component (S.Select a) (Query a) Slam
-secondarySelect mbLabel =
-  select { disableWhen: (_ < 1), defaultWhen: const true, ariaLabel: mbLabel }
+secondarySelect ix label =
+  select { disableWhen: (_ < 1), defaultWhen: const true, ix, label }
 
 select
   :: forall a r
@@ -78,13 +82,15 @@ render
   -> S.Select a
   -> H.ComponentHTML (Query a)
 render config state =
-  HH.select ([ HP.classes [ B.formControl ]
-              -- `fromJust` is safe here because we know that value are `show`n ints
-            , HE.onValueChange (HE.input (Choose <<< fromJust <<< Int.fromString))
-            , HP.disabled $ config.disableWhen len
-            ]
-           <> maybe [] (singleton <<< ARIA.label) config.ariaLabel)
-  (defOption <> (zipWith (option selected) opts (range 0 len)))
+  HH.select
+    [ HP.classes [ B.formControl ]
+      -- `fromJust` is safe here because we know that value are `show`n ints
+    , HE.onValueChange (HE.input (Choose <<< fromJust <<< Int.fromString))
+    , HP.disabled $ config.disableWhen len
+    , ARIA.label $ Common.renderLabel config.ix config.label
+    , HP.id_ $ Common.renderId config.ix config.label
+    ]
+    (defOption <> (zipWith (option selected) opts (range 0 len)))
   where
   len :: Int
   len = length opts

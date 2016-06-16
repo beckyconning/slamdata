@@ -51,7 +51,7 @@ import SlamData.Workspace.Card.Chart.Aggregation (aggregationSelect)
 import SlamData.Workspace.Card.Chart.Axis (analyzeJArray, Axis)
 import SlamData.Workspace.Card.Chart.Axis as Ax
 import SlamData.Workspace.Card.Chart.ChartConfiguration (ChartConfiguration, depends, dependsOnArr)
-import SlamData.Workspace.Card.Chart.ChartType (ChartType(..), isPie)
+import SlamData.Workspace.Card.Chart.ChartType (ChartType(..), isPie, printChartType)
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Model as Card
 import SlamData.Workspace.Card.Port as P
@@ -182,6 +182,7 @@ renderChartTypeSelector state =
     flip cons accum $
       HH.img
         [ HP.src $ src current
+        , ARIA.label $ "Select " ++ printChartType current ++ " chart"
         , HP.classes
             $ [ cls state.chartType ]
             ⊕ (guard (selected ≡ current) $> B.active)
@@ -197,7 +198,6 @@ renderChartTypeSelector state =
   cls Pie = Rc.pieChartIcon
   cls Line = Rc.lineChartIcon
   cls Bar = Rc.barChartIcon
-
 
 renderChartConfiguration ∷ VCS.State → VizHTML
 renderChartConfiguration state =
@@ -219,7 +219,7 @@ renderChartConfiguration state =
     ]
 
   showIf ∷ Boolean → Array VizHTML → VizHTML
-  showIf ok content = HH.div [ HP.classes $ (guard (not ok) $> B.hide) ] content
+  showIf ok content = HH.div (guard (not ok) $> ARIA.hidden "true") content
 
 
 renderDimensions ∷ VCS.State → VizHTML
@@ -244,18 +244,24 @@ renderDimensions state =
           ⊕ (guard isHidden $> B.hide)
       , Cp.nonSubmit
       ]
-      [ label labelText
+      [ label labelText labelText
       , HH.input
           [ HP.classes [ B.formControl ]
           , HP.value $ valueFromState state
           , ARIA.label labelText
+          , HP.id_ labelText -- TODO: Make this unique
           , HE.onValueInput
               $ pure ∘ map (right ∘ flip queryCtor unit) ∘ stringToInt
           ]
       ]
 
-  label ∷ String → VizHTML
-  label str = HH.label [ HP.classes [ B.controlLabel ] ] [ HH.text str ]
+  label ∷ String → String → VizHTML
+  label str for =
+    HH.label
+    [ HP.classes [ B.controlLabel ]
+    , HP.for for
+    ]
+    [ HH.text str ]
 
   showIfNeqZero ∷ ∀ a. (Eq a, Show a, Semiring a) ⇒ a → String
   showIfNeqZero a = if zero ≡ a then "" else show a
@@ -311,7 +317,7 @@ cardEval = case _ of
   CC.SetDimensions dims next → do
     H.modify
       $ VCS._levelOfDetails
-      .~ if dims.width < 576.0 ∨ dims.height < 416.0
+      .~ if dims.width < 300.0 ∨ dims.height < 100.0
            then Low
            else High
     pure next

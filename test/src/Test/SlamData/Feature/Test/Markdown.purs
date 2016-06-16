@@ -36,7 +36,7 @@ mdScenario =
 test :: SlamFeature Unit
 test = do
   mdScenario "Provide and play markdown" ["https://slamdata.atlassian.net/browse/SD-1711"] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard
       $ joinWith "\n\n"
           [ "discipline = __"
@@ -52,8 +52,8 @@ test = do
           , "color = [x]Red []Green [x]Blue"
           , "type = (x)Gold ()Silver ()Bronze"
           ]
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertCacheCardInNthDeck 1
     Expect.fieldInLastMdCard "discipline" "text" ""
     Expect.fieldInLastMdCard "sport" "text" "Bobsleigh"
     Expect.fieldInLastMdCard "age" "number" ""
@@ -80,19 +80,19 @@ test = do
     successMsg "Ok, succesfully provided and played markdown."
 
   mdScenario "Change and play markdown" [] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard "discipline = __"
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
-    Interact.accessPreviousCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertDisplayMarkdownCardInNthDeck 1
+    Interact.accessPreviousCardInNthDeck 1
     Interact.provideMdInLastMdCard "sport =  __ (Bobsleigh)"
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
 
     Expect.fieldInLastMdCard "sport" "text" "Bobsleigh"
     successMsg "Ok, successfully changed and played markdown."
 
   mdScenario "Provide and play markdown with evaluated content" [] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard $ joinWith "\n\n"
       [ "discipline = __ (!``SELECT discipline FROM `/test-mount/testDb/olympics` LIMIT 1``)"
       , "year = __ (!``SELECT year FROM `/test-mount/testDb/olympics` LIMIT 1``)"
@@ -100,8 +100,8 @@ test = do
       , "type = (!``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` LIMIT 1``) !``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` OFFSET 1``"
       , "gender = [!``SELECT gender FROM `/test-mount/testDb/olympics` LIMIT 1``] !``SELECT DISTINCT gender FROM `/test-mount/testDb/olympics` ``"
       ]
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertDisplayMarkdownCardInNthDeck 1
     Expect.fieldInLastMdCard "discipline" "text" "Figure skating"
     Expect.fieldInLastMdCard "year" "text" "1924"
     Expect.labelInLastMdCard "country"
@@ -163,7 +163,7 @@ test = do
     successMsg "Ok, successfully provided and played markdown with evaluated content"
 
   mdScenario "Filter query results with default field values" [] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard $ joinWith "\n\n"
       [ "discipline = __ (!``SELECT discipline FROM `/test-mount/testDb/olympics` LIMIT 1``)"
       , "year = __ (!``SELECT year FROM `/test-mount/testDb/olympics` LIMIT 1``)"
@@ -171,15 +171,15 @@ test = do
       , "type = (!``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` LIMIT 1``) !``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` OFFSET 1``"
       , "gender = [!``SELECT gender FROM `/test-mount/testDb/olympics` LIMIT 1``] !``SELECT DISTINCT gender FROM `/test-mount/testDb/olympics` ``"
       ]
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertDisplayMarkdownCardInNthDeck 1
     Expect.displayMarkdownCardPresented
-    Interact.accessNextCardInLastDeck
-    Interact.insertQueryCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertQueryCardInNthDeck 1
     Interact.provideQueryInLastQueryCard
       "SELECT * FROM `/test-mount/testDb/olympics` WHERE discipline = :discipline AND type NOT IN :type[_] AND gender IN :gender[_] AND year > :year AND country IN :country[_]"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToEq 2 "discipline" "Figure skating"
     Expect.cardsInTableColumnInLastCardToEq 2 "country" "AUT"
     Expect.cardsInTableColumnInLastCardToEq 2 "gender" "W"
@@ -188,7 +188,7 @@ test = do
     successMsg "Ok, Filtered query results with fields"
 
   mdScenario "Filter query results by changing field values" [] do
-    Interact.insertMdCardInLastDeck
+    Interact.insertMdCardInNthDeck 1
     Interact.provideMdInLastMdCard $ joinWith "\n\n"
       [ "discipline = __ (!``SELECT discipline FROM `/test-mount/testDb/olympics` LIMIT 1``)"
       , "year = __ (!``SELECT year FROM `/test-mount/testDb/olympics` LIMIT 1``)"
@@ -196,26 +196,26 @@ test = do
       , "type = (!``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` LIMIT 1``) !``SELECT DISTINCT type FROM `/test-mount/testDb/olympics` OFFSET 1``"
       , "gender = [!``SELECT gender FROM `/test-mount/testDb/olympics` LIMIT 1``] !``SELECT DISTINCT gender FROM `/test-mount/testDb/olympics` ``"
       ]
-    Interact.accessNextCardInLastDeck
-    Interact.insertDisplayMarkdownCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertDisplayMarkdownCardInNthDeck 1
     Expect.displayMarkdownCardPresented
-    Interact.accessNextCardInLastDeck
-    Interact.insertQueryCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertQueryCardInNthDeck 1
     Interact.provideQueryInLastQueryCard
       "SELECT * FROM `/test-mount/testDb/olympics` WHERE discipline = :discipline AND type NOT IN :type[_] AND gender IN :gender[_] AND year > :year AND country IN :country[_]"
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
-    Interact.accessPreviousCardInLastDeck
-    Interact.accessPreviousCardInLastDeck
-    Interact.provideFieldValueInLastDeck "discipline" "Luge"
-    Interact.provideFieldValueInLastDeck "year" "1950"
-    Interact.uncheckFieldInLastDeck "W"
-    Interact.checkFieldInLastDeck "X"
-    Interact.checkFieldInLastDeck "M"
-    Interact.pushRadioButtonInLastDeck "Gold"
-    Interact.selectFromDropdownInLastDeck "country" "GDR"
-    Interact.accessNextCardInLastDeck
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
+    Interact.accessPreviousCardInNthDeck 1
+    Interact.accessPreviousCardInNthDeck 1
+    Interact.provideFieldValueInNthDeck 1 "discipline" "Luge"
+    Interact.provideFieldValueInNthDeck 1 "year" "1950"
+    Interact.uncheckFieldInNthDeck 1 "W"
+    Interact.checkFieldInNthDeck 1 "X"
+    Interact.checkFieldInNthDeck 1 "M"
+    Interact.pushRadioButtonInNthDeck 1 "Gold"
+    Interact.selectFromDropdownInNthDeck 1 "country" "GDR"
+    Interact.accessNextCardInNthDeck 1
+    Interact.accessNextCardInNthDeck 1
     Expect.cardsInTableColumnInLastCardToEq 8 "discipline" "Luge"
     Expect.cardsInTableColumnInLastCardToEqOneOf 8 "gender" ["M", "X"]
     Expect.cardsInTableColumnInLastCardToBeGT 8 "year" "1950"

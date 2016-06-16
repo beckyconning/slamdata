@@ -22,16 +22,16 @@ cacheCardScenario =
 test ∷ SlamFeature Unit
 test =
   cacheCardScenario "Cache card output to file" [] do
-    Interact.insertQueryCardInLastDeck
+    Interact.insertQueryCardInNthDeck 1
     Interact.provideQueryInLastQueryCard
       "SELECT measureOne, measureTwo from `/test-mount/testDb/flatViz`"
-    Interact.accessNextCardInLastDeck
-    Interact.insertCacheCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertCacheCardInNthDeck 1
     Interact.provideSaveDestinationInLastCacheCard
       "/test-mount/testDb/временный файл"
     Interact.doSaveInLastCacheCard
-    Interact.accessNextCardInLastDeck
-    Interact.insertJTableCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
+    Interact.insertJTableCardInNthDeck 1
     Expect.tableColumnsAre ["measureOne", "measureTwo"]
     Interact.browseTestFolder
     Interact.accessFile "временный файл"

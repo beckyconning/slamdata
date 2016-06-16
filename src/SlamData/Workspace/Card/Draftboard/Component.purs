@@ -103,6 +103,7 @@ render opts state =
         [ HP.classes [ RC.gridPattern ]
         , HC.style bgSize
         , HP.ref (right ∘ H.action ∘ SetElement)
+        , ARIA.label "Draftboard"
         , HE.onMouseDown \e → pure $
             guard (AT.isEditable opts.accessType && not state.inserting) $>
             right (H.action $ AddDeck e)
@@ -112,7 +113,9 @@ render opts state =
       HH.div
         [ HP.classes [ HH.className "lod-overlay" ] ]
         [ HH.div
-            [ HP.classes [ HH.className "card-input-minimum-lod" ] ]
+            [ HP.classes [ HH.className "card-input-minimum-lod" ]
+            , ARIA.label "Draftboard"
+            ]
             [ HH.button
                 [ ARIA.label "Zoom to view"
                 , HP.title "Zoom to view"

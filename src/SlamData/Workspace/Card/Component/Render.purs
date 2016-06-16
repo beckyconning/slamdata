@@ -49,5 +49,5 @@ header cty cs =
           [ cardGlyph cty ]
       , H.div
           [ P.class_ CSS.cardName ]
-          [ H.text $ cardName cty ]
+          [ H.text $ cardName cty ⊕ " card" ]
       ]

@@ -23,7 +23,7 @@ import Test.Feature.Log (successMsg, errorMsg)
 import Test.Feature.Scenario (scenario)
 import Test.SlamData.Feature.Expectations as Expect
 import Test.SlamData.Feature.Interactions as Interact
-import Test.SlamData.Feature.Monad (SlamFeature)
+import Test.SlamData.Feature.Monad (SlamFeature, makeEChartsPresentConfig)
 import Selenium.Monad (script, tryRepeatedlyTo)
 
 apiVizScenario ∷ String → Array String → SlamFeature Unit → SlamFeature Unit
@@ -63,33 +63,20 @@ expectedNebraskaChartImages =
 
 test ∷ SlamFeature Unit
 test =
-  apiVizScenario "Make embeddable patients-city charts" ["https://slamdata.atlassian.net/browse/SD-1688"] do
-    tryRepeatedlyTo $ script """
-      var run = function() {
-        var __init = echarts.init;
-        echarts.init = function (el) {
-          var chart = __init.call(echarts, el);
-          chart.setOption = function (options) {
-            delete options.grid;
-            el.innerHTML = "<pre>" + JSON.stringify(options) + "</pre>";
-          };
-          return chart;
-        };
-      };
-      run();
-    """
-    Interact.insertApiCardInLastDeck
+  apiVizScenario "Make embeddable patients-city charts" [] do
+    makeEChartsPresentConfig
+    Interact.insertApiCardInNthDeck 1
     successMsg "Inserted API Card"
     Interact.provideApiVariableBindingsForApiCard "state" "Text" "CO"
     successMsg "Provided variables; Will access next card"
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     successMsg "Accessed next card, will insert API Results card"
-    Interact.insertApiResultsCardInLastDeck
+    Interact.insertApiResultsCardInNthDeck 1
     Expect.apiResultsCardPresented
     successMsg "presented API results card, will access next card"
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     successMsg "will insert query card"
-    Interact.insertQueryCardInLastDeck
+    Interact.insertQueryCardInNthDeck 1
     Interact.provideQueryInLastQueryCard $ Str.joinWith " "
       $ [ "SELECT count(*) as ct, city, gender"
         , "FROM `/test-mount/testDb/patients`"
@@ -98,25 +85,25 @@ test =
         , "ORDER BY ct DESC"
         , "LIMIT 30"
         ]
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     successMsg "will insert JTAble card"
-    Interact.insertJTableCardInLastDeck
+    Interact.insertJTableCardInNthDeck 1
     Expect.tableCardPresented
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     successMsg "Will insert visualize card"
-    Interact.insertVisualizeCardInLastDeck
+    Interact.insertVisualizeCardInNthDeck 1
     Interact.switchToBarChart
     Interact.provideCategoryForLastVisualizeCard ".city"
     Expect.measureInLastVisualizeCard ".ct"
     Expect.measureDisabledInLastVisualizeCard
     successMsg "Will access next card"
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     successMsg "Will insert chart card"
-    Interact.insertChartCardInLastDeck
+    Interact.insertChartCardInNthDeck 1
     Expect.lastEChartOptions chartOptions_CO
-    Interact.accessPreviousCardInLastDeck
+    Interact.accessPreviousCardInNthDeck 1
     Interact.provideSeriesForLastVizualizeCard ".gender"
-    Interact.accessNextCardInLastDeck
+    Interact.accessNextCardInNthDeck 1
     Expect.lastEChartOptions chartOptions_CO_gender
     Interact.accessWorkspaceWithModifiedURL (flip append "/?state=%22NE%22")
     Expect.lastEChartOptions chartOptions_NE_gender
