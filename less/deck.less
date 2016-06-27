@@ -2,12 +2,10 @@
 @import "deck/indicator";
 
 .sd-grid-pattern {
-  background-color: #eee;
+  background-color: #FFF;
+  background-image: radial-gradient(#aaa 2%, transparent 3%);
   background-size: @grid-size @grid-size;
-  background-position: top top;
-  background-image:
-    linear-gradient(to right, #ddd 1px, transparent 1px),
-    linear-gradient(to bottom, #ddd 1px, transparent 1px);
+  background-position: calc(@grid-size / 2) calc(@grid-size / 2);
 }
 
 .sd-board {
