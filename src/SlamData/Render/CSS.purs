@@ -157,15 +157,6 @@ workspaceViewHack = className "workspace-view-hack"
 deckCard ∷ ClassName
 deckCard = className "deck-card"
 
-cardHeader ∷ ClassName
-cardHeader = className "card-header"
-
-cardIcon ∷ ClassName
-cardIcon = className "card-icon"
-
-cardName ∷ ClassName
-cardName = className "card-name"
-
 cardInput ∷ ClassName
 cardInput = className "card-input"
 
@@ -192,9 +183,6 @@ playButton = className "play-button"
 
 stopButton ∷ ClassName
 stopButton = className "stop-button"
-
-cardControls ∷ ClassName
-cardControls = className "card-controls"
 
 statusText ∷ ClassName
 statusText = className "status-text"
@@ -417,19 +405,10 @@ loading = className "loading"
 cardSlider ∷ ClassName
 cardSlider = className "sd-card-slider"
 
-board ∷ ClassName
-board = className "sd-board"
-
-gridPattern ∷ ClassName
+gridPattern :: ClassName
 gridPattern = className "sd-grid-pattern"
 
-deck ∷ ClassName
-deck = className "sd-deck"
-
-deckName ∷ ClassName
-deckName = className "sd-deck-name"
-
-card ∷ ClassName
+card :: ClassName
 card = className "sd-card"
 
 cardGripper ∷ ClassName

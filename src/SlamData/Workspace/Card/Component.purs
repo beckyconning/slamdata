@@ -40,7 +40,6 @@ import SlamData.Render.CSS as CSS
 import SlamData.Workspace.Card.CardType (cardClasses)
 import SlamData.Workspace.Card.Component.Def (CardDef, makeQueryPrism, makeQueryPrism')
 import SlamData.Workspace.Card.Component.Query as CQ
-import SlamData.Workspace.Card.Component.Render as CR
 import SlamData.Workspace.Card.Component.State as CS
 import SlamData.Workspace.Card.Model as Card
 
@@ -49,6 +48,7 @@ import Utils.DOM as DOMUtils
 -- | Type synonym for the full type of a card component.
 type CardComponent = H.Component CS.CardStateP CQ.CardQueryP Slam
 type CardDSL = H.ParentDSL CS.CardState CS.AnyCardState CQ.CardQuery CQ.InnerCardQuery Slam Unit
+type CardHTML = H.ParentHTML CS.AnyCardState CQ.CardQuery CQ.InnerCardQuery Slam Unit
 
 -- | Card component factory
 makeCardComponent
@@ -61,19 +61,16 @@ makeCardComponent def = makeCardComponentPart def render
     ∷ H.Component CS.AnyCardState CQ.InnerCardQuery Slam
     → CS.AnyCardState
     → CS.CardState
-    → CR.CardHTML
+    → CardHTML
   render component initialState cs =
     HH.div
       [ HP.classes $ [ CSS.deckCard ]
       , HP.ref (H.action ∘ CQ.SetHTMLElement)
       ]
-      $ fold
-        [ CR.header def.cardType cs
-        , [ HH.div
-              [ HP.classes $ cardClasses def.cardType ]
-              [ HH.slot unit \_ → {component, initialState} ]
-          ]
-        ]
+      [ HH.div
+          [ HP.classes $ cardClasses def.cardType ]
+          [ HH.slot unit \_ → {component, initialState} ]
+      ]
 
 -- | Constructs a card component from a record with the necessary properties and
 -- | a render function.
@@ -83,7 +80,7 @@ makeCardComponentPart
   → (H.Component CS.AnyCardState CQ.InnerCardQuery Slam
      → CS.AnyCardState
      → CS.CardState
-     → CR.CardHTML)
+     → CardHTML)
   → CardComponent
 makeCardComponentPart def render =
   H.lifecycleParentComponent
