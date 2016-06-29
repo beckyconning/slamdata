@@ -40,6 +40,7 @@ import SlamData.Render.CSS as CSS
 import SlamData.Workspace.Card.CardType (cardClasses)
 import SlamData.Workspace.Card.Component.Def (CardDef, makeQueryPrism, makeQueryPrism')
 import SlamData.Workspace.Card.Component.Query as CQ
+import SlamData.Workspace.Card.Component.Render as CR
 import SlamData.Workspace.Card.Component.State as CS
 import SlamData.Workspace.Card.Model as Card
 
@@ -67,10 +68,11 @@ makeCardComponent def = makeCardComponentPart def render
       [ HP.classes $ [ CSS.deckCard ]
       , HP.ref (H.action ∘ CQ.SetHTMLElement)
       ]
-      [ HH.div
-          [ HP.classes $ cardClasses def.cardType ]
-          [ HH.slot unit \_ → {component, initialState} ]
-      ]
+      ([ HH.div
+           [ HP.classes $ cardClasses def.cardType ]
+           [ HH.slot unit \_ → {component, initialState} ]
+       ] ⊕ CR.renderCardType def.cardType cs)
+       
 
 -- | Constructs a card component from a record with the necessary properties and
 -- | a render function.

@@ -411,6 +411,18 @@ gridPattern = className "sd-grid-pattern"
 card :: ClassName
 card = className "sd-card"
 
+cardSliding ∷ ClassName
+cardSliding = className "sd-card-sliding"
+
+cardActive ∷ ClassName
+cardActive = className "sd-card-active"
+
+cardType ∷ ClassName
+cardType = className "sd-card-type"
+
+cardTypeText ∷ ClassName
+cardTypeText = className "sd-card-type-text"
+
 cardGripper ∷ ClassName
 cardGripper = className "sd-card-gripper"
 
