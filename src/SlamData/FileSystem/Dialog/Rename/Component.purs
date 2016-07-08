@@ -257,9 +257,12 @@ eval (Submit next) = do
     (H.modify $ _error .~ Just "Source unavailable, please refresh.")
   presentDirNotExistError =
     (H.modify $ _error .~ Just "Directory doesn't exist.")
-  move dir =
-    API.listing dir
-      >>= either (const presentDirNotExistError) (const $ move' dir)
+  move dir = do
+    res <- API.listing dir
+    case res of
+        Left _ -> presentDirNotExistError
+        Right [ ] -> presentDirNotExistError
+        Right _ -> move' dir
   move' dir = do
     dirItemClicked $ R.mkDirectory $ Left dir
     state <- H.get
