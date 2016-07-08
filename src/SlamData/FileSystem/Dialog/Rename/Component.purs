@@ -246,25 +246,27 @@ eval (ToggleShowList next) = do
   H.modify validate
   pure next
 eval (Submit next) = do
-  str <- endingInSlash <$> H.gets _.typedDir
-  maybe presentDirNotExistError move do
-    d <- parseAbsDir str
-    s <- sandbox rootDir d
-    pure $ rootDir </> s
+  dirStr <- endingInSlash <$> H.gets _.typedDir
+  maybe presentDirNotExistError moveIfDirAccessible (parsedDir dirStr)
   pure next
   where
+  parsedDir =
+    map (rootDir </> _) ∘ sandbox rootDir <=< parseAbsDir
+
   presentSourceMissingError =
-    (H.modify $ _error .~ Just "Source unavailable, please refresh.")
+    H.modify $ _error .~ Just "The file you are trying to move is unavailable, please refresh."
+
   presentDirNotExistError =
-    (H.modify $ _error .~ Just "Directory doesn't exist.")
+    H.modify $ _error .~ Just "Target directory does not exist."
+
+  presentError e =
+    H.modify $ _error .~ Just e
+
+  moveIfDirAccessible dir =
+    maybe (move dir) presentError =<< API.dirNotAccessible dir
+
   move dir = do
-    res <- API.listing dir
-    case res of
-        Left _ -> presentDirNotExistError
-        Right [ ] -> presentDirNotExistError
-        Right _ -> move' dir
-  move' dir = do
-    dirItemClicked $ R.mkDirectory $ Left dir
+    H.modify $ (_dir .~ dir) <<< (_showList .~ false)
     state <- H.get
     let src = state.initial
         tgt = R.getPath $ renameSlam state
@@ -277,8 +279,11 @@ eval (Submit next) = do
           presentSourceMissingError
           (const $ H.modify (_error .~ Nothing) *> H.fromEff reload)
           x
+
   lastChar s = S.drop (S.length s - 1) s
+
   endingInSlash s = if lastChar s == "/" then s else s ++ "/"
+
 eval (NameTyped str next) = do
   H.modify (_name .~ str)
   H.modify validate
