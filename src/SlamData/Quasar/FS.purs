@@ -19,6 +19,7 @@ module SlamData.Quasar.FS
   , transitiveChildrenProducer
   , getNewName
   , move
+  , listing
   , delete
   , messageIfFileNotFound
   ) where
