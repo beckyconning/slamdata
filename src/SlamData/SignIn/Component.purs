@@ -35,7 +35,7 @@ import Halogen.Menu.Component (MenuQuery(..), menuComponent) as HalogenMenu
 import Halogen.Menu.Component.State (makeMenu)
 import Halogen.Menu.Submenu.Component (SubmenuQuery(..)) as HalogenMenu
 
-import OIDC.Aff (requestAuthentication)
+import OIDC.Aff as OIDC
 import OIDCCryptUtils as Crypt
 
 import Quasar.Advanced.Types (ProviderR)
@@ -163,7 +163,7 @@ submenuPeek (HalogenMenu.SelectSubmenuItem v _) = do
   {loggedIn} ← H.get
   if loggedIn
     then logOut
-    else for_ v $ f
+    else for_ v $ requestAuthentication
   where
   logOut ∷ SignInDSL Unit
   logOut = do
@@ -171,7 +171,8 @@ submenuPeek (HalogenMenu.SelectSubmenuItem v _) = do
       Auth.clearIdToken
       Browser.reload
   appendAuthPath s = s ++ Config.redirectURIString
-  f pr = H.fromEff $ requestAuthentication pr ∘ appendAuthPath =<< Browser.locationString
+  requestAuthentication pr =
+    H.fromEff $ OIDC.requestAuthentication pr ∘ appendAuthPath =<< Browser.locationString
 
 
 queryMenu
