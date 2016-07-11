@@ -18,7 +18,8 @@ module SlamData.Workspace.Card.CardType
   ( CardType(..)
   , AceMode(..)
   , cardName
-  , cardGlyph
+  , darkCardGlyph
+  , lightCardGlyph
   , cardClasses
   , aceCardName
   , aceCardClasses
@@ -165,24 +166,45 @@ cardName =
     ErrorCard → "Error"
     PendingCard → "Pending"
 
-cardGlyph ∷ ∀ s f. CardType → H.HTML s f
-cardGlyph =
+darkCardGlyph ∷ ∀ s f. CardType → H.HTML s f
+darkCardGlyph =
   case _ of
-    Ace MarkdownMode → HH.img [ HP.src "img/cards/setupMarkdown.svg" ]
-    Ace SQLMode → HH.img [ HP.src "img/cards/query.svg" ]
-    Search →  HH.img [ HP.src "img/cards/search.svg" ]
-    ChartOptions → HH.img [ HP.src "img/cards/setupChart.svg" ]
-    Download → HH.img [ HP.src "img/cards/showDownload.svg" ]
-    Variables → HH.img [ HP.src "img/cards/setupVariables.svg" ]
-    Troubleshoot → HH.img [ HP.src "img/cards/troubleshoot.svg" ]
-    Chart → HH.img [ HP.src "img/cards/showChart.svg" ]
-    Markdown → HH.img [ HP.src "img/cards/showMarkdown.svg" ]
-    Table → HH.img [ HP.src "img/cards/table.svg" ]
+    Ace MarkdownMode → HH.img [ HP.src "img/cardsDark/setupMarkdown.svg" ]
+    Ace SQLMode → HH.img [ HP.src "img/cardsDark/query.svg" ]
+    Search →  HH.img [ HP.src "img/cardsDark/search.svg" ]
+    ChartOptions → HH.img [ HP.src "img/cardsDark/setupChart.svg" ]
+    Download → HH.img [ HP.src "img/cardsDark/showDownload.svg" ]
+    Variables → HH.img [ HP.src "img/cardsDark/setupVariables.svg" ]
+    Troubleshoot → HH.img [ HP.src "img/cardsDark/troubleshoot.svg" ]
+    Chart → HH.img [ HP.src "img/cardsDark/showChart.svg" ]
+    Markdown → HH.img [ HP.src "img/cardsDark/showMarkdown.svg" ]
+    Table → HH.img [ HP.src "img/cardsDark/table.svg" ]
     NextAction → HH.text ""
-    Cache → HH.img [ HP.src "img/cards/cache.svg" ]
-    Open → HH.img [ HP.src "img/cards/open.svg" ]
-    DownloadOptions → HH.img [ HP.src "img/cards/setupDownload.svg" ]
-    Draftboard → HH.img [ HP.src "img/cards/draftboard.svg" ]
+    Cache → HH.img [ HP.src "img/cardsDark/cache.svg" ]
+    Open → HH.img [ HP.src "img/cardsDark/open.svg" ]
+    DownloadOptions → HH.img [ HP.src "img/cardsDark/setupDownload.svg" ]
+    Draftboard → HH.img [ HP.src "img/cardsDark/draftboard.svg" ]
+    ErrorCard → HH.text ""
+    PendingCard → HH.text ""
+
+lightCardGlyph ∷ ∀ s f. CardType → H.HTML s f
+lightCardGlyph =
+  case _ of
+    Ace MarkdownMode → HH.img [ HP.src "img/cardsLight/setupMarkdown.svg" ]
+    Ace SQLMode → HH.img [ HP.src "img/cardsLight/query.svg" ]
+    Search →  HH.img [ HP.src "img/cardsLight/search.svg" ]
+    ChartOptions → HH.img [ HP.src "img/cardsLight/setupChart.svg" ]
+    Download → HH.img [ HP.src "img/cardsLight/showDownload.svg" ]
+    Variables → HH.img [ HP.src "img/cardsLight/setupVariables.svg" ]
+    Troubleshoot → HH.img [ HP.src "img/cardsLight/troubleshoot.svg" ]
+    Chart → HH.img [ HP.src "img/cardsLight/showChart.svg" ]
+    Markdown → HH.img [ HP.src "img/cardsLight/showMarkdown.svg" ]
+    Table → HH.img [ HP.src "img/cardsLight/table.svg" ]
+    NextAction → HH.text ""
+    Cache → HH.img [ HP.src "img/cardsLight/cache.svg" ]
+    Open → HH.img [ HP.src "img/cardsLight/open.svg" ]
+    DownloadOptions → HH.img [ HP.src "img/cardsLight/setupDownload.svg" ]
+    Draftboard → HH.img [ HP.src "img/cardsLight/draftboard.svg" ]
     ErrorCard → HH.text ""
     PendingCard → HH.text ""
 

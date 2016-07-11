@@ -57,7 +57,7 @@ render ∷ State → H.ComponentHTML QueryP
 render state =
   HH.div_
     [ renderHighLOD state
-    , renderLowLOD (CT.cardGlyph CT.Table) left state.levelOfDetails
+    , renderLowLOD (CT.lightCardGlyph CT.Table) left state.levelOfDetails
     ]
 
 renderHighLOD ∷ State → H.ComponentHTML QueryP

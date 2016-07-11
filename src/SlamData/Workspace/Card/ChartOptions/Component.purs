@@ -118,7 +118,7 @@ render ∷ VCS.State → HTML
 render state =
   HH.div_
     [ renderHighLOD state
-    , renderLowLOD (CT.cardGlyph CT.ChartOptions) left state.levelOfDetails
+    , renderLowLOD (CT.lightCardGlyph CT.ChartOptions) left state.levelOfDetails
     ]
 
 renderHighLOD ∷ VCS.State → HTML
