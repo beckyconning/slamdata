@@ -21,7 +21,6 @@ module SlamData.Workspace.Card.CardType
   , cardGlyph
   , cardClasses
   , aceCardName
-  , aceCardGlyph
   , aceCardClasses
   , aceMode
   , controllable
@@ -169,22 +168,23 @@ cardName =
 cardGlyph ∷ ∀ s f. CardType → H.HTML s f
 cardGlyph =
   case _ of
-    Ace at →glyph $ aceCardGlyph at
-    Search → glyph B.glyphiconSearch
-    ChartOptions → glyph B.glyphiconPicture
-    Download → glyph B.glyphiconDownloadAlt
-    Variables → glyph B.glyphiconOpenFile
-    Troubleshoot → glyph B.glyphiconTasks
-    Chart → HH.div [ HP.classes [ Rc.glyphImage, Rc.chartGlyph ] ] [ ]
-    Markdown → HH.div [ HP.classes [ Rc.glyphImage, Rc.codeGlyph ] ] [ ]
-    Table → glyph B.glyphiconThList
-    NextAction → glyph B.glyphiconStop -- arbitrary
-    Cache → glyph B.glyphiconFloppyDisk
-    Open → glyph B.glyphiconFolderOpen
-    DownloadOptions → glyph B.glyphiconDownload
-    Draftboard → glyph B.glyphiconTh
-    ErrorCard → glyph B.glyphiconAlert
-    PendingCard → glyph B.glyphiconAlert --arbitrary
+    Ace MarkdownMode → HH.img [ HP.src "img/cards/setupMarkdown.svg" ]
+    Ace SQLMode → HH.img [ HP.src "img/cards/query.svg" ]
+    Search →  HH.img [ HP.src "img/cards/search.svg" ]
+    ChartOptions → HH.img [ HP.src "img/cards/setupChart.svg" ]
+    Download → HH.img [ HP.src "img/cards/showDownload.svg" ]
+    Variables → HH.img [ HP.src "img/cards/setupVariables.svg" ]
+    Troubleshoot → HH.img [ HP.src "img/cards/troubleshoot.svg" ]
+    Chart → HH.img [ HP.src "img/cards/showChart.svg" ]
+    Markdown → HH.img [ HP.src "img/cards/showMarkdown.svg" ]
+    Table → HH.img [ HP.src "img/cards/table.svg" ]
+    NextAction → HH.text ""
+    Cache → HH.img [ HP.src "img/cards/cache.svg" ]
+    Open → HH.img [ HP.src "img/cards/open.svg" ]
+    DownloadOptions → HH.img [ HP.src "img/cards/setupDownload.svg" ]
+    Draftboard → HH.img [ HP.src "img/cards/draftboard.svg" ]
+    ErrorCard → HH.text ""
+    PendingCard → HH.text ""
 
 cardClasses ∷ CardType → Array H.ClassName
 cardClasses =
@@ -209,10 +209,6 @@ cardClasses =
 aceCardName ∷ AceMode → String
 aceCardName MarkdownMode = "Setup Markdown"
 aceCardName SQLMode = "Query"
-
-aceCardGlyph ∷ AceMode → HH.ClassName
-aceCardGlyph MarkdownMode = B.glyphiconEdit
-aceCardGlyph SQLMode = B.glyphiconQuestionSign
 
 aceCardClasses ∷ AceMode → Array H.ClassName
 aceCardClasses MarkdownMode = [ H.className "sd-card-markdown" ]

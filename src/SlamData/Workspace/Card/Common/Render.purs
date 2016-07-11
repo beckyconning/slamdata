@@ -30,7 +30,7 @@ import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 
 renderLowLOD
   ∷ ∀ f p
-  . HH.ClassName
+  . H.HTML p f
   → (CC.CardEvalQuery ~> f)
   → LevelOfDetails
   → H.HTML p f
@@ -43,7 +43,7 @@ renderLowLOD icon f = case _ of
           , HP.title "Zoom or resize"
           , HE.onClick (HE.input_ (f ∘ CC.ZoomIn))
           ]
-          [ glyph icon
+          [ icon
           , HH.text "Zoom or resize"
           ]
       ]
