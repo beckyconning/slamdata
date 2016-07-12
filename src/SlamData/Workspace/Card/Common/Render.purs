@@ -24,7 +24,6 @@ import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 
-import SlamData.Render.Common (glyph)
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 

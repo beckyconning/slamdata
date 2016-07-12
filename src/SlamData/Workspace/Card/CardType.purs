@@ -38,11 +38,7 @@ import Data.Argonaut (class EncodeJson, class DecodeJson, encodeJson, decodeJson
 
 import Halogen.HTML as H
 import Halogen.HTML.Indexed as HH
-import Halogen.Themes.Bootstrap3 as B
 import Halogen.HTML.Properties.Indexed as HP
-
-import SlamData.Render.Common (glyph)
-import SlamData.Render.CSS as Rc
 
 import Test.StrongCheck as SC
 
