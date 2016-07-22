@@ -85,13 +85,13 @@ onResize cb = do
     >>> EventTarget.addEventListener EventTypes.resize listener false
 
 eventProducer
-  :: forall eff
-   . EventType
-  -> Boolean
-  -> EventTarget
-  -> Producer Event (Aff (dom :: DOM, avar :: AVAR | eff)) Unit
+  ∷ forall eff
+  . EventType
+  → Boolean
+  → EventTarget
+  → Producer Event (Aff (dom ∷ DOM, avar ∷ AVAR | eff)) Unit
 eventProducer eventType capture eventTarget =
-  AffCoroutine.produce \emit ->
+  AffCoroutine.produce \emit →
     EventTarget.addEventListener
       eventType
       (EventTarget.eventListener $ emit <<< Left)
