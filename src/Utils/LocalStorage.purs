@@ -34,8 +34,6 @@ import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, jsonParser
 import Data.Either (Either(..))
 import Data.Function (Fn3, Fn2, runFn3, runFn2)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Foreign (Foreign, F)
-import Data.Foreign as Foreign
 import Unsafe.Coerce as U
 
 import DOM (DOM)
@@ -70,8 +68,8 @@ type StorageEvent =
 storageEventToEvent :: StorageEvent -> Event
 storageEventToEvent = U.unsafeCoerce
 
-readStorageEvent :: Foreign -> F StorageEvent
-readStorageEvent = Foreign.unsafeReadTagged "StorageEvent"
+eventToStorageEvent :: Event -> StorageEvent
+eventToStorageEvent = U.unsafeCoerce
 
 setLocalStorage
   :: forall a eff g
@@ -100,12 +98,12 @@ storageEventProducer
   :: forall g eff
    . (MonadEff (dom :: DOM | eff) g)
   => Boolean
-  -> g (Coroutine.Producer (F StorageEvent) (Aff (dom :: DOM, avar :: AVAR | eff)) Unit)
+  -> g (Coroutine.Producer StorageEvent (Aff (dom :: DOM, avar :: AVAR | eff)) Unit)
 storageEventProducer capture =
   (_ Coroutine.$~ eventToStorageEventTransformer) <$> windowEventProducer "storage"
   where
   eventToStorageEventTransformer =
-    MonadRecClass.forever $ Coroutine.transform $ readStorageEvent <<< Foreign.toForeign
+    MonadRecClass.forever $ Coroutine.transform eventToStorageEvent
 
   windowEventProducer s =
     DOMUtils.eventProducer (EventType s) capture
