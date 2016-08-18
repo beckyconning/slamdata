@@ -39,6 +39,7 @@ import Math as Math
 
 import SlamData.Effects (Slam)
 import SlamData.Workspace.Card.CardType (CardType(..), cardClasses, cardName, darkCardGlyph)
+import SlamData.Workspace.Card.Common.EvalQuery as CEQ
 import SlamData.Workspace.Card.Component.CSS as CSS
 import SlamData.Workspace.Card.Component.Def (CardDef, makeQueryPrism, makeQueryPrism')
 import SlamData.Workspace.Card.Component.Query as CQ
@@ -107,11 +108,17 @@ makeCardComponentPart def render =
   H.lifecycleParentComponent
     { render: render component initialState
     , eval
-    , peek: Nothing
+    , peek: Just (\(H.ChildF s q) -> coproduct peekCardEvalQuery (const $ pure unit) q)
     , initializer: Just (H.action CQ.UpdateDimensions)
     , finalizer: Nothing
     }
   where
+
+  peekCardEvalQuery ∷ ∀ a. CEQ.CardEvalQuery a → CardDSL Unit
+  peekCardEvalQuery = case _ of
+    CEQ.ModelUpdated _ _ → pure unit
+    CEQ.ZoomIn _ → pure unit
+    _ → pure unit
 
   _State ∷ PrismP CS.AnyCardState s
   _State = clonePrism def._State
