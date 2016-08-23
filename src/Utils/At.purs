@@ -21,35 +21,51 @@ import Control.Monad.Aff as Aff
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Now (NOW)
+import Control.Monad.Eff.Timer (TIMER, IntervalId)
+import Control.Monad.Eff.Timer as Timer
 import Control.Monad.Eff.Now as Now
+import Control.Monad.Eff.Ref (REF)
+import Control.Monad.Eff.Ref as Ref
 import Data.DateTime.Instant (Instant)
+import Data.DateTime.Instant as Instant
+import Data.Time.Duration (Milliseconds)
+import Data.Time.Duration as Duration
 import DOM (DOM)
-import DOM.HTML as DOMHTML
-import DOM.HTML.Types (Window)
 import SlamData.Prelude
 
-foreign import data INTERVAL ∷ !
-foreign import data Interval ∷ *
-foreign import setInterval
+setInterval
   ∷ ∀ eff
-  . Window
-  → Int
-  → (Interval → Eff (interval ∷ INTERVAL | eff) Unit)
-  → Eff (interval ∷ INTERVAL | eff) Interval
+  . Int
+  → (Maybe IntervalId → Eff (ref ∷ REF, timer ∷ TIMER | eff) Unit)
+  → Eff (ref ∷ REF, timer ∷ TIMER | eff) IntervalId
+setInterval ms action = do
+  var ← Ref.newRef Nothing
+  intervalId ← Timer.setInterval ms (action =<< Ref.readRef var)
+  Ref.writeRef var $ Just intervalId
+  pure intervalId
 
-foreign import clearInterval
-  ∷ ∀ eff
-  . Interval → Eff (interval ∷ INTERVAL | eff) Unit
+type AtEffects eff = (timer ∷ TIMER, ref ∷ REF, now ∷ NOW, dom ∷ DOM | eff)
 
-type AtEffects eff = (interval ∷ INTERVAL, now ∷ NOW, dom ∷ DOM | eff)
-
-at ∷ ∀ eff a. Instant → Eff (AtEffects eff) a → Aff (AtEffects eff) a
-at instant action =
+at ∷ ∀ eff a. Instant → Int → Eff (AtEffects eff) a → Aff (AtEffects eff) a
+at instant accuracy action =
   Aff.makeAff' \_ success → do
-    windowReferenceObject ← DOMHTML.window
-    interval ← setInterval windowReferenceObject 100 \intervalForAction → do
-      now ← Now.now
-      if now >= instant
-        then (clearInterval intervalForAction) *> (success =<< liftEff action)
-        else pure unit
-    pure $ Aff.Canceler $ const $ liftEff $ clearInterval interval $> true
+    cancellable ← Ref.newRef true
+    interval ← setInterval accuracy \maybeIntervalForAction → do
+      case maybeIntervalForAction of
+        Nothing → pure unit
+        Just intervalForAction → do
+          now ← Now.now
+          if now >= instant
+            then
+              (Timer.clearInterval intervalForAction)
+                *> (Ref.writeRef cancellable false)
+                *> (success =<< liftEff action)
+            else pure unit
+    pure $ Aff.Canceler $ const $ liftEff $ Timer.clearInterval interval *> Ref.readRef cancellable
+
+laterThan ∷ Milliseconds → Instant → Maybe Instant
+laterThan ms instant =
+  Instant.instant
+    $ Duration.Milliseconds
+    $ Duration.unMilliseconds (Instant.unInstant instant)
+    + Duration.unMilliseconds ms

@@ -60,6 +60,7 @@
     "purescript-platform": "^1.0.0",
     "purescript-quasar-test-starter": "quasar-test-starter#^0.1.0",
     "purescript-strongcheck": "^1.1.1",
-    "purescript-webdriver": "^2.0.0"
+    "purescript-webdriver": "^2.0.0",
+    "purescript-psci-support": "^1.0.0"
   }
 }

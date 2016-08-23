@@ -98,3 +98,6 @@ gridRem = 1.5
 
 gridPx :: Number
 gridPx = gridRem * remPx
+
+guideWaitTime :: Int
+guideWaitTime = 2500

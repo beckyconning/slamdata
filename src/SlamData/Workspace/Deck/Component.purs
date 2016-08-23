@@ -19,16 +19,23 @@ module SlamData.Workspace.Deck.Component
   , render
   , eval
   , peek
+  , coolLater
   , module SlamData.Workspace.Deck.Component.Query
   , module DCS
   ) where
 
 import SlamData.Prelude
 
+import Control.Monad.Aff (Canceler)
+import Control.Monad.Aff as Aff
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.EventLoop as EventLoop
 import Control.Monad.Aff.Promise as Pr
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console as Console
+import Control.Monad.Eff.Ref (Ref)
 import Control.Monad.Eff.Ref as Ref
+import Control.Monad.Eff.Exception as Exception
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Parallel.Class (parallel, runParallel)
@@ -56,7 +63,8 @@ import Halogen.Component.Utils.Debounced (fireDebouncedQuery')
 import Halogen.HTML.Indexed as HH
 
 import SlamData.Analytics.Event as AE
-import SlamData.Effects (Slam)
+import SlamData.Config as Config
+import SlamData.Effects (Slam, SlamDataEffects)
 import SlamData.FileSystem.Resource as R
 import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
@@ -124,6 +132,8 @@ eval opts@{ wiring } = case _ of
       eb ← subscribeToBus' (H.action ∘ HandleError) wiring.globalError
       H.modify $ DCS._breakers %~ (Array.cons eb)
     updateCardSize
+    canceler <- coolLater 5000 100 $ H.fromEff $ Console.log "Hi"
+    H.fromAff $ Aff.cancel canceler (Exception.error "Canceled")
     pure next
   Finish next → do
     H.modify _ { finalized = true }
@@ -520,6 +530,41 @@ peekCardEvalQuery cardCoord = case _ of
   CEQ.ZoomIn _ → raise' $ H.action ZoomIn
   _ → pure unit
 
+resetGuideTimer ∷ DeckDSL Unit
+resetGuideTimer =
+  maybe (pure unit) (const startGuideTimer <=< cancelGuideTimer) =<< H.gets _.guideCanceler
+
+cancelGuideTimer ∷ Canceler SlamDataEffects → DeckDSL Unit
+cancelGuideTimer = H.fromAff ∘ void ∘ flip Aff.cancel (Exception.error "Cancelled guide.")
+
+startGuideTimer ∷ DeckDSL Unit
+startGuideTimer = pure unit
+--  uh ← H.fromAff $ Aff.forkAff $ Aff.later' Config.guideWaitTime $ presentGuide
+--  H.modify (DCS._guideCanceler .~ uh)
+
+presentGuide ∷ DeckDSL Unit
+presentGuide = pure unit
+
+fork ∷ ∀ a. DeckDSL a → DeckDSL a
+fork = id
+
+coolLater ∷ Int → Int → DeckDSL Unit → DeckDSL (Canceler SlamDataEffects)
+coolLater ms accuracy action = do
+  shouldPerformAction ← H.fromEff $ Ref.newRef false
+  canceler ← H.fromAff $ g shouldPerformAction
+  fork $ f shouldPerformAction
+  pure canceler
+  where
+  f ∷ Ref Boolean → DeckDSL Unit
+  f shouldPerformAction =
+    (H.fromAff h) *> ((if _ then action else f shouldPerformAction) =<< H.fromEff (Ref.readRef shouldPerformAction))
+
+  g ∷ Ref Boolean → Aff.Aff SlamDataEffects (Canceler SlamDataEffects)
+  g shouldPerformAction =
+    Aff.forkAff $ Aff.later' ms $ liftEff $ Ref.writeRef shouldPerformAction true
+
+  h ∷ Aff.Aff SlamDataEffects Unit
+  h = Aff.later' accuracy $ pure unit
 
 peekAnyCard ∷ ∀ a. Wiring → DeckId × CardId → AnyCardQuery a → DeckDSL Unit
 peekAnyCard wiring cardCoord q = do

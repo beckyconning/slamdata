@@ -29,6 +29,7 @@ module SlamData.Workspace.Deck.Component.State
   , _displayCards
   , _activeCardIndex
   , _path
+  , _guideCanceler
   , _saveTrigger
   , _runTrigger
   , _pendingCard
@@ -70,6 +71,7 @@ module SlamData.Workspace.Deck.Component.State
 import SlamData.Prelude
 
 import Control.Monad.Aff.EventLoop (Breaker)
+import Control.Monad.Aff (Canceler)
 
 import DOM.HTML.Types (HTMLElement)
 
@@ -85,7 +87,7 @@ import Data.Map as Map
 import Halogen.Component.Opaque.Unsafe (OpaqueState)
 import Halogen.Component.Utils.Debounced (DebounceTrigger)
 
-import SlamData.Effects (Slam)
+import SlamData.Effects (Slam, SlamDataEffects)
 
 import SlamData.Workspace.Card.CardId (CardId(..))
 import SlamData.Workspace.Card.CardId as CID
@@ -134,6 +136,7 @@ type State =
   , cardsToLoad ∷ Set.Set (DeckId × CardId)
   , activeCardIndex ∷ Maybe Int
   , path ∷ DirPath
+  , guideCanceler ∷ Maybe (Canceler SlamDataEffects)
   , saveTrigger ∷ Maybe (DebounceTrigger Query Slam)
   , runTrigger ∷ Maybe (DebounceTrigger Query Slam)
   , pendingCard ∷ Maybe (DeckId × CardId)
@@ -169,6 +172,7 @@ initialDeck path deckId =
   , cardsToLoad: mempty
   , activeCardIndex: Nothing
   , path
+  , guideCanceler: Nothing
   , saveTrigger: Nothing
   , runTrigger: Nothing
   , pendingCard: Nothing
@@ -222,6 +226,10 @@ _activeCardIndex = lens _.activeCardIndex _{activeCardIndex = _}
 -- | The path to the deck in the filesystem
 _path ∷ ∀ a r. LensP {path ∷ a |r} a
 _path = lens _.path _{path = _}
+
+-- | A canceler for a to be presented guide.
+_guideCanceler ∷ ∀ a r. LensP {guideCanceler ∷ a |r} a
+_guideCanceler = lens _.guideCanceler _{guideCanceler = _}
 
 -- | The debounced trigger for deck save actions.
 _saveTrigger ∷ ∀ a r. LensP {saveTrigger ∷ a|r} a
