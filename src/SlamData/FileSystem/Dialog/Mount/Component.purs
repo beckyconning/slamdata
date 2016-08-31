@@ -125,13 +125,16 @@ selScheme state =
         [ HH.span_ [ HH.text "Mount type" ]
         , HH.select
             [ HP.class_ B.formControl
-            , HE.onValueInput (HE.input SelectScheme <<< schemeFromString)
+            , HE.onValueChange (HE.input SelectScheme <<< schemeFromString)
             ]
             $ [ HH.option_ [] ] <> schemeOptions
         ]
     ]
   where
-  schemeOptions = map (\s -> HH.option_ [ HH.text (schemeToString s) ]) schemes
+  schemeOptions =
+    schemeOption ∘ schemeToString <$> schemes
+  schemeOption s =
+    HH.option [ HP.value s ] [ HH.text s ]
 
 errorMessage :: String -> HTML
 errorMessage msg =
