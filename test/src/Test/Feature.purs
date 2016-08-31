@@ -622,6 +622,9 @@ typeString string = Selenium.sequence $ FeatureSequence.keys string
 pressEnter ∷ ∀ eff o. Feature eff o Unit
 pressEnter = Selenium.sequence $ FeatureSequence.sendEnter
 
+pressTab ∷ ∀ eff o. Feature eff o Unit
+pressTab = Selenium.sequence $ FeatureSequence.sendTab
+
 -- Element dependent interactions
 clickAllElements ∷ ∀ eff o. Array Element → Feature eff o Unit
 clickAllElements = traverse_ clickEl
@@ -669,6 +672,7 @@ selectFromDropdownElement text element = do
   clickEl element
   typeString text
   pressEnter
+  pressTab
 
 dragAndDropElement ∷ ∀ eff o. Element → Location → Feature eff o Unit
 dragAndDropElement from =
