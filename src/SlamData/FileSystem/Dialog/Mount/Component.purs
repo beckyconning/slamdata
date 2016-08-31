@@ -125,7 +125,7 @@ selScheme state =
         [ HH.span_ [ HH.text "Mount type" ]
         , HH.select
             [ HP.class_ B.formControl
-            , HE.onValueChange (HE.input SelectScheme <<< schemeFromString)
+            , HE.onValueInput (HE.input SelectScheme <<< schemeFromString)
             ]
             $ [ HH.option_ [] ] <> schemeOptions
         ]
