@@ -54,7 +54,7 @@ sendEnter ∷ Sequence Unit
 sendEnter = sendKeys "\xE007"
 
 sendTab ∷ Sequence Unit
-sendTab = sendKeys "\xE004"
+sendTab = sendKeys "\t"
 
 sendKeyCombo ∷ Array ControlKey → String → Sequence Unit
 sendKeyCombo ctrlKeys str = do
