@@ -17,7 +17,6 @@ limitations under the License.
 module Test.Feature.ActionSequence
   ( sendDelete
   , sendEnter
-  , sendTab
   , shifted
   , keys
   , sendBackspaces
@@ -52,9 +51,6 @@ sendRights n = traverse_ sendKeys $ replicate n "\xE014" :: List String
 
 sendEnter ∷ Sequence Unit
 sendEnter = sendKeys "\xE007"
-
-sendTab ∷ Sequence Unit
-sendTab = sendKeys "\t"
 
 sendKeyCombo ∷ Array ControlKey → String → Sequence Unit
 sendKeyCombo ctrlKeys str = do
