@@ -131,10 +131,7 @@ selScheme state =
         ]
     ]
   where
-  schemeOptions =
-    schemeOption ∘ schemeToString <$> schemes
-  schemeOption s =
-    HH.option [ HP.value s ] [ HH.text s ]
+  schemeOptions = map (\s -> HH.option_ [ HH.text (schemeToString s) ]) schemes
 
 errorMessage :: String -> HTML
 errorMessage msg =
