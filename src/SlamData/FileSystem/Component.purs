@@ -309,10 +309,8 @@ peek
 listingPeek ∷ ∀ a. Listing.QueryP a → DSL Unit
 listingPeek = go ⨁ (itemPeek ∘ H.runChildF)
   where
-  go (Listing.Add _ _) =
-    resort
-  go (Listing.Adds items _) =
-    (presentMountGuide items =<< H.gets _.path) *> resort
+  go (Listing.Add _ _) = resort
+  go (Listing.Adds items _) = (presentMountGuide items =<< H.gets _.path) *> resort
   go _ = pure unit
 
 presentMountGuide ∷ ∀ a. Array a → DirPath → DSL Unit
