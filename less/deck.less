@@ -228,20 +228,10 @@ button.sd-zoom-deck {
 .sd-access-next-card-guide {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: @grid-size;
   transform: translate(0, -50%);
   margin-top: -4px;
   z-index: 1000;
-  animation-name: pointRight, fadeIn;
-  animation-duration: 1s, 0.5s;
-  animation-fill-mode: both;
-}
-
-.sd-access-next-card-guide .sd-notification {
-  display: block;
-  border-top: 3px solid #337ab7;
-  margin: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.125);
 }
 
 @import "deck/card";

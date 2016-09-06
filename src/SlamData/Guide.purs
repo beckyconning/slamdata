@@ -32,7 +32,7 @@ arrowClassName =
 render ∷ ∀ f a. Arrow → HH.ClassName → (Unit → f Unit) → String → HH.HTML a (f Unit)
 render arrow className dismissQuery text =
   HH.div
-    [ HP.class_ className ]
+    [ HP.classes [ HH.className "sd-guide", className ] ]
     [ HH.div
         [ HP.classes
             [ HH.className "sd-notification"
