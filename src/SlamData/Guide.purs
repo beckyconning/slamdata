@@ -16,7 +16,7 @@ limitations under the License.
 module SlamData.Guide where
 
 import Prelude
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(..))
 import Halogen as H
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Events.Handler as EH
@@ -70,7 +70,9 @@ renderStepByStep queries imageUri text last =
     , HP.class_ $ HH.className "sd-step-by-step-guide-backdrop"
     ]
     [ HH.div
-      [ HP.class_ $ HH.className "sd-step-by-step-guide" ]
+      [ HP.class_ $ HH.className "sd-step-by-step-guide"
+      , HE.onClick (\_ → EH.stopPropagation $> Nothing)
+      ]
       ([ HH.img [ HP.src imageUri ] , HH.p_ [ HH.text text ] ] <> pure buttons)
     ]
       where
