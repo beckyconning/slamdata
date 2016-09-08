@@ -66,7 +66,7 @@ renderStepByStep
   → HH.HTML a (f Unit)
 renderStepByStep queries imageUri text last =
   HH.div
-    [ HE.onClick (\_ → EH.stopPropagation $> Just (H.action (queries.dismiss)))
+    [ HE.onClick \_ → EH.stopPropagation $> Just (H.action $ queries.dismiss)
     , HP.class_ $ HH.className "sd-step-by-step-guide-backdrop"
     ]
     [ HH.div
@@ -81,14 +81,14 @@ renderStepByStep queries imageUri text last =
           $ if last
             then
               [ HH.button
-                  [ HE.onClick (\_ → EH.stopPropagation $> Just (H.action (queries.dismiss))) ]
+                  [ HE.onClick \_ → EH.stopPropagation $> Just (H.action $ queries.dismiss) ]
                   [ HH.text "Get started!" ]
               ]
             else
               [ HH.button
-                 [ HE.onClick (\_ → EH.stopPropagation $> Just (H.action (queries.next))) ]
+                 [ HE.onClick \_ → EH.stopPropagation $> Just (H.action $ queries.next) ]
                  [ HH.text "Next" ]
               , HH.button
-                 [ HE.onClick (\_ → EH.stopPropagation $> Just (H.action (queries.dismiss))) ]
+                 [ HE.onClick \_ → EH.stopPropagation $> Just (H.action $ queries.dismiss) ]
                   [ HH.text "Skip" ]
               ]
