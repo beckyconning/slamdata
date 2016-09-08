@@ -439,7 +439,7 @@ cardGuideSteps ∷ Array (Tuple String String)
 cardGuideSteps =
   [ Tuple
       "img/cardGuide/1.gif"
-      "With SlamData we think about analytics in terms of cards."
+      "Welcome to SlamData! When using SlamData we think about analytics in terms of cards."
   , Tuple
       "img/cardGuide/2.gif"
       "Each card performs a function like showing a pie chart or opening a data set."

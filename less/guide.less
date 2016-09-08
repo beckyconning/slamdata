@@ -1,5 +1,7 @@
 @import (reference) "button";
 
+@margin: 4.5%;
+
 @keyframes pointDown {
   from, 20%, 53%, 80%, to {
     animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
@@ -142,7 +144,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 50%;
+  width: 30rem;
   background-color: white;
   z-index: 1000;
   box-shadow: 0px 0px 8px 0px rgba(0,0,0,1);
@@ -152,20 +154,22 @@
 .sd-step-by-step-guide img {
   width: 100%;
   height: auto;
+  margin-bottom: @margin;
+  border-bottom: 1px solid #ddd;
 }
 
 .sd-step-by-step-guide p {
-  padding: 0 1rem;
+  padding: 0 @margin;
   display: block;
-  height: 4rem;
+  height: 3rem;
 }
 
 .sd-step-by-step-guide button {
   .btn;
   .btn-default;
   float: right;
-  margin-right: 1rem;
-  margin-bottom: 1rem;
+  margin-right: @margin;
+  margin-bottom: @margin;
 }
 
 .sd-step-by-step-guide button:first-of-type {
