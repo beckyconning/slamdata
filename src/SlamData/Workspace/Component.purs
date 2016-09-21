@@ -112,20 +112,20 @@ render state =
   where
   renderCardGuide ∷ Array WorkspaceHTML
   renderCardGuide =
-    Guide.renderStepByStepWithTupleArray
+    Guide.renderStepByStepWithArray
       { next: CardGuideStepNext, dismiss: CardGuideDismiss }
       state.cardGuideStep
       Guide.cardGuideSteps
 
   renderFlipGuide ∷ Array WorkspaceHTML
   renderFlipGuide =
-    Guide.renderStepByStepWithTupleArray
+    Guide.renderStepByStepWithArray
       { next: FlipGuideStepNext, dismiss: FlipGuideDismiss }
       state.flipGuideStep
       Guide.flipGuideSteps
 
   preloadGuides =
-    Guide.preloadStepByStepWithTupleArray
+    Guide.preloadStepByStepWithArray
       <$> [ Guide.cardGuideSteps, Guide.flipGuideSteps ]
 
   notifications ∷ Array WorkspaceHTML
