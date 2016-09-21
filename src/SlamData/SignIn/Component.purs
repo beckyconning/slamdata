@@ -114,7 +114,7 @@ update = do
       $ H.action
       $ HalogenMenu.SetMenu
       $ makeMenu
-        [ { label:
+      $ [ { label:
               fromMaybe "unknown user"
               $ map Crypt.runEmail
               $ Crypt.pluckEmail token
@@ -125,7 +125,7 @@ update = do
                 }
               ]
           }
-        ]
+        ] <> helpMenu
     H.modify (_{loggedIn = true})
 
   retrieveProvidersAndUpdateMenu ∷ SignInDSL Unit
@@ -142,10 +142,17 @@ update = do
         $ H.action
         $ HalogenMenu.SetMenu
         $ makeMenu
-          [ { label: "🔓 Sign in"
+        $ [ { label: "🔓 Sign in"
             , submenu: Menu.makeSubmenuItem <$> providers
             }
-          ]
+          ] <> helpMenu
+
+helpMenu ∷ _
+helpMenu =
+  [ { label: "Help"
+    , submenu: []
+    }
+  ]
 
 dismissAll ∷ SignInDSL Unit
 dismissAll =

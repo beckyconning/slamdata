@@ -13,6 +13,7 @@
             display: block;
             float: left;
             padding: 0;
+            margin-left: 0.75rem;
             position: relative;
             a {
                 color: rgb(210,210,210);
@@ -22,6 +23,36 @@
                 &:not(:only-child) {
                     color: white;
                 }
+            }
+            &:last-child {
+              a {
+                display: inline-block;
+                margin-top: 0.5rem;
+                width: 1.5rem;
+                height: 1.5rem;
+                border-radius: 0.75rem;
+                background-color: rgb(210,210,210);
+                color: transparent;
+                overflow: hidden;
+                position: relative;
+                &:hover {
+                  background-color: white;
+                  color: transparent;
+                }
+                &:not(:only-child) {
+                  background-color: white;
+                  color: transparent;
+                }
+                &::after {
+                  content: "?";
+                  position: absolute;
+                  left: 50%;
+                  top: 50%;
+                  transform: translate(-50%, -50%);
+                  color: #333;
+                  text-align: center;
+                }
+              }
             }
             > ul {
                 right: -1.125rem;
