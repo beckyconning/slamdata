@@ -168,10 +168,10 @@ flipGuideSteps =
       "Sharing is easy and secure with SlamData Advanced."
   , Tuple
       "img/flipGuide/10.gif"
-      "Decks can be shared for viewing or editing with people and groups and access tokens can be created with Share Deck."
+      "Share deck allows decks to be shared for viewing or editing with people and groups. It also allows for the creation of access tokens."
   , Tuple
       "img/flipGuide/11.gif"
-      "And access can be managed or revoked using Unshare Deck"
+      "Access can be managed or revoked using Unshare Deck"
   , Tuple
       "img/flipGuide/12.gif"
       "With both SlamData and SlamData Advanced decks can be embedded on web and intranet sites using Embed Deck."
