@@ -150,7 +150,7 @@ flipGuideSteps =
       "Wrap Deck places the deck on a draftboard card in a new deck."
   , Tuple
       "img/flipGuide/4.gif"
-      "Draftboard cards allow muliple decks to be laid out of one card."
+      "Draftboard cards allow muliple decks to be laid out on one card."
   , Tuple
       "img/flipGuide/5.gif"
       "Decks can be removed using Delete Deck."
