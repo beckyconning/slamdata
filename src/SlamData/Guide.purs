@@ -144,7 +144,7 @@ flipGuideSteps =
       "Welcome to the flip side of your deck. The flip side lists actions for the deck and current card."
   , Tuple
       "img/flipGuide/2.gif"
-      "Delete Card deletes the current card and any cards inserted after it. Error cards and next action cards aren't inserted and are not deleted."
+      "Delete Card deletes the current card and any cards inserted after it. Error cards and next action cards aren't inserted so are not deleted."
   , Tuple
       "img/flipGuide/3.gif"
       "Wrap Deck places the deck on a draftboard card in a new deck."
