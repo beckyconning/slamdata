@@ -162,7 +162,7 @@ flipGuideSteps =
       "Any changes made to the original or mirrored cards are reflected in each other except for deletion."
   , Tuple
       "img/flipGuide/8.gif"
-      "Adding cards to either deck will not affect the other."
+      "Adding cards to either deck will not affect the other. Mirroring is great for adding form controls to your dashboard."
   , Tuple
       "img/flipGuide/9.gif"
       "Sharing is easy and secure with SlamData Advanced."
