@@ -16,7 +16,9 @@ limitations under the License.
 module SlamData.Guide where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+import Data.Array as Array
+import Data.Maybe (Maybe(..), maybe)
+import Data.Tuple (Tuple(..), fst, snd)
 import Halogen as H
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Events.Handler as EH
@@ -57,6 +59,23 @@ render arrow className dismissQuery text =
         ]
     ]
 
+renderStepByStepWithTupleArray
+  ∷ ∀ f a
+  . { next ∷ Unit → f Unit, dismiss ∷ Unit → f Unit }
+  → Maybe Int
+  → Array (Tuple String String)
+  → Array (HH.HTML a (f Unit))
+renderStepByStepWithTupleArray queries stepIndex steps =
+  maybe [] pure do
+    index ← stepIndex
+    step ← Array.index steps index
+    pure
+      $ renderStepByStep
+          queries
+          (fst step)
+          (snd step)
+          (index == Array.length steps - 1)
+
 renderStepByStep
   ∷ ∀ f a
   . { next ∷ Unit → f Unit, dismiss ∷ Unit → f Unit }
@@ -92,3 +111,80 @@ renderStepByStep queries imageUri text last =
                  [ HE.onClick \_ → EH.stopPropagation $> Just (H.action queries.dismiss) ]
                   [ HH.text "Skip" ]
               ]
+
+preloadStepByStepWithTupleArray ∷ ∀ a f. Array (Tuple String String) → HH.HTML a f
+preloadStepByStepWithTupleArray steps =
+  HH.div
+    [ ARIA.hidden "true" ]
+    ((\url → HH.img [ HP.src url ]) <<< fst <$> steps)
+
+cardGuideSteps ∷ Array (Tuple String String)
+cardGuideSteps =
+  [ Tuple
+      "img/cardGuide/1.gif"
+      "Welcome to SlamData! When using SlamData we think about analytics in terms of cards."
+  , Tuple
+      "img/cardGuide/2.gif"
+      "Each card performs a function like showing a pie chart or opening a data set."
+  , Tuple
+      "img/cardGuide/3.gif"
+      "Each card passes an output to the card after it, for example passing a data set to a chart."
+  , Tuple
+      "img/cardGuide/4.gif"
+      "This is done by stacking cards ontop of each other to build decks. Decks represent analytic workflows."
+  , Tuple
+      "img/cardGuide/5.gif"
+      "Check out the deck backside, slide the card grippers and visit the next action card to see more of what's possible with SlamData."
+  ]
+
+flipGuideSteps ∷ Array (Tuple String String)
+flipGuideSteps =
+  [ Tuple
+      "img/flipGuide/1.gif"
+      "Welcome to the flip side of your deck. The flip side lists actions for the deck and current card."
+  , Tuple
+      "img/flipGuide/2.gif"
+      "Delete Card deletes the current card and any cards inserted after it. Error cards and next action cards aren't inserted and are not deleted."
+  , Tuple
+      "img/flipGuide/3.gif"
+      "Wrap Deck places the deck on a draftboard card in a new deck."
+  , Tuple
+      "img/flipGuide/4.gif"
+      "Draftboard cards allow muliple decks to be laid out of one card."
+  , Tuple
+      "img/flipGuide/5.gif"
+      "Decks can be removed using Delete Deck."
+  , Tuple
+      "img/flipGuide/6.gif"
+      "Mirror Deck creates a live copy of the cards in the deck and places them in a new deck on the current draftboard card."
+  , Tuple
+      "img/flipGuide/7.gif"
+      "Any changes made to the original or mirrored cards are reflected in each other except for deletion."
+  , Tuple
+      "img/flipGuide/8.gif"
+      "Adding cards to either deck will not affect the other."
+  , Tuple
+      "img/flipGuide/9.gif"
+      "Sharing is easy and secure with SlamData Advanced."
+  , Tuple
+      "img/flipGuide/10.gif"
+      "Decks can be shared for viewing or editing with people and groups and access tokens can be created with Share Deck."
+  , Tuple
+      "img/flipGuide/11.gif"
+      "And access can be managed or revoked using Unshare Deck"
+  , Tuple
+      "img/flipGuide/12.gif"
+      "With both SlamData and SlamData Advanced decks can be embedded on web and intranet sites using Embed Deck."
+  , Tuple
+      "img/flipGuide/13.gif"
+      "And public viewing links can be created with Publish Deck."
+  , Tuple
+      "img/flipGuide/14.gif"
+      "Thanks for exploring your Deck's flip side with us. If you get stuck or want to learn more please check out the help menu."
+  ]
+
+dismissedCardGuideKey ∷ String
+dismissedCardGuideKey = "dismissedCardGuide"
+
+dismissedFlipGuideKey ∷ String
+dismissedFlipGuideKey = "dismissedFlipGuide"
