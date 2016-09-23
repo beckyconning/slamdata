@@ -24,36 +24,6 @@
                     color: white;
                 }
             }
-            &:last-child {
-              a {
-                display: inline-block;
-                margin-top: 0.5rem;
-                width: 1.5rem;
-                height: 1.5rem;
-                border-radius: 0.75rem;
-                background-color: rgb(210,210,210);
-                color: transparent;
-                overflow: hidden;
-                position: relative;
-                &:hover {
-                  background-color: white;
-                  color: transparent;
-                }
-                &:not(:only-child) {
-                  background-color: white;
-                  color: transparent;
-                }
-                &::after {
-                  content: "?";
-                  position: absolute;
-                  left: 50%;
-                  top: 50%;
-                  transform: translate(-50%, -50%);
-                  color: #333;
-                  text-align: center;
-                }
-              }
-            }
             > ul {
                 right: -1.125rem;
                 list-style-type: none;
@@ -107,4 +77,34 @@
         font-size: 1rem;
         text-decoration: none;
     }
+}
+
+.sd-sign-in > ul > li:last-of-type > div > a,  .sd-sign-in > ul > li:last-of-type > a {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.75rem;
+  background-color: rgb(210,210,210);
+  color: transparent;
+  overflow: hidden;
+  position: relative;
+  &:hover {
+    background-color: white;
+    color: transparent;
+  }
+  &:not(:only-child) {
+    background-color: white;
+    color: transparent;
+  }
+  &::after {
+    content: "?";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #333;
+    text-align: center;
+  }
 }

@@ -16,10 +16,8 @@ limitations under the License.
 
 module SlamData.SignIn.Menu.Component.Query where
 
-import SlamData.Prelude
-
 import Halogen.Menu.Component as HalogenMenu
 
-import Quasar.Advanced.Types (ProviderR)
+import SlamData.SignIn.Menu.Component.State (AuthenticateOrPresentHelp)
 
-type QueryP = HalogenMenu.MenuQueryP (Maybe ProviderR)
+type QueryP = HalogenMenu.MenuQueryP AuthenticateOrPresentHelp

@@ -34,7 +34,7 @@ import Halogen.HTML.Core (className)
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import Halogen.Menu.Component (MenuQuery(..), menuComponent) as HalogenMenu
-import Halogen.Menu.Component.State (makeMenu)
+import Halogen.Menu.Component.State (MenuItem, makeMenu)
 import Halogen.Menu.Submenu.Component (SubmenuQuery(..)) as HalogenMenu
 
 import OIDC.Crypt as Crypt
@@ -47,8 +47,8 @@ import SlamData.Quasar.Auth as Auth
 import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.SignIn.Bus (SignInMessage(..))
 import SlamData.SignIn.Component.State (State, initialState)
-import SlamData.SignIn.Menu.Component.Query (QueryP) as Menu
-import SlamData.SignIn.Menu.Component.State (StateP, makeSubmenuItem, make) as Menu
+import SlamData.SignIn.Menu.Component.Query (QueryP) as MenuQuery
+import SlamData.SignIn.Menu.Component.State as MenuState
 import SlamData.Wiring (Wiring(..))
 
 import Utils (passover)
@@ -67,9 +67,9 @@ derive instance ordMenuSlot ∷ Ord MenuSlot
 
 type ChildSlot = MenuSlot
 
-type ChildQuery = Menu.QueryP
+type ChildQuery = MenuQuery.QueryP
 
-type ChildState g = Menu.StateP g
+type ChildState g = MenuState.StateP g
 
 type StateP = H.ParentState State (ChildState Slam) Query ChildQuery Slam ChildSlot
 type SignInHTML = H.ParentHTML (ChildState Slam) Query ChildQuery Slam ChildSlot
@@ -92,7 +92,7 @@ render state =
     $ guard (not state.hidden)
     $> HH.slot MenuSlot \_ →
         { component: HalogenMenu.menuComponent
-        , initialState: H.parentState $ Menu.make []
+        , initialState: H.parentState $ makeMenu []
         }
 
 eval ∷ Query ~> SignInDSL
@@ -109,8 +109,7 @@ update = do
   where
   putEmailToMenu ∷ Crypt.IdToken → SignInDSL Unit
   putEmailToMenu token = do
-    H.query MenuSlot
-      $ left
+    queryMenu
       $ H.action
       $ HalogenMenu.SetMenu
       $ makeMenu
@@ -121,7 +120,7 @@ update = do
           , submenu:
               [ { label: "🔒 Sign out"
                 , shortcutLabel: Nothing
-                , value: Nothing
+                , value: MenuState.Authenticate Nothing
                 }
               ]
           }
@@ -131,26 +130,65 @@ update = do
   retrieveProvidersAndUpdateMenu ∷ SignInDSL Unit
   retrieveProvidersAndUpdateMenu = do
     eProviders ← Api.retrieveAuthProviders
-    case eProviders of
-      Left _ → H.modify (_{hidden = true})
-      Right Nothing → H.modify (_{hidden = true})
-      Right (Just []) → H.modify (_{hidden = true})
-      Right (Just providers) →
-        void
-        $ H.query MenuSlot
-        $ left
-        $ H.action
-        $ HalogenMenu.SetMenu
-        $ makeMenu
-        $ [ { label: "🔓 Sign in"
-            , submenu: Menu.makeSubmenuItem <$> providers
-            }
-          ] <> helpMenu
+    queryMenu
+      $ H.action
+      $ HalogenMenu.SetMenu
+      $ makeMenu
+      $ case eProviders of
+          Right (Just providers) →
+            [ { label: "🔓 Sign in"
+              , submenu: MenuState.makeAuthenticateSubmenuItem <$> providers
+              }
+            ] <> helpMenu
+          _ → helpMenu
 
-helpMenu ∷ _
+helpMenu ∷ Array (MenuItem MenuState.AuthenticateOrPresentHelp)
 helpMenu =
   [ { label: "Help"
-    , submenu: []
+    , submenu:
+      [ { label: "User guide"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/users-guide.html"
+        }
+      , { label: "Administrator guide"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/administration-guide.html"
+        }
+      , { label: "Developer guide"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/developers-guide.html"
+        }
+      , { label: "Helpful tips"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/helpful-tips.html"
+        }
+      , { label: "SQL² reference"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/sql-squared-reference.html"
+        }
+      , { label: "SlamDown reference"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/slamdown-reference.html"
+        }
+      , { label: "Troubleshooting FAQ"
+        , shortcutLabel: Nothing
+        , value:
+            MenuState.PresentHelp
+              "http://docs.slamdata.com/en/v3.0/troubleshooting-faq.html"
+        }
+      ]
     }
   ]
 
@@ -159,7 +197,7 @@ dismissAll =
   queryMenu $
     H.action HalogenMenu.DismissSubmenu
 
-menuPeek ∷ ∀ a. Menu.QueryP a → SignInDSL Unit
+menuPeek ∷ ∀ a. MenuQuery.QueryP a → SignInDSL Unit
 menuPeek =
   coproduct
     (const (pure unit))
@@ -167,9 +205,20 @@ menuPeek =
 
 submenuPeek
   ∷ ∀ a
-  . HalogenMenu.SubmenuQuery (Maybe ProviderR) a
+  . HalogenMenu.SubmenuQuery MenuState.AuthenticateOrPresentHelp a
   → SignInDSL Unit
-submenuPeek (HalogenMenu.SelectSubmenuItem providerR _) = do
+submenuPeek (HalogenMenu.SelectSubmenuItem authenticateOrPresentHelp _) = do
+   case authenticateOrPresentHelp of
+     MenuState.Authenticate providerR → authenticate providerR
+     MenuState.PresentHelp uri → presentHelp uri
+
+queryMenu
+  ∷ HalogenMenu.MenuQuery MenuState.AuthenticateOrPresentHelp Unit
+  → SignInDSL Unit
+queryMenu q = void $ H.query MenuSlot (left q)
+
+authenticate ∷ Maybe ProviderR → SignInDSL Unit
+authenticate providerR = do
   {loggedIn} ← H.get
   if loggedIn then logOut else logIn
   pure unit
@@ -180,6 +229,7 @@ submenuPeek (HalogenMenu.SelectSubmenuItem providerR _) = do
       AuthStore.clearIdToken
       AuthStore.clearProvider
       Browser.reload
+
   logIn ∷ SignInDSL Unit
   logIn = do
     for_ providerR $ H.fromEff ∘ AuthStore.storeProvider ∘ Provider
@@ -194,7 +244,5 @@ submenuPeek (HalogenMenu.SelectSubmenuItem providerR _) = do
     -- TODO: Reattempt failed actions without loosing state, remove reload.
     H.fromEff Browser.reload
 
-queryMenu
-  ∷ HalogenMenu.MenuQuery (Maybe ProviderR) Unit
-  → SignInDSL Unit
-queryMenu q = void $ H.query MenuSlot (left q)
+presentHelp ∷ String → SignInDSL Unit
+presentHelp = H.fromEff ∘ Browser.newTab
