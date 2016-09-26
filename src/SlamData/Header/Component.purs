@@ -22,7 +22,6 @@ import Halogen as H
 import Halogen.HTML.Indexed as HH
 import Halogen.Component.ChildPath (ChildPath, cpL, cpR)
 import Halogen.HTML.Properties.Indexed as HP
-import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Monad (Slam)
 import SlamData.Header.Gripper.Component as Gripper
@@ -84,13 +83,10 @@ render open =
         [ HH.div_
             [ HH.div [ HP.classes [ Rc.header ] ]
                 [ logo $ Just "3.0"
-                , HH.div
-                    [ HP.classes [ B.pullRight ] ]
-                    [ HH.slot' cpSignIn unit \_ →
-                         { component: SignIn.comp
-                         , initialState: H.parentState SignIn.initialState
-                         }
-                    ]
+                , HH.slot' cpSignIn unit \_ →
+                     { component: SignIn.comp
+                     , initialState: H.parentState SignIn.initialState
+                     }
                 , HH.slot' cpGripper unit \_ →
                       { component: Gripper.comp "nav"
                       , initialState: Gripper.initialState
