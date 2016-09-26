@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.SignIn.Menu.Component.Query where
+module SlamData.GlobalMenu.Menu.Component.Query where
 
 import Halogen.Menu.Component as HalogenMenu
 
-import SlamData.SignIn.Menu.Component.State (AuthenticateOrPresentHelp)
+import SlamData.GlobalMenu.Menu.Component.State (AuthenticateOrPresentHelp)
 
 type QueryP = HalogenMenu.MenuQueryP AuthenticateOrPresentHelp

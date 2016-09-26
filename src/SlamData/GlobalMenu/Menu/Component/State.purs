@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.SignIn.Menu.Component.State where
+module SlamData.GlobalMenu.Menu.Component.State where
 
 import SlamData.Prelude
 

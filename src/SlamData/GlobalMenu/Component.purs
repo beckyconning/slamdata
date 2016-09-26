@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.SignIn.Component
+module SlamData.GlobalMenu.Component
   ( comp
   , MenuSlot
   , QueryP
@@ -20,7 +20,7 @@ module SlamData.SignIn.Component
   , Query(..)
   , ChildSlot
   , ChildState
-  , module SlamData.SignIn.Component.State
+  , module SlamData.GlobalMenu.Component.State
   ) where
 
 import SlamData.Prelude
@@ -45,10 +45,10 @@ import SlamData.Monad (Slam)
 import SlamData.Quasar as Api
 import SlamData.Quasar.Auth as Auth
 import SlamData.Quasar.Auth.Store as AuthStore
-import SlamData.SignIn.Bus (SignInMessage(..))
-import SlamData.SignIn.Component.State (State, initialState)
-import SlamData.SignIn.Menu.Component.Query (QueryP) as MenuQuery
-import SlamData.SignIn.Menu.Component.State as MenuState
+import SlamData.GlobalMenu.Bus (SignInMessage(..))
+import SlamData.GlobalMenu.Component.State (State, initialState)
+import SlamData.GlobalMenu.Menu.Component.Query (QueryP) as MenuQuery
+import SlamData.GlobalMenu.Menu.Component.State as MenuState
 import SlamData.Wiring (Wiring(..))
 
 import Utils (passover)
@@ -72,8 +72,8 @@ type ChildQuery = MenuQuery.QueryP
 type ChildState g = MenuState.StateP g
 
 type StateP = H.ParentState State (ChildState Slam) Query ChildQuery Slam ChildSlot
-type SignInHTML = H.ParentHTML (ChildState Slam) Query ChildQuery Slam ChildSlot
-type SignInDSL = H.ParentDSL State (ChildState Slam) Query ChildQuery Slam ChildSlot
+type GlobalMenuHTML = H.ParentHTML (ChildState Slam) Query ChildQuery Slam ChildSlot
+type GlobalMenuDSL = H.ParentDSL State (ChildState Slam) Query ChildQuery Slam ChildSlot
 
 comp ∷ H.Component StateP QueryP Slam
 comp =
@@ -85,21 +85,21 @@ comp =
     , finalizer: Nothing
     }
 
-render ∷ State → SignInHTML
+render ∷ State → GlobalMenuHTML
 render state =
   HH.div
     [ HP.classes $ [ className "sd-sign-in" ] ]
-    $ guard (not state.hidden)
-    $> HH.slot MenuSlot \_ →
+    [ HH.slot MenuSlot \_ →
         { component: HalogenMenu.menuComponent
-        , initialState: H.parentState $ makeMenu []
+        , initialState: H.parentState $ makeMenu helpMenu
         }
+    ]
 
-eval ∷ Query ~> SignInDSL
+eval ∷ Query ~> GlobalMenuDSL
 eval (DismissSubmenu next) = dismissAll $> next
 eval (Init next) = update $> next
 
-update ∷ SignInDSL Unit
+update ∷ GlobalMenuDSL Unit
 update = do
   mbIdToken ← H.liftH $ H.liftH $ Auth.getIdToken
   maybe
@@ -107,7 +107,7 @@ update = do
     putEmailToMenu
     mbIdToken
   where
-  putEmailToMenu ∷ Crypt.IdToken → SignInDSL Unit
+  putEmailToMenu ∷ Crypt.IdToken → GlobalMenuDSL Unit
   putEmailToMenu token = do
     queryMenu
       $ H.action
@@ -127,7 +127,7 @@ update = do
         ] <> helpMenu
     H.modify (_{loggedIn = true})
 
-  retrieveProvidersAndUpdateMenu ∷ SignInDSL Unit
+  retrieveProvidersAndUpdateMenu ∷ GlobalMenuDSL Unit
   retrieveProvidersAndUpdateMenu = do
     eProviders ← Api.retrieveAuthProviders
     queryMenu
@@ -192,12 +192,12 @@ helpMenu =
     }
   ]
 
-dismissAll ∷ SignInDSL Unit
+dismissAll ∷ GlobalMenuDSL Unit
 dismissAll =
   queryMenu $
     H.action HalogenMenu.DismissSubmenu
 
-menuPeek ∷ ∀ a. MenuQuery.QueryP a → SignInDSL Unit
+menuPeek ∷ ∀ a. MenuQuery.QueryP a → GlobalMenuDSL Unit
 menuPeek =
   coproduct
     (const (pure unit))
@@ -206,7 +206,7 @@ menuPeek =
 submenuPeek
   ∷ ∀ a
   . HalogenMenu.SubmenuQuery MenuState.AuthenticateOrPresentHelp a
-  → SignInDSL Unit
+  → GlobalMenuDSL Unit
 submenuPeek (HalogenMenu.SelectSubmenuItem authenticateOrPresentHelp _) = do
    case authenticateOrPresentHelp of
      MenuState.Authenticate providerR → authenticate providerR
@@ -214,23 +214,23 @@ submenuPeek (HalogenMenu.SelectSubmenuItem authenticateOrPresentHelp _) = do
 
 queryMenu
   ∷ HalogenMenu.MenuQuery MenuState.AuthenticateOrPresentHelp Unit
-  → SignInDSL Unit
+  → GlobalMenuDSL Unit
 queryMenu q = void $ H.query MenuSlot (left q)
 
-authenticate ∷ Maybe ProviderR → SignInDSL Unit
+authenticate ∷ Maybe ProviderR → GlobalMenuDSL Unit
 authenticate providerR = do
   {loggedIn} ← H.get
   if loggedIn then logOut else logIn
   pure unit
   where
-  logOut ∷ SignInDSL Unit
+  logOut ∷ GlobalMenuDSL Unit
   logOut = do
     H.fromEff do
       AuthStore.clearIdToken
       AuthStore.clearProvider
       Browser.reload
 
-  logIn ∷ SignInDSL Unit
+  logIn ∷ GlobalMenuDSL Unit
   logIn = do
     for_ providerR $ H.fromEff ∘ AuthStore.storeProvider ∘ Provider
     Wiring wiring ← H.liftH $ H.liftH ask
@@ -244,5 +244,5 @@ authenticate providerR = do
     -- TODO: Reattempt failed actions without loosing state, remove reload.
     H.fromEff Browser.reload
 
-presentHelp ∷ String → SignInDSL Unit
+presentHelp ∷ String → GlobalMenuDSL Unit
 presentHelp = H.fromEff ∘ Browser.newTab
