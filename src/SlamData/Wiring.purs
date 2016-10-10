@@ -16,6 +16,7 @@ limitations under the License.
 
 module SlamData.Wiring
   ( Wiring(..)
+  , WiringR
   , Cache
   , CardEval
   , DeckRef
@@ -30,6 +31,7 @@ module SlamData.Wiring
   , putCache
   , getCache
   , putCardEval
+  , run
   ) where
 
 import SlamData.Prelude
@@ -90,21 +92,25 @@ type ActiveState =
   { cardIndex ∷ Int
   }
 
-newtype Wiring =
-  Wiring
-    { decks ∷ Cache DeckId DeckRef
-    , activeState ∷ Cache DeckId ActiveState
-    , cards ∷ Cache (DeckId × CardId) CardEval
-    , pending ∷ Bus.BusRW PendingMessage
-    , messaging ∷ Bus.BusRW DeckMessage
-    , notify ∷ Bus.BusRW N.NotificationOptions
-    , globalError ∷ Bus.BusRW GE.GlobalError
-    , requestNewIdTokenBus ∷ Auth.RequestIdTokenBus
-    , urlVarMaps ∷ Ref (Map.Map DeckId Port.URLVarMap)
-    , signInBus ∷ SignInBus
-    , hasIdentified ∷ Ref Boolean
-    , presentStepByStepGuide ∷ Bus.BusRW StepByStepGuide
-    }
+type WiringR =
+  { decks ∷ Cache DeckId DeckRef
+  , activeState ∷ Cache DeckId ActiveState
+  , cards ∷ Cache (DeckId × CardId) CardEval
+  , pending ∷ Bus.BusRW PendingMessage
+  , messaging ∷ Bus.BusRW DeckMessage
+  , notify ∷ Bus.BusRW N.NotificationOptions
+  , globalError ∷ Bus.BusRW GE.GlobalError
+  , requestNewIdTokenBus ∷ Auth.RequestIdTokenBus
+  , urlVarMaps ∷ Ref (Map.Map DeckId Port.URLVarMap)
+  , signInBus ∷ SignInBus
+  , hasIdentified ∷ Ref Boolean
+  , presentStepByStepGuide ∷ Bus.BusRW StepByStepGuide
+  }
+
+newtype Wiring = Wiring WiringR
+
+run ∷ Wiring → WiringR
+run (Wiring r) = r
 
 makeWiring
   ∷ ∀ m
