@@ -38,7 +38,7 @@
     "purescript-markdown-halogen": "^2.0.0",
     "purescript-markdown": "^7.0.0",
     "purescript-minimatch": "^0.2.0",
-    "purescript-oidc-crypt-utils": "^3.0.0",
+    "purescript-oidc-crypt-utils": "^4.0.0",
     "purescript-parallel": "^1.1.0",
     "purescript-pathy": "^2.0.0",
     "purescript-profunctor-lenses": "^1.0.0",

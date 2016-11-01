@@ -40,6 +40,9 @@ import Control.Monad.Aff.Promise (Promise)
 import Control.Monad.Aff.Promise as Promise
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Exception (Error)
+import Control.Monad.Eff.Exception as Exception
+import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Random (RANDOM)
 import Control.Monad.Eff.Ref (Ref, REF)
 import Control.Monad.Eff.Ref as Ref
@@ -61,9 +64,9 @@ import Data.Foldable as F
 import Data.Foreign as Foreign
 import Data.Maybe as M
 import Data.Nullable as Nullable
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable as T
 import OIDC.Aff as OIDCAff
-import OIDC.Crypt (RSASIGNTIME)
 import OIDC.Crypt as OIDCCrypt
 import OIDC.Crypt.JSONWebKey (JSONWebKey)
 import OIDC.Crypt.Types (IdToken(..), UnhashedNonce(..))
@@ -115,7 +118,7 @@ type RequestIdTokenBus = BusW RequestIdTokenMessage
 type EIdToken = Either AuthenticationError IdToken
 
 type AuthEffects eff =
-  ( rsaSignTime ∷ RSASIGNTIME
+  ( now ∷ NOW
   , avar ∷ AVAR
   , ref ∷ REF
   , dom ∷ DOM
@@ -366,16 +369,30 @@ getUnverifiedIdTokenFromLSOnChange =
 runParseError ∷ ParseError → String
 runParseError (ParseError s) = s
 
+-- TODO: Remove g
 verify ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → Eff (AuthEffects eff) Boolean
 verify providerR unhashedNonce idToken =
-  F.or
+  g ∘ F.foldl f (Right false)
     <$> T.traverse
           (verifyWithJwk providerR unhashedNonce idToken)
           providerR.openIDConfiguration.jwks
+  where
+  f ∷ Either String Boolean → Either Error Boolean → Either String Boolean
+  f _ (Right true) = Right true
+  f (Right true) _ = Right true
+  f (Left string) (Left error) = Left $ string <> " " <> Exception.message error
+  f (Right false) (Left error) = Left $ Exception.message error
+  f (Right false) (Right false) = Right false
+  f (Left string) (Right false) = Left string
 
-verifyWithJwk ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → JSONWebKey → Eff (AuthEffects eff) Boolean
+  g ∷ ∀ a. Either a Boolean → Boolean
+  g = either (const false) id
+
+
+verifyWithJwk ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → JSONWebKey → Eff (AuthEffects eff) (Either Error Boolean)
 verifyWithJwk providerR unhashedNonce idToken jwk = do
   OIDCCrypt.verifyIdToken
+      (Seconds 1.0)
       idToken
       providerR.openIDConfiguration.issuer
       providerR.clientID
