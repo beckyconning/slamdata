@@ -18,7 +18,7 @@ module SlamData.Quasar.Auth.Authentication
   ( authentication
   , getIdTokenFromBusSilently
   , fromEither
-  , fromEitherEither
+  , toNotificationOptions
   , AuthEffects
   , EIdToken
   , AuthenticationError(..)
@@ -64,7 +64,7 @@ import Data.Foldable as F
 import Data.Foreign as Foreign
 import Data.Maybe as M
 import Data.Nullable as Nullable
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable as T
 import OIDC.Aff as OIDCAff
 import OIDC.Crypt as OIDCCrypt
@@ -73,6 +73,8 @@ import OIDC.Crypt.Types (IdToken(..), UnhashedNonce(..))
 import Quasar.Advanced.Types (ProviderR)
 import Quasar.Advanced.Types as QAT
 import SlamData.Config as Config
+import SlamData.Notification (NotificationOptions)
+import SlamData.Notification as Notification
 import SlamData.Prelude
 import SlamData.Quasar.Auth.IdTokenStorageEvents (getIdTokenStorageEvents)
 import SlamData.Quasar.Auth.Keys as AuthKeys
@@ -86,9 +88,6 @@ import Utils.DOM as DOMUtils
 
 fromEither ∷ ∀ a b. E.Either a b → M.Maybe b
 fromEither = E.either (\_ → M.Nothing) (M.Just)
-
-fromEitherEither ∷ ∀ a b c. E.Either a (E.Either b c) → M.Maybe c
-fromEitherEither = E.either (\_ → M.Nothing) fromEither
 
 getIdTokenFromBusSilently ∷ ∀ eff. RequestIdTokenBus → Aff (AuthEffects eff) (Either String EIdToken)
 getIdTokenFromBusSilently requestNewIdTokenBus =
@@ -400,3 +399,35 @@ verifyWithJwk providerR unhashedNonce idToken jwk = do
 
 getRedirectUri ∷ ∀ eff. Eff (AuthEffects eff) String
 getRedirectUri = (_ <> Config.redirectURIString) <$> Browser.locationString
+
+toNotificationOptions ∷ AuthenticationError → Maybe NotificationOptions
+toNotificationOptions =
+  case _ of
+    IdTokenInvalid error →
+      Just
+        { notification: Notification.Error $ "Sign in failed: Authentication provider provided invalid id token."
+        , detail: Notification.SimpleDetail ∘ Exception.message <$> error
+        , timeout
+        }
+    IdTokenUnavailable detail →
+      Just
+        { notification: Notification.Error $ "Sign in failed: Authentication provider didn't provide a token."
+        , detail: Just $ Notification.SimpleDetail detail
+        , timeout
+        }
+    PromptDismissed →
+      Just
+        { notification: Notification.Warning $ "Sign in prompt closed."
+        , detail: Nothing
+        , timeout
+        }
+    ProviderError detail →
+      Just
+        { notification: Notification.Error $ "Sign in failed: There was a problem with your provider configuration, please update your SlamData configuration and try again."
+        , detail: Just $ Notification.SimpleDetail detail
+        , timeout
+        }
+    DOMError _ → Nothing
+  where
+  timeout = Just $ Milliseconds 5000.0
+

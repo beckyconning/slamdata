@@ -25,8 +25,6 @@ module SlamData.GlobalMenu.Component
 
 import SlamData.Prelude
 
-import Data.Time.Duration (Milliseconds(Milliseconds))
-
 import Control.UI.Browser as Browser
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
@@ -50,11 +48,9 @@ import SlamData.GlobalMenu.Component.State (State, initialState)
 import SlamData.GlobalMenu.Menu.Component.Query (QueryP) as MenuQuery
 import SlamData.GlobalMenu.Menu.Component.State as MenuState
 import SlamData.Monad (Slam)
-import SlamData.Notification (NotificationOptions)
-import SlamData.Notification as Notification
 import SlamData.Quasar as Api
 import SlamData.Quasar.Auth as Auth
-import SlamData.Quasar.Auth.Authentication (AuthenticationError(..))
+import SlamData.Quasar.Auth.Authentication (AuthenticationError, toNotificationOptions)
 import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.Wiring (Wiring(Wiring))
 
@@ -259,37 +255,6 @@ authenticate =
     Wiring wiringR ← H.liftH $ H.liftH $ ask
     H.fromAff $ maybe (pure unit) (flip Bus.write wiringR.notify) (toNotificationOptions error)
     H.fromAff $ (Bus.write SignInFailure $ wiringR.signInBus)
-
-  toNotificationOptions ∷ AuthenticationError → Maybe NotificationOptions
-  toNotificationOptions =
-    case _ of
-      IdTokenInvalid error →
-        Just
-          { notification: Notification.Error $ "Sign in failed: Authentication provider provided invalid id token."
-          , detail: Notification.SimpleDetail ∘ Exception.message <$> error
-          , timeout
-          }
-      IdTokenUnavailable detail →
-        Just
-          { notification: Notification.Error $ "Sign in failed: Authentication provider didn't provide a token."
-          , detail: Just $ Notification.SimpleDetail detail
-          , timeout
-          }
-      PromptDismissed →
-        Just
-          { notification: Notification.Warning $ "Sign in prompt closed."
-          , detail: Nothing
-          , timeout
-          }
-      ProviderError detail →
-        Just
-          { notification: Notification.Error $ "Sign in failed: There was a problem with your provider configuration, please update your SlamData configuration and try again."
-          , detail: Just $ Notification.SimpleDetail detail
-          , timeout
-          }
-      DOMError _ → Nothing
-    where
-    timeout = Just $ Milliseconds 5000.0
 
 presentHelp ∷ String → GlobalMenuDSL Unit
 presentHelp = H.fromEff ∘ Browser.newTab

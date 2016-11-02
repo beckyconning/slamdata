@@ -164,12 +164,23 @@ unSlam = foldFree go ∘ unSlamM
     Aff aff →
       lift aff
     GetAuthIdToken k → do
-      Wiring { requestNewIdTokenBus } ← ask
-      lift $ k ∘ Auth.fromEitherEither <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
+      Wiring { requestNewIdTokenBus, notify } ← ask
+      idToken ← liftAff $ Auth.fromEither <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
+      case idToken of
+        Just (Left error) →
+          maybe (pure unit) (lift ∘ flip Bus.write notify) $ Auth.toNotificationOptions error
+        _ →
+          pure unit
+      pure $ k $ maybe Nothing Auth.fromEither idToken
     Quasar qf → do
-      Wiring { requestNewIdTokenBus, signInBus } ← ask
-      idToken ← lift $ Auth.fromEitherEither <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
-      lift $ runQuasarF idToken qf
+      Wiring { requestNewIdTokenBus, signInBus, notify } ← ask
+      idToken ← lift $ Auth.fromEither <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
+      case idToken of
+        Just (Left error) →
+          maybe (pure unit) (lift ∘ flip Bus.write notify) $ Auth.toNotificationOptions error
+        _ →
+          pure unit
+      lift $ runQuasarF (maybe Nothing Auth.fromEither idToken) qf
     GetURLVarMaps k → do
       Wiring { urlVarMaps } ← ask
       lift $ liftEff $ k <$> readRef urlVarMaps
