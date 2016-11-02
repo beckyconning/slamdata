@@ -102,7 +102,7 @@ getIdTokenFromBusSilently requestNewIdTokenBus =
       Left error → pure $ Left error
 
 data AuthenticationError
-  = IdTokenInvalid
+  = IdTokenInvalid (Maybe Error)
   | IdTokenUnavailable String
   | PromptDismissed
   | DOMError String
@@ -330,7 +330,7 @@ getIdTokenUsingLocalStorage providerR = do
   case Tuple eitherIdToken eitherUnhashedNonce of
     Tuple (Right idToken) (Right unhashedNonce) →
       liftEff $ verify providerR unhashedNonce idToken
-        >>= if _ then (pure $ Just idToken) else (pure Nothing)
+        >>= either (const $ pure Nothing) (if _ then (pure $ Just idToken) else (pure Nothing))
     Tuple _ _ → pure Nothing
 
 getUnverifiedIdTokenUsingLocalStorage ∷ ∀ eff. Aff (AuthEffects eff) (Either String IdToken)
@@ -358,7 +358,9 @@ getIdTokenFromLSOnChange providerR unhashedNonce =
             pure $ Left $ IdTokenUnavailable localStorageError
           Right idToken →
             liftEff $ verify providerR unhashedNonce idToken
-              >>= if _ then pure $ Right idToken else pure $ Left IdTokenInvalid
+              >>= either
+                    (pure ∘ Left ∘ IdTokenInvalid ∘ Just )
+                    (if _ then pure $ Right idToken else pure $ Left $ IdTokenInvalid Nothing)
 
 getUnverifiedIdTokenFromLSOnChange
   ∷ ∀ eff
@@ -370,24 +372,21 @@ runParseError ∷ ParseError → String
 runParseError (ParseError s) = s
 
 -- TODO: Remove g
-verify ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → Eff (AuthEffects eff) Boolean
+verify ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → Eff (AuthEffects eff) (Either Error Boolean)
 verify providerR unhashedNonce idToken =
-  g ∘ F.foldl f (Right false)
+  F.foldl accumulateErrorsAcceptTrues (Right false)
     <$> T.traverse
           (verifyWithJwk providerR unhashedNonce idToken)
           providerR.openIDConfiguration.jwks
   where
-  f ∷ Either String Boolean → Either Error Boolean → Either String Boolean
-  f _ (Right true) = Right true
-  f (Right true) _ = Right true
-  f (Left string) (Left error) = Left $ string <> " " <> Exception.message error
-  f (Right false) (Left error) = Left $ Exception.message error
-  f (Right false) (Right false) = Right false
-  f (Left string) (Right false) = Left string
-
-  g ∷ ∀ a. Either a Boolean → Boolean
-  g = either (const false) id
-
+  accumulateErrorsAcceptTrues ∷ Either Error Boolean → Either Error Boolean → Either Error Boolean
+  accumulateErrorsAcceptTrues _ (Right true) = Right true
+  accumulateErrorsAcceptTrues (Right true) _ = Right true
+  accumulateErrorsAcceptTrues (Left acc) (Left error) =
+    Left $ Exception.error $ (Exception.message acc) <> " " <> (Exception.message error)
+  accumulateErrorsAcceptTrues (Right false) (Left error) = Left error
+  accumulateErrorsAcceptTrues (Right false) (Right false) = Right false
+  accumulateErrorsAcceptTrues (Left acc) (Right false) = Left acc
 
 verifyWithJwk ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → JSONWebKey → Eff (AuthEffects eff) (Either Error Boolean)
 verifyWithJwk providerR unhashedNonce idToken jwk = do

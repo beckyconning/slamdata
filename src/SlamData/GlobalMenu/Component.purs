@@ -263,10 +263,10 @@ authenticate =
   toNotificationOptions ∷ AuthenticationError → Maybe NotificationOptions
   toNotificationOptions =
     case _ of
-      IdTokenInvalid →
+      IdTokenInvalid error →
         Just
           { notification: Notification.Error $ "Sign in failed: Authentication provider provided invalid id token."
-          , detail: Nothing
+          , detail: Notification.SimpleDetail ∘ Exception.message <$> error
           , timeout
           }
       IdTokenUnavailable detail →

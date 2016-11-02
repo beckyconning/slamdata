@@ -468,7 +468,6 @@ workspaceTokenName workspacePath idToken =
       ⊕ " for "
       ⊕ workspace
 
-
 updateCopyVal ∷ DSL Unit
 updateCopyVal = do
   locString ← H.fromEff locationString
