@@ -18,6 +18,8 @@ module SlamData.Workspace.Deck.Dialog.Export.Component where
 
 import SlamData.Prelude
 
+import Control.Monad.Eff as Eff
+import Control.Monad.Eff.Exception as Exception
 import Control.Monad.Eff.Ref (Ref, newRef, readRef, writeRef)
 import Control.UI.Browser (select, locationString)
 
@@ -451,12 +453,13 @@ eval (TextAreaLeft next) =
   next <$ H.modify _{hovered = false}
 
 workspaceTokenName ∷ UP.DirPath → OIDC.IdToken → QTA.TokenName
-workspaceTokenName workspacePath token =
+workspaceTokenName workspacePath idToken =
   let
     email =
-      fromMaybe "unknown user"
-        $ map OIDC.runEmail
-        $ OIDC.pluckEmail token
+      either
+        (const "unknown user")
+        (fromMaybe "unknown user" ∘ map OIDC.runEmail ∘ OIDC.pluckEmail)
+        (Eff.runPure $ Exception.try $ OIDC.readPayload idToken)
     workspace = Pathy.printPath workspacePath
   in
     QTA.TokenName

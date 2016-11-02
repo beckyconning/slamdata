@@ -30,6 +30,8 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Control.UI.Browser as Browser
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
+import Control.Monad.Eff as Eff
+import Control.Monad.Eff.Exception as Exception
 
 import Halogen as H
 import Halogen.HTML.Core (className)
@@ -43,17 +45,17 @@ import OIDC.Crypt as Crypt
 
 import Quasar.Advanced.Types (ProviderR)
 
-import SlamData.Monad (Slam)
-import SlamData.Quasar as Api
-import SlamData.Notification (NotificationOptions)
-import SlamData.Notification as Notification
-import SlamData.Quasar.Auth as Auth
-import SlamData.Quasar.Auth.Authentication (AuthenticationError(..))
-import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.GlobalMenu.Bus (SignInMessage(..))
 import SlamData.GlobalMenu.Component.State (State, initialState)
 import SlamData.GlobalMenu.Menu.Component.Query (QueryP) as MenuQuery
 import SlamData.GlobalMenu.Menu.Component.State as MenuState
+import SlamData.Monad (Slam)
+import SlamData.Notification (NotificationOptions)
+import SlamData.Notification as Notification
+import SlamData.Quasar as Api
+import SlamData.Quasar.Auth as Auth
+import SlamData.Quasar.Auth.Authentication (AuthenticationError(..))
+import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.Wiring (Wiring(Wiring))
 
 
@@ -105,14 +107,17 @@ eval (Init next) = update $> next
 
 update ∷ GlobalMenuDSL Unit
 update = do
-  mbIdToken ← H.liftH $ H.liftH $ Auth.getIdToken
-  maybe
-    retrieveProvidersAndUpdateMenu
-    putEmailToMenu
-    mbIdToken
+  maybeIdToken ← H.liftH $ H.liftH $ Auth.getIdToken
+  case maybeIdToken of
+    Just idToken → do
+      either
+        (const retrieveProvidersAndUpdateMenu)
+        putEmailToMenu
+        (Eff.runPure $ Exception.try $ Crypt.readPayload idToken)
+    Nothing → retrieveProvidersAndUpdateMenu
   where
-  putEmailToMenu ∷ Crypt.IdToken → GlobalMenuDSL Unit
-  putEmailToMenu token = do
+  putEmailToMenu ∷ Crypt.Payload → GlobalMenuDSL Unit
+  putEmailToMenu payload = do
     queryMenu
       $ H.action
       $ HalogenMenu.SetMenu
@@ -120,7 +125,8 @@ update = do
       $ [ { label:
               fromMaybe "unknown user"
               $ map Crypt.runEmail
-              $ Crypt.pluckEmail token
+              $ Crypt.pluckEmail
+              $ payload
           , submenu:
               [ { label: "🔒 Sign out"
                 , shortcutLabel: Nothing
