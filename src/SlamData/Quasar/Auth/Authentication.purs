@@ -322,8 +322,8 @@ getIdTokenUsingLocalStorage providerR = do
   eitherUnhashedNonce ← getUnhashedNonceUsingLocalStorage
   case Tuple eitherIdToken eitherUnhashedNonce of
     Tuple (Right idToken) (Right unhashedNonce) →
-      liftEff $ verify providerR unhashedNonce idToken
-        >>= either (const $ pure Nothing) (if _ then (pure $ Just idToken) else (pure Nothing))
+      either (const $ Nothing) (if _ then (Just idToken) else Nothing)
+        <$> (liftEff $ verify providerR unhashedNonce idToken)
     Tuple _ _ → pure Nothing
 
 getUnverifiedIdTokenUsingLocalStorage ∷ ∀ eff. Aff (AuthEffects eff) (Either String IdToken)
@@ -350,10 +350,10 @@ getIdTokenFromLSOnChange providerR unhashedNonce =
           Left localStorageError →
             pure $ Left $ IdTokenUnavailable localStorageError
           Right idToken →
-            liftEff $ verify providerR unhashedNonce idToken
-              >>= either
-                    (pure ∘ Left ∘ IdTokenInvalid ∘ Just )
-                    (if _ then pure $ Right idToken else pure $ Left $ IdTokenInvalid Nothing)
+            either
+              (Left ∘ IdTokenInvalid ∘ Just )
+              (if _ then Right idToken else Left $ IdTokenInvalid Nothing)
+              <$> (liftEff $ verify providerR unhashedNonce idToken)
 
 getUnverifiedIdTokenFromLSOnChange
   ∷ ∀ eff
