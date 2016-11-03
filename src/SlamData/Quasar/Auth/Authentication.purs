@@ -379,13 +379,15 @@ verify providerR unhashedNonce idToken =
           providerR.openIDConfiguration.jwks
   where
   accumulateErrorsAcceptTrues ∷ Either Error Boolean → Either Error Boolean → Either Error Boolean
-  accumulateErrorsAcceptTrues _ (Right true) = Right true
-  accumulateErrorsAcceptTrues (Right true) _ = Right true
-  accumulateErrorsAcceptTrues (Left acc) (Left error) =
-    Left $ Exception.error $ (Exception.message acc) <> " " <> (Exception.message error)
-  accumulateErrorsAcceptTrues (Right false) (Left error) = Left error
-  accumulateErrorsAcceptTrues (Right false) (Right false) = Right false
-  accumulateErrorsAcceptTrues (Left acc) (Right false) = Left acc
+  accumulateErrorsAcceptTrues =
+    case _, _ of
+      _, Right true → Right true
+      Right true, _ → Right true
+      Left acc, Left error →
+        Left $ Exception.error $ (Exception.message acc) <> " " <> (Exception.message error)
+      Right false, Left error → Left error
+      Right false, Right false → Right false
+      Left acc, Right false → Left acc
 
 verifyWithJwk ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → JSONWebKey → Eff (AuthEffects eff) (Either Error Boolean)
 verifyWithJwk providerR unhashedNonce idToken jwk = do
