@@ -166,8 +166,8 @@ unSlam = foldFree go ∘ unSlamM
     Aff aff →
       lift aff
     GetAuthIdToken k → do
-      Wiring { requestNewIdTokenBus, notify } ← ask
-      idToken ← liftAff $ censor <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
+      Wiring { requestIdTokenBus, notify } ← ask
+      idToken ← liftAff $ censor <$> Auth.getIdTokenFromBusSilently requestIdTokenBus
       case idToken of
         Just (Left error) →
           maybe (pure unit) (lift ∘ flip Bus.write notify) $ Auth.toNotificationOptions error
@@ -175,8 +175,8 @@ unSlam = foldFree go ∘ unSlamM
           pure unit
       pure $ k $ maybe Nothing censor idToken
     Quasar qf → do
-      Wiring { requestNewIdTokenBus, signInBus, notify } ← ask
-      idToken ← lift $ censor <$> Auth.getIdTokenFromBusSilently requestNewIdTokenBus
+      Wiring { requestIdTokenBus, signInBus, notify } ← ask
+      idToken ← lift $ censor <$> Auth.getIdTokenFromBusSilently requestIdTokenBus
       case idToken of
         Just (Left error) →
           maybe (pure unit) (lift ∘ flip Bus.write notify) $ Auth.toNotificationOptions error

@@ -32,6 +32,7 @@ import Control.Monad.Eff as Eff
 import Control.Monad.Eff.Exception as Exception
 
 import Halogen as H
+import Halogen.Component.Utils (subscribeToBus')
 import Halogen.HTML.Core (className)
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
@@ -43,6 +44,8 @@ import OIDC.Crypt as Crypt
 
 import Quasar.Advanced.Types (ProviderR)
 
+import SlamData.GlobalError (GlobalError)
+import SlamData.GlobalError as GlobalError
 import SlamData.GlobalMenu.Bus (SignInMessage(..))
 import SlamData.GlobalMenu.Component.State (State, initialState)
 import SlamData.GlobalMenu.Menu.Component.Query (QueryP) as MenuQuery
@@ -57,6 +60,7 @@ import SlamData.Wiring (Wiring(Wiring))
 
 data Query a
   = DismissSubmenu a
+  | HandleGlobalError GlobalError a
   | Init a
 
 type QueryP = Coproduct Query (H.ChildF MenuSlot ChildQuery)
@@ -99,7 +103,15 @@ render state =
 
 eval ∷ Query ~> GlobalMenuDSL
 eval (DismissSubmenu next) = dismissAll $> next
-eval (Init next) = update $> next
+eval (HandleGlobalError error next) =
+  case error of
+    GlobalError.Unauthorized → update $> next
+    _ -> pure next
+eval (Init next) = do
+  Wiring { globalError } ← H.liftH $ H.liftH ask
+  subscribeToBus' (H.action ∘ HandleGlobalError) globalError
+  update
+  pure next
 
 update ∷ GlobalMenuDSL Unit
 update = do
@@ -239,7 +251,7 @@ authenticate =
   logIn providerR = do
     Wiring wiringR ← H.liftH $ H.liftH $ ask
     idToken ← H.fromAff AVar.makeVar
-    H.fromAff $ Bus.write { providerR, idToken, prompt: true } wiringR.requestNewIdTokenBus
+    H.fromAff $ Bus.write { providerR, idToken, prompt: true } wiringR.requestIdTokenBus
     either signInFailure (const $ signInSuccess) =<< (H.fromAff $ AVar.takeVar idToken)
 
   -- TODO: Reattempt failed actions without loosing state, remove reload.
