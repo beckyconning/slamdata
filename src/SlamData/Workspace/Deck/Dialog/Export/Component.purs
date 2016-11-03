@@ -60,7 +60,7 @@ import SlamData.Workspace.Routing (mkWorkspaceHash, varMapsForURL, encodeVarMaps
 
 import Quasar.Advanced.Types as QTA
 
-import Utils (prettyJson)
+import Utils (censor, prettyJson)
 import Utils.Path as UP
 
 import ZClipboard as Z
@@ -455,12 +455,12 @@ eval (TextAreaLeft next) =
 workspaceTokenName ∷ UP.DirPath → OIDC.IdToken → QTA.TokenName
 workspaceTokenName workspacePath idToken =
   let
+    payload =
+      censor $ Eff.runPure $ Exception.try $ OIDC.readPayload idToken
     email =
-      either
-        (const "unknown user")
-        (fromMaybe "unknown user" ∘ map OIDC.runEmail ∘ OIDC.pluckEmail)
-        (Eff.runPure $ Exception.try $ OIDC.readPayload idToken)
-    workspace = Pathy.printPath workspacePath
+      fromMaybe "unknown user" $ OIDC.runEmail <$> (OIDC.pluckEmail =<< payload)
+    workspace =
+      Pathy.printPath workspacePath
   in
     QTA.TokenName
       $ "publish permission granted by "

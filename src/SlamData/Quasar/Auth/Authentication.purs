@@ -17,7 +17,6 @@ limitations under the License.
 module SlamData.Quasar.Auth.Authentication
   ( authentication
   , getIdTokenFromBusSilently
-  , fromEither
   , toNotificationOptions
   , AuthEffects
   , EIdToken
@@ -59,10 +58,8 @@ import DOM.HTML.Window as DOMHTMLWindow
 import DOM.Node.Document as DOMNodeDocument
 import DOM.Node.Node as DOMNode
 import DOM.Node.Types (Node, Element)
-import Data.Either as E
 import Data.Foldable as F
 import Data.Foreign as Foreign
-import Data.Maybe as M
 import Data.Nullable as Nullable
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable as T
@@ -85,9 +82,6 @@ import Text.Parsing.StringParser (ParseError(..))
 import Utils (passover)
 import Utils.LocalStorage as LocalStorage
 import Utils.DOM as DOMUtils
-
-fromEither ∷ ∀ a b. E.Either a b → M.Maybe b
-fromEither = E.either (\_ → M.Nothing) (M.Just)
 
 getIdTokenFromBusSilently ∷ ∀ eff. RequestIdTokenBus → Aff (AuthEffects eff) (Either String EIdToken)
 getIdTokenFromBusSilently requestNewIdTokenBus =
