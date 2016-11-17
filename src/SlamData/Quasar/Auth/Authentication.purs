@@ -75,6 +75,8 @@ import SlamData.Prelude
 import SlamData.Quasar.Auth.IdTokenStorageEvents (getIdTokenStorageEvents)
 import SlamData.Quasar.Auth.Keys as AuthKeys
 import SlamData.Quasar.Auth.Store as AuthStore
+import SlamData.SignIn (SignIn)
+import SlamData.SignIn as SignIn
 
 import Text.Parsing.StringParser (ParseError(..))
 
@@ -92,7 +94,8 @@ data AuthenticationError
 instance semigroupAuthenticationError ∷ Semigroup AuthenticationError where
   append x y = y
 
-type RequestIdTokenMessage = { providerR ∷ ProviderR, prompt ∷ Boolean, idToken ∷ AVar EIdToken }
+type RequestIdTokenMessage =
+  { providerR ∷ ProviderR, prompt ∷ Boolean, idToken ∷ AVar EIdToken, signIn ∷ SignIn }
 
 type RequestIdTokenBus = BusW RequestIdTokenMessage
 
@@ -150,7 +153,7 @@ authenticate stateRef message = do
   state ← liftEff $ Ref.readRef stateRef
   case state of
     Nothing → do
-      idTokenPromise ← getIdToken message.providerR message.prompt
+      idTokenPromise ← getIdToken message
       writeState $ Just idTokenPromise
       void $ Aff.forkAff $ reply idTokenPromise *> writeState Nothing
     Just idTokenPromise → do
@@ -164,17 +167,18 @@ authenticate stateRef message = do
 
 getIdTokenSilently
   ∷ ∀ eff
-  . ProviderR
+  . SignIn
+  → ProviderR
   → Aff (AuthEffects eff) EIdToken
-getIdTokenSilently providerR = do
+getIdTokenSilently signIn providerR = do
   unhashedNonce ← liftEff OIDCAff.getRandomUnhashedNonce
-  liftEff $ AuthStore.storeUnhashedNonce unhashedNonce
+  liftEff $ AuthStore.storeUnhashedNonce signIn unhashedNonce
   appendHiddenRequestIFrameToBody unhashedNonce
     >>= case _ of
       Left error → pure $ Left error
       Right iFrameNode → do
         idToken ← sequential
-          $ parallel (getIdTokenFromLSOnChange providerR unhashedNonce)
+          $ parallel (getIdTokenFromLSOnChange signIn providerR unhashedNonce)
           <|> parallel timeout
         liftEff $ removeBodyChild iFrameNode
         pure idToken
@@ -190,13 +194,14 @@ getIdTokenSilently providerR = do
 
 getIdTokenUsingPrompt
   ∷ ∀ eff
-  . ProviderR
+  . SignIn
+  → ProviderR
   → Aff (AuthEffects eff) EIdToken
-getIdTokenUsingPrompt providerR = do
+getIdTokenUsingPrompt signIn providerR = do
   unhashedNonce ← liftEff OIDCAff.getRandomUnhashedNonce
-  liftEff $ AuthStore.storeUnhashedNonce unhashedNonce
+  liftEff $ AuthStore.storeUnhashedNonce signIn unhashedNonce
   sequential
-    $ parallel (getIdTokenFromLSOnChange providerR unhashedNonce)
+    $ parallel (getIdTokenFromLSOnChange signIn providerR unhashedNonce)
     <|> parallel (prompt unhashedNonce)
   where
   popup src =
@@ -288,50 +293,50 @@ getBodyNode =
 
 getIdToken
   ∷ ∀ eff
-  . ProviderR
-  → Boolean
+  . RequestIdTokenMessage
   → Aff (AuthEffects eff) (Promise EIdToken)
-getIdToken providerR prompt =
+getIdToken { providerR, prompt, signIn } =
   Promise.defer do
     idToken ← if prompt
       then
-        getIdTokenUsingPrompt providerR
+        getIdTokenUsingPrompt signIn providerR
       else
-        getIdTokenUsingLocalStorage providerR
-          >>= maybe (getIdTokenSilently providerR) (pure ∘ Right)
+        getIdTokenUsingLocalStorage signIn providerR
+          >>= maybe (getIdTokenSilently signIn providerR) (pure ∘ Right)
     -- Store provider for future local storage gets and reauthentications
     either
-      (const $ liftEff $ AuthStore.clearProvider *> AuthStore.clearIdToken)
-      (const $ liftEff $ AuthStore.storeProvider $ QAT.Provider providerR)
+      (const $ liftEff $ AuthStore.clearProvider signIn *> AuthStore.clearIdToken signIn)
+      (const $ liftEff $ AuthStore.storeProvider signIn $ QAT.Provider providerR)
       idToken
     pure idToken
 
-getIdTokenUsingLocalStorage ∷ ∀ eff. ProviderR → Aff (AuthEffects eff) (Maybe IdToken)
-getIdTokenUsingLocalStorage providerR = do
-  eitherIdToken ← getUnverifiedIdTokenUsingLocalStorage
-  eitherUnhashedNonce ← getUnhashedNonceUsingLocalStorage
+getIdTokenUsingLocalStorage ∷ ∀ eff. SignIn → ProviderR → Aff (AuthEffects eff) (Maybe IdToken)
+getIdTokenUsingLocalStorage signIn providerR = do
+  eitherIdToken ← getUnverifiedIdTokenUsingLocalStorage signIn
+  eitherUnhashedNonce ← getUnhashedNonceUsingLocalStorage signIn
   case Tuple eitherIdToken eitherUnhashedNonce of
     Tuple (Right idToken) (Right unhashedNonce) →
       either (const $ Nothing) (if _ then (Just idToken) else Nothing)
         <$> (liftEff $ verify providerR unhashedNonce idToken)
     Tuple _ _ → pure Nothing
 
-getUnverifiedIdTokenUsingLocalStorage ∷ ∀ eff. Aff (AuthEffects eff) (Either String IdToken)
-getUnverifiedIdTokenUsingLocalStorage =
+getUnverifiedIdTokenUsingLocalStorage ∷ ∀ eff. SignIn → Aff (AuthEffects eff) (Either String IdToken)
+getUnverifiedIdTokenUsingLocalStorage signIn =
   flip bind (map IdToken)
     <$> LocalStorage.getLocalStorage AuthKeys.idTokenLocalStorageKey
 
-getUnhashedNonceUsingLocalStorage ∷ ∀ eff. Aff (AuthEffects eff) (Either String UnhashedNonce)
-getUnhashedNonceUsingLocalStorage =
+getUnhashedNonceUsingLocalStorage ∷ ∀ eff. SignIn → Aff (AuthEffects eff) (Either String UnhashedNonce)
+getUnhashedNonceUsingLocalStorage signIn =
   rmap UnhashedNonce <$> LocalStorage.getLocalStorage AuthKeys.nonceLocalStorageKey
 
 getIdTokenFromLSOnChange
   ∷ ∀ eff
-  . ProviderR
+  . SignIn
+  → ProviderR
   → UnhashedNonce
   → Aff (AuthEffects eff) EIdToken
-getIdTokenFromLSOnChange providerR unhashedNonce =
-  getUnverifiedIdTokenFromLSOnChange
+getIdTokenFromLSOnChange signIn providerR unhashedNonce =
+  getUnverifiedIdTokenFromLSOnChange signIn
     >>= case _ of
           Left localStorageError →
             pure $ Left $ IdTokenUnavailable localStorageError
@@ -343,9 +348,10 @@ getIdTokenFromLSOnChange providerR unhashedNonce =
 
 getUnverifiedIdTokenFromLSOnChange
   ∷ ∀ eff
-  . Aff (AuthEffects eff) (Either String IdToken)
-getUnverifiedIdTokenFromLSOnChange =
-  _.newValue <$> (firstValueFromStallingProducer =<< liftEff getIdTokenStorageEvents)
+  . SignIn
+  → Aff (AuthEffects eff) (Either String IdToken)
+getUnverifiedIdTokenFromLSOnChange signIn =
+  _.newValue <$> (firstValueFromStallingProducer =<< liftEff (getIdTokenStorageEvents signIn))
 
 runParseError ∷ ParseError → String
 runParseError (ParseError s) = s

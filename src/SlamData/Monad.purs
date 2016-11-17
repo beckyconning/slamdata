@@ -45,7 +45,7 @@ import SlamData.Analytics as A
 import SlamData.Effects (SlamDataEffects)
 import SlamData.GlobalError as GE
 import SlamData.Notification as N
-import SlamData.InteractionlessSignIn (InteractionlessSignIn(Allowed, NotAllowed))
+import SlamData.SignIn (SignIn(Interactionless, Interactionful))
 import SlamData.Quasar.Aff (runQuasarF)
 import SlamData.Quasar.Auth (class QuasarAuthDSL)
 import SlamData.Quasar.Auth.Authentication as Auth
@@ -161,13 +161,13 @@ derive newtype instance applicativeSlamA :: Applicative (SlamA eff)
 
 --------------------------------------------------------------------------------
 
-getIdTokenSilently ∷ InteractionlessSignIn → Auth.RequestIdTokenBus → Aff SlamDataEffects (Either QError Auth.EIdToken)
-getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
-  case interactionlessSignIn of
-    Allowed →
+getIdTokenSilently ∷ SignIn → Auth.RequestIdTokenBus → Aff SlamDataEffects (Either QError Auth.EIdToken)
+getIdTokenSilently signIn idTokenRequestBus = do
+  case signIn of
+    Interactionless →
       either (const $ getWithSingletonProviderFromQuasar) (pure ∘ Right)
         =<< getWithProviderFromLocalStorage
-    NotAllowed →
+    Interactionful →
       getWithProviderFromLocalStorage
   where
 
@@ -185,7 +185,7 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
 
   write ∷ QAT.ProviderR → AVar Auth.EIdToken → Aff SlamDataEffects Unit
   write providerR idTokenVar =
-    Bus.write { idToken: idTokenVar, providerR, prompt: false } idTokenRequestBus
+    Bus.write { idToken: idTokenVar, providerR, prompt: false, signIn } idTokenRequestBus
 
   getSingletonProviderFromQuasar ∷ Aff SlamDataEffects (Either QError QAT.ProviderR)
   getSingletonProviderFromQuasar =
@@ -208,7 +208,7 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
 
   tooManyProvidersMessage ∷ String
   tooManyProvidersMessage =
-    "Quasar is configured with more than one authentication providers. Interactionless sign in currently only supports configurations with a single provider."
+    "Quasar is configured with more than one authentication providers.  sign in currently only supports configurations with a single provider."
 
   unauthorizedError ∷ Maybe String → QError
   unauthorizedError =

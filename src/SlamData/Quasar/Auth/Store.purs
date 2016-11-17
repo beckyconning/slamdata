@@ -23,38 +23,39 @@ import DOM (DOM)
 import OIDC.Crypt.Types as OIDCT
 import Quasar.Advanced.Types as QAT
 import SlamData.Quasar.Auth.Keys as AuthKeys
+import SlamData.SignIn (SignIn)
 import Utils.LocalStorage as LS
 
-storeIdToken ∷ ∀ e. Either String OIDCT.IdToken → Eff (dom ∷ DOM | e) Unit
-storeIdToken idToken =
+storeIdToken ∷ ∀ e. SignIn → Either String OIDCT.IdToken → Eff (dom ∷ DOM | e) Unit
+storeIdToken signIn idToken =
   LS.setLocalStorage
     AuthKeys.idTokenLocalStorageKey
     $ OIDCT.runIdToken <$> idToken
 
-storeProvider ∷ ∀ e. QAT.Provider → Eff (dom ∷ DOM | e) Unit
-storeProvider =
+storeProvider ∷ ∀ e. SignIn → QAT.Provider → Eff (dom ∷ DOM | e) Unit
+storeProvider signIn =
   LS.setLocalStorage AuthKeys.providerLocalStorageKey
 
-clearProvider ∷ ∀ e. Eff (dom ∷ DOM | e) Unit
-clearProvider =
+clearProvider ∷ ∀ e. SignIn → Eff (dom ∷ DOM | e) Unit
+clearProvider signIn =
   LS.removeLocalStorage AuthKeys.providerLocalStorageKey
 
-storeKeyString ∷ ∀ e. OIDCT.KeyString → Eff (dom ∷ DOM |e) Unit
-storeKeyString (OIDCT.KeyString ks) =
+storeKeyString ∷ ∀ e. SignIn → OIDCT.KeyString → Eff (dom ∷ DOM |e) Unit
+storeKeyString signIn (OIDCT.KeyString ks) =
   LS.setLocalStorage
     AuthKeys.keyStringLocalStorageKey
     ks
 
-storeUnhashedNonce ∷ ∀ e. OIDCT.UnhashedNonce → Eff (dom ∷ DOM |e) Unit
-storeUnhashedNonce (OIDCT.UnhashedNonce n) =
+storeUnhashedNonce ∷ ∀ e. SignIn → OIDCT.UnhashedNonce → Eff (dom ∷ DOM |e) Unit
+storeUnhashedNonce signIn (OIDCT.UnhashedNonce n) =
   LS.setLocalStorage
     AuthKeys.nonceLocalStorageKey
     n
 
-clearIdToken ∷ ∀ e. Eff (dom ∷ DOM |e) Unit
-clearIdToken =
+clearIdToken ∷ ∀ e. SignIn → Eff (dom ∷ DOM |e) Unit
+clearIdToken signIn =
   LS.removeLocalStorage AuthKeys.idTokenLocalStorageKey
 
-clearUnhashedNonce ∷ ∀ e. Eff (dom ∷ DOM |e) Unit
-clearUnhashedNonce =
+clearUnhashedNonce ∷ ∀ e. SignIn → Eff (dom ∷ DOM |e) Unit
+clearUnhashedNonce signIn =
   LS.removeLocalStorage AuthKeys.nonceLocalStorageKey

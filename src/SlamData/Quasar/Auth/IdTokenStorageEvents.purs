@@ -28,13 +28,16 @@ import Data.Foreign as Foreign
 import DOM (DOM)
 import OIDC.Crypt.Types (IdToken(..))
 import SlamData.Quasar.Auth.Keys as AuthKeys
+import SlamData.SignIn (SignIn)
+import SlamData.SignIn as SignIn
 import Utils.LocalStorage (StorageEvent)
 import Utils.LocalStorage as LocalStorage
 
 getIdTokenStorageEvents
   ∷ ∀ eff
-  . Eff (dom :: DOM, avar :: AVAR | eff) (StallingProducer (StorageEvent (Either String IdToken)) (Aff (dom :: DOM, avar :: AVAR | eff)) Unit)
-getIdTokenStorageEvents =
+  . SignIn
+  → Eff (dom :: DOM, avar :: AVAR | eff) (StallingProducer (StorageEvent (Either String IdToken)) (Aff (dom :: DOM, avar :: AVAR | eff)) Unit)
+getIdTokenStorageEvents signIn =
   StallingCoroutine.mapStallingProducer valuesToEitherStringIdTokens
     ∘ StallingCoroutine.filter isIdTokenKeyEvent
     ∘ StallingCoroutine.producerToStallingProducer

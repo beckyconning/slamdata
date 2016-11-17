@@ -14,13 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.InteractionlessSignIn where
+module SlamData.SignIn where
 
 import SlamData.Workspace.AccessType
 
-data InteractionlessSignIn = Allowed | NotAllowed
+data SignIn = Interactionless | Interactionful
 
-fromAccessType :: AccessType -> InteractionlessSignIn
+fromAccessType :: AccessType -> SignIn
 fromAccessType = case _ of
-  ReadOnly → Allowed
-  Editable → NotAllowed
+  ReadOnly → Interactionless
+  Editable → Interactionful
+
+toLocalStorageKeyPrefix :: SignIn -> String
+toLocalStorageKeyPrefix = case _ of
+  Interactionless → "interactionless-"
+  Interactionful → "interactionful-"
