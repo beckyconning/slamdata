@@ -396,7 +396,9 @@ toNotificationOptions =
   case _ of
     IdTokenInvalid error →
       Just
-        { notification: Notification.Error $ "Sign in failed: Authentication provider provided invalid id token."
+        { notification:
+            Notification.Error
+              $ "Sign in failed: Authentication provider provided invalid id token."
         , detail: Notification.Details ∘ Exception.message <$> error
         , timeout
         , actionOptions: Nothing
@@ -405,7 +407,7 @@ toNotificationOptions =
       Just
       { notification:
           Notification.Error
-          $ "Sign in failed: Authentication provider didn't provide a token. This might happen if you aren't signed in or are signed into multiple accounts."
+            $ "Sign in failed: Authentication provider didn't provide a token. This might happen if you aren't signed in or are signed into multiple accounts."
         , detail: Just $ Notification.Details detail
         , timeout
         , actionOptions: Nothing
@@ -419,7 +421,9 @@ toNotificationOptions =
         }
     ProviderError detail →
       Just
-        { notification: Notification.Error $ "Sign in failed: There was a problem with your provider configuration, please update your SlamData configuration and try again."
+        { notification:
+            Notification.Error
+              $ "Sign in failed: There was a problem with your provider configuration, please update your SlamData configuration and try again."
         , detail: Just $ Notification.Details detail
         , timeout
         , actionOptions: Nothing
