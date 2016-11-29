@@ -62,6 +62,7 @@ import SlamData.FileSystem.Resource as R
 import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
 import SlamData.Guide as Guide
+import SlamData.Quasar as Quasar
 import SlamData.Quasar.Error as QE
 import SlamData.Wiring (Wiring(..), CardEval, Cache, DeckMessage(..), putCardEval, putCache, getCache, makeCache)
 import SlamData.Wiring as W
@@ -118,16 +119,23 @@ render opts deckComponent st =
   if st.finalized
   then HH.div_ []
   else case st.stateMode of
-    Error err → DCR.renderError err
+    Error { message, detail } → DCR.renderError message detail
     _ → DCR.renderDeck opts deckComponent st
 
 eval ∷ DeckOptions → Query ~> DeckDSL
 eval opts = case _ of
   Init next → do
     Wiring wiring ← H.liftH $ H.liftH ask
+    providers ←
+      Quasar.retrieveAuthProviders
+        <#> case _ of
+              Right (Just providers) → providers
+              _ → []
     pb ← subscribeToBus' (H.action ∘ RunPendingCards) wiring.pending
     mb ← subscribeToBus' (H.action ∘ HandleMessage) wiring.messaging
-    H.modify $ DCS._breakers .~ [pb, mb]
+    H.modify
+      $ (DCS._breakers .~ [pb, mb])
+      ∘ (DCS._providers .~ providers)
     when (L.null opts.cursor) do
       eb ← subscribeToBus' (H.action ∘ HandleError) wiring.globalError
       H.modify $ DCS._breakers %~ (Array.cons eb)
@@ -955,7 +963,8 @@ loadDeck opts deckId = do
     pure $ deck × (mirroredCards <> (Tuple deckId <$> deck.cards))
   case res of
     Left err →
-      H.modify $ DCS._stateMode .~ Error "There was a problem decoding the saved deck"
+      H.modify
+        $ (DCS._stateMode .~ fromQError err)
     Right (deck × modelCards) →
       setModel opts
         { id: deckId
@@ -963,6 +972,13 @@ loadDeck opts deckId = do
         , modelCards
         , name: deck.name
         }
+
+  where
+  fromQError qError =
+    Error
+      { message: "Couldn't load this SlamData deck."
+      , detail: Just $ QE.printQError qError
+      }
 
 loadMirroredCards
   ∷ Array (DeckId × CardId)

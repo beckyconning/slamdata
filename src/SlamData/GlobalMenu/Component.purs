@@ -148,7 +148,7 @@ update = do
 
   retrieveProvidersAndUpdateMenu ∷ GlobalMenuDSL Unit
   retrieveProvidersAndUpdateMenu = do
-    eProviders ← Api.retrieveAuthProviders
+    (eProviders ∷ _) ← Api.retrieveAuthProviders
     queryMenu
       $ H.action
       $ HalogenMenu.SetMenu
