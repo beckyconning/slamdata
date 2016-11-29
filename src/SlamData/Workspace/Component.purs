@@ -150,7 +150,7 @@ render state =
     pure case state.stateMode, state.initialDeckId of
       Loading, _ →
         HH.div_ []
-      Error err details, _ → renderError err details
+      Error { message, detail }, _ → renderError message detail
       _, Just deckId →
         HH.slot' cpDeck unit \_ →
           let init = opaqueState $ Deck.initialDeck deckId
@@ -252,7 +252,7 @@ eval (Load deckId accessType next) = do
     rootDeck >>= either handleError loadDeck
 
   handleError err = case GE.fromQError err of
-    Left msg → H.modify $ _stateMode .~ Error msg Nothing
+    Left message → H.modify $ _stateMode .~ Error { message, detail: Nothing }
     Right ge → GE.raiseGlobalError ge
 
 rootDeck ∷ WorkspaceDSL (Either QE.QError DeckId)

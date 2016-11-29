@@ -29,7 +29,7 @@ data StateMode
   = Loading
   | Preparing
   | Ready
-  | Error String (Maybe String)
+  | Error { message ∷ String, detail ∷ Maybe String }
 
 derive instance eqStateMode :: Eq StateMode
 derive instance ordStateMode :: Ord StateMode

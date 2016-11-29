@@ -19,7 +19,8 @@ module SlamData.Notification.Component
   , Query(..)
   , NotificationItem
   , RenderMode(..)
-  , Expanded(..)
+  , Expanded
+  , DetailsPresented
   , comp
   , initialState
   , renderModeFromAccessType
@@ -33,7 +34,7 @@ import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Rec.Class (forever)
 
 import Data.Array as Array
-import Data.HeytingAlgebra (tt, ff, implies, disj, conj, not, class HeytingAlgebra)
+import Data.HeytingAlgebra (tt, ff, implies)
 import Data.Int as Int
 import Data.Time.Duration (Milliseconds(..))
 

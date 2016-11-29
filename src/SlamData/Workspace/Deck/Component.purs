@@ -118,7 +118,7 @@ render opts deckComponent st =
   if st.finalized
   then HH.div_ []
   else case st.stateMode of
-    Error err details → DCR.renderError err details
+    Error { message, detail } → DCR.renderError message detail
     _ → DCR.renderDeck opts deckComponent st
 
 eval ∷ DeckOptions → Query ~> DeckDSL
@@ -967,7 +967,10 @@ loadDeck opts deckId = do
 
   where
   fromQError qError =
-    Error "Couldn't load this SlamData deck." $ Just $ QE.printQError qError
+    Error
+      { message: "Couldn't load this SlamData deck."
+      , detail: Just $ QE.printQError qError
+      }
 
 loadMirroredCards
   ∷ Array (DeckId × CardId)
