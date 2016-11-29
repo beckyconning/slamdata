@@ -46,7 +46,7 @@ import Halogen.HTML.Properties.Indexed as HP
 import SlamData.Monad (Slam)
 import SlamData.Notification as N
 import SlamData.Wiring (Wiring(..))
-import SlamData.Workspace.AccessType (AccessType(Editable))
+import SlamData.Workspace.AccessType (AccessType(Editable, ReadOnly))
 
 import Utils (lowercaseFirstChar, removeLastCharIfPeriod, parenthesize)
 
@@ -108,7 +108,7 @@ renderModeFromAccessType ∷ AccessType → RenderMode
 renderModeFromAccessType =
   case _ of
     Editable → Notifications
-    _ → ExpandableList Shrunk
+    ReadOnly → ExpandableList Shrunk
 
 initialState ∷ State
 initialState =
