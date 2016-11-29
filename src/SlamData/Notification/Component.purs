@@ -175,7 +175,7 @@ render st =
 
   where
   all =
-    maybe st.queue (_ `Array.cons` st.queue) st.current
+    maybe [] pure st.current <> st.queue
 
   renderNotification status = maybe (HH.text "") \n →
     HH.div
