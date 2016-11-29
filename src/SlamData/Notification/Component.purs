@@ -33,6 +33,7 @@ import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Rec.Class (forever)
 
 import Data.Array as Array
+import Data.HeytingAlgebra (tt, ff, implies, disj, conj, not, class HeytingAlgebra)
 import Data.Int as Int
 import Data.Time.Duration (Milliseconds(..))
 
@@ -51,6 +52,41 @@ import Utils (lowercaseFirstChar, removeLastCharIfPeriod, parenthesize)
 
 data Expanded = Expanded | Shrunk
 
+data DetailsPresented = DetailsPresented | DetailsHidden
+
+detailsPresentedToBoolean ∷ DetailsPresented → Boolean
+detailsPresentedToBoolean =
+  case _ of
+    DetailsPresented → true
+    DetailsHidden → false
+
+booleanToDetailsPresented ∷ Boolean → DetailsPresented
+booleanToDetailsPresented =
+  case _ of
+    true → DetailsPresented
+    false → DetailsHidden
+
+instance heytingAlgebraDetailsPresented :: HeytingAlgebra DetailsPresented where
+  ff =
+    booleanToDetailsPresented ff
+  tt =
+    booleanToDetailsPresented tt
+  implies a b =
+    booleanToDetailsPresented
+      $ (detailsPresentedToBoolean a) `implies` (detailsPresentedToBoolean b)
+  conj a =
+    booleanToDetailsPresented
+      ∘ (conj $ detailsPresentedToBoolean a)
+      ∘ detailsPresentedToBoolean
+  disj a =
+    booleanToDetailsPresented
+      ∘ (disj $ detailsPresentedToBoolean a)
+      ∘ detailsPresentedToBoolean
+  not =
+    booleanToDetailsPresented
+      ∘ not
+      ∘ detailsPresentedToBoolean
+
 data RenderMode = Notifications | ExpandableList Expanded
 
 type State =
@@ -65,7 +101,7 @@ type NotificationItem =
   { id ∷ Int
   , dismiss ∷ AVar Unit
   , options ∷ N.NotificationOptions
-  , detailsShown ∷ Boolean
+  , detailsPresented ∷ DetailsPresented
   }
 
 renderModeFromAccessType ∷ AccessType → RenderMode
@@ -189,10 +225,14 @@ render st =
               , HP.buttonType HP.ButtonButton
               , HE.onClick (HE.input_ ToggleDetail)
               ]
-              [ HH.text if n.detailsShown then "Hide detail" else "Show detail" ]
-          , if n.detailsShown
-              then HH.p_ [ HH.text d ]
-              else HH.text ""
+              [ HH.text
+                  case n.detailsPresented of
+                    DetailsPresented → "Hide detail"
+                    DetailsHidden → "Show detail"
+              ]
+          , case n.detailsPresented of
+              DetailsPresented → HH.p_ [ HH.text d ]
+              DetailsHidden → HH.text ""
           ])
 
   renderAction n =
@@ -243,7 +283,7 @@ eval = case _ of
               { id: st.tick
               , dismiss
               , options
-              , detailsShown: false
+              , detailsPresented: DetailsHidden
               }
         H.modify _
           { tick = st.tick + 1
@@ -256,7 +296,7 @@ eval = case _ of
   ToggleDetail next → do
     current ← H.gets _.current
     for_ current \curr →
-      H.modify _ { current = Just curr { detailsShown = not curr.detailsShown } }
+      H.modify _ { current = Just curr { detailsPresented = not curr.detailsPresented } }
     pure next
   ExpandList next →
     H.modify _ { renderMode = ExpandableList Expanded } $> next
