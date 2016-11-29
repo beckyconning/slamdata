@@ -60,7 +60,7 @@ import DOM.Node.Types (Node, Element)
 import Data.Foldable as F
 import Data.Foreign as Foreign
 import Data.Nullable as Nullable
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable as T
 import OIDC.Aff as OIDCAff
 import OIDC.Crypt as OIDCCrypt
@@ -360,7 +360,6 @@ getUnverifiedIdTokenFromLSOnChange =
 runParseError ∷ ParseError → String
 runParseError (ParseError s) = s
 
--- TODO: Remove g
 verify ∷ ∀ eff. ProviderR → UnhashedNonce → IdToken → Eff (AuthEffects eff) (Either Error Boolean)
 verify providerR unhashedNonce idToken =
   F.foldl accumulateErrorsAcceptTrues (Right false)
@@ -406,7 +405,7 @@ toNotificationOptions =
       Just
       { notification:
           Notification.Error
-            $ "Sign in failed: Authentication provider didn't provide a token. This might happen if you are signed into multiple accounts with your authentication provider."
+          $ "Sign in failed: Authentication provider didn't provide a token. This might happen if you aren't signed in or are signed into multiple accounts."
         , detail: Just $ Notification.Details detail
         , timeout
         , actionOptions: Nothing
@@ -427,4 +426,4 @@ toNotificationOptions =
         }
     DOMError _ → Nothing
   where
-  timeout = Just $ Milliseconds 5000.0
+  timeout = Nothing

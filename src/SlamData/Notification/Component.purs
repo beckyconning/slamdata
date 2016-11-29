@@ -18,8 +18,11 @@ module SlamData.Notification.Component
   ( State
   , Query(..)
   , NotificationItem
+  , RenderMode(..)
+  , Expanded(..)
   , comp
   , initialState
+  , renderModeFromAccessType
   ) where
 
 import SlamData.Prelude
@@ -42,20 +45,34 @@ import Halogen.HTML.Properties.Indexed as HP
 import SlamData.Monad (Slam)
 import SlamData.Notification as N
 import SlamData.Wiring (Wiring(..))
+import SlamData.Workspace.AccessType (AccessType(Editable))
+
+import Utils (lowercaseFirstChar, removeLastCharIfPeriod, parenthesize)
+
+data Expanded = Expanded | Shrunk
+
+data RenderMode = Notifications | ExpandableList Expanded
 
 type State =
   { tick ∷ Int
   , queue ∷ Array NotificationItem
   , current ∷ Maybe NotificationItem
   , dismissed ∷ Maybe NotificationItem
+  , renderMode ∷ RenderMode
   }
 
 type NotificationItem =
   { id ∷ Int
   , dismiss ∷ AVar Unit
   , options ∷ N.NotificationOptions
-  , expanded ∷ Boolean
+  , detailsShown ∷ Boolean
   }
+
+renderModeFromAccessType ∷ AccessType → RenderMode
+renderModeFromAccessType =
+  case _ of
+    Editable → Notifications
+    _ → ExpandableList Shrunk
 
 initialState ∷ State
 initialState =
@@ -63,6 +80,7 @@ initialState =
   , queue: [ ]
   , current: Nothing
   , dismissed: Nothing
+  , renderMode: Notifications
   }
 
 data Query a
@@ -71,6 +89,8 @@ data Query a
   | ToggleDetail a
   | Action N.Action a
   | Dismiss a
+  | ExpandList a
+  | UpdateRenderMode RenderMode a
 
 data Status
   = Current
@@ -91,13 +111,36 @@ comp =
 
 render ∷ State → NotifyHTML
 render st =
-  HH.div
-    [ HP.class_ (HH.className "sd-notifications") ]
-    [ renderNotification Dismissed st.dismissed
-    , renderNotification Current st.current
-    ]
+  case st.renderMode of
+    Notifications →
+      HH.div
+        [ HP.class_ (HH.className "sd-notifications") ]
+        [ renderNotification Dismissed st.dismissed
+        , renderNotification Current st.current
+        ]
+    ExpandableList Shrunk →
+      HH.div
+        [ HP.class_ $ HH.className "sd-notifications-list" ]
+        if (Array.length all > 0)
+          then
+            [ HH.button
+                [ HP.classes [ HH.className "btn", HH.className "btn-primary" ]
+                , HP.buttonType HP.ButtonButton
+                , HE.onClick $ HE.input_ ExpandList
+                ]
+                [ HH.text "More details" ]
+            ]
+          else
+            []
+    ExpandableList Expanded →
+      HH.div
+        [ HP.class_ (HH.className "sd-notifications-list") ]
+        [ HH.ul_ $ renderListItem <$> all ]
 
   where
+  all =
+    maybe st.queue (_ `Array.cons` st.queue) st.current
+
   renderNotification status = maybe (HH.text "") \n →
     HH.div
       [ HP.class_ (HH.className "sd-notification-spacer")
@@ -123,6 +166,18 @@ render st =
           ]
       ]
 
+  renderListItem n =
+    HH.li_
+      [ HH.text
+          $ removeLastCharIfPeriod (notificationText n.options.notification)
+          <> maybe
+               ""
+               (\(N.Details s) →
+                  " " <> (parenthesize $ lowercaseFirstChar $ removeLastCharIfPeriod $ s))
+               n.options.detail
+          <> "."
+      ]
+
   renderDetail n =
     n.options.detail
       # maybe
@@ -134,8 +189,8 @@ render st =
               , HP.buttonType HP.ButtonButton
               , HE.onClick (HE.input_ ToggleDetail)
               ]
-              [ HH.text if n.expanded then "Hide detail" else "Show detail" ]
-          , if n.expanded
+              [ HH.text if n.detailsShown then "Hide detail" else "Show detail" ]
+          , if n.detailsShown
               then HH.p_ [ HH.text d ]
               else HH.text ""
           ])
@@ -188,7 +243,7 @@ eval = case _ of
               { id: st.tick
               , dismiss
               , options
-              , expanded: false
+              , detailsShown: false
               }
         H.modify _
           { tick = st.tick + 1
@@ -201,8 +256,12 @@ eval = case _ of
   ToggleDetail next → do
     current ← H.gets _.current
     for_ current \curr →
-      H.modify _ { current = Just curr { expanded = not curr.expanded } }
+      H.modify _ { current = Just curr { detailsShown = not curr.detailsShown } }
     pure next
+  ExpandList next →
+    H.modify _ { renderMode = ExpandableList Expanded } $> next
+  UpdateRenderMode renderMode next →
+    H.modify _ { renderMode = renderMode } $> next
   where
   optionsEqItem ∷ N.NotificationOptions → Maybe NotificationItem → Boolean
   optionsEqItem options =
@@ -231,6 +290,8 @@ drainQueue = do
         , dismissed = st.current
         }
 
+      -- TODO: Make notifications with timeouts not disapear in ExpandableList
+      -- render mode
       for_ head.options.timeout \(Milliseconds ms) →
         H.fromAff $ forkAff $ later' (Int.floor ms) (putVar head.dismiss unit)
 
