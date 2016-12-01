@@ -53,6 +53,8 @@ import SlamData.FileSystem.Dialog.Mount.SQL2.Component as SQL2
 import SlamData.Quasar.FS as Api
 import SlamData.Render.CSS as Rc
 
+import Quasar.Error as QE
+
 type DSL = H.ParentDSL MCS.State ChildState Query ChildQuery Slam ChildSlot
 type HTML = H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
 
@@ -195,8 +197,8 @@ eval (Save k) = do
 handleQError ∷ Api.QError → DSL Unit
 handleQError err =
   case GE.fromQError err of
-    Left msg → H.modify (MCS._message ?~ formatError msg)
-    Right ge → GE.raiseGlobalError ge
+    Nothing → H.modify (MCS._message ?~ formatError (QE.printQError err))
+    Just ge → GE.raiseGlobalError ge
 
 peek ∷ forall x. ChildQuery x → DSL Unit
 peek =

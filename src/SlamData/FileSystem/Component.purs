@@ -45,6 +45,7 @@ import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 
 import Quasar.Data (QData(..))
+import Quasar.Error as QE
 import Quasar.Mount as QM
 
 import SlamData.Common.Sort (notSort)
@@ -196,10 +197,11 @@ eval (MakeFolder next) = do
   case result of
     Left err →
       case GE.fromQError err of
-        Left msg →
+        Nothing →
           showDialog $ Dialog.Error
-            $ "There was a problem creating the directory: " ⊕ msg
-        Right ge →
+            $ "There was a problem creating the directory: "
+            ⊕ QE.printQError err
+        Just ge →
           GE.raiseGlobalError ge
     Right dirRes →
       void $ queryListing $ H.action $ Listing.Add (Item dirRes)
@@ -212,13 +214,14 @@ eval (MakeWorkspace next) = do
   case name of
     Left err →
       case GE.fromQError err of
-        Left msg →
+        Nothing →
           -- This error isn't strictly true as we're not actually creating the
           -- workspace here, but saying there was a problem "creating a name for the
           -- workspace" would be a little strange
           showDialog $ Dialog.Error
-            $ "There was a problem creating the workspace: " ⊕ msg
-        Right ge →
+            $ "There was a problem creating the workspace: "
+            ⊕ QE.printQError err
+        Just ge →
           GE.raiseGlobalError ge
     Right name' → do
       H.fromEff $ setLocation $ mkWorkspaceURL (path </> dir name') New
@@ -307,8 +310,8 @@ uploadFileSelected f = do
 
   handleError err =
     case GE.fromQError err of
-      Left msg → showDialog $ Dialog.Error msg
-      Right ge → GE.raiseGlobalError ge
+      Nothing → showDialog $ Dialog.Error $ QE.printQError err
+      Just ge → GE.raiseGlobalError ge
 
 peek ∷ ∀ a. ChildQuery a → DSL Unit
 peek
@@ -382,9 +385,9 @@ itemPeek (Item.Remove res _) = do
       -- Error occured: put item back and show dialog
       void $ queryListing $ H.action $ Listing.Add (Item res)
       case GE.fromQError err of
-        Left msg →
-          showDialog $ Dialog.Error msg
-        Right ge →
+        Nothing →
+          showDialog $ Dialog.Error $ QE.printQError err
+        Just ge →
           GE.raiseGlobalError ge
     Right mbRes →
       -- Item has been deleted: probably add trash folder
@@ -406,10 +409,11 @@ itemPeek (Item.Share res _) = do
     case name of
       Left err →
         case GE.fromQError err of
-          Left msg →
+          Nothing →
             showDialog $ Dialog.Error
-              $ "There was a problem creating the workspace: " ⊕ msg
-          Right ge →
+              $ "There was a problem creating the workspace: "
+              ⊕ QE.printQError err
+          Just ge →
             GE.raiseGlobalError ge
       Right name' → do
         showDialog (Dialog.Share $ append loc $  mkWorkspaceURL (path </> dir name') $ Exploring fp)
@@ -447,10 +451,10 @@ explorePeek (Explore.Explore fp initialName next) = do
   case name of
     Left err →
       case GE.fromQError err of
-        Left msg →
+        Nothing →
           showDialog $ Dialog.Error
-            $ "There was a problem creating the workspace: " ⊕ msg
-        Right ge →
+            $ "There was a problem creating the workspace: " ⊕ QE.printQError err
+        Just ge →
           GE.raiseGlobalError ge
     Right name' →
       H.fromEff $ setLocation  $ mkWorkspaceURL (path </> dir name') $ Exploring fp
@@ -527,11 +531,11 @@ configure m =
       QM.SparkConfig config → Mount.Spark (Spark.fromConfig config)
 
     raiseError err = case GE.fromQError err of
-      Left msg →
+      Nothing →
         showDialog $ Dialog.Error
           $ "There was a problem reading the mount settings: "
-          ⊕ msg
-      Right ge →
+          ⊕ QE.printQError err
+      Just ge →
         GE.raiseGlobalError ge
 
 download ∷ R.Resource → DSL Unit

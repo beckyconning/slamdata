@@ -39,7 +39,7 @@ import Control.Monad.Writer.Class as WC
 import Control.Monad.Writer.Trans as WT
 import Control.Parallel as Par
 
-import Quasar.Error (QError)
+import Quasar.Error (QError, printQError)
 
 import SlamData.GlobalError as GE
 import SlamData.Workspace.Card.CardId as CID
@@ -95,8 +95,8 @@ runCardEvalT (CardEvalT m) =
     case r of
       Left err →
         case GE.fromQError err of
-          Left msg → Right $ Port.CardError msg × ms
-          Right ge → Left ge
+          Nothing → Right $ Port.CardError (printQError err) × ms
+          Just ge → Left ge
       Right r' →
         Right $ r' × ms
 

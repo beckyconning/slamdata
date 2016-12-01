@@ -27,11 +27,12 @@ module SlamData.Workspace.Deck.Component
 import SlamData.Prelude
 
 import Control.Monad.Aff as Aff
-import Control.Monad.Eff.Exception as Exception
+import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.EventLoop as EventLoop
 import Control.Monad.Aff.Promise as Pr
-import Control.UI.Browser (locationObject, setHref, newTab)
+import Control.Monad.Eff.Exception as Exception
+import Control.UI.Browser as Browser
 
 import Data.Array as Array
 import Data.Foldable (find, any)
@@ -54,15 +55,19 @@ import Halogen.Component.Opaque.Unsafe (opaqueState)
 import Halogen.Component.Utils (raise', sendAfter', subscribeToBus')
 import Halogen.Component.Utils.Debounced (fireDebouncedQuery')
 import Halogen.HTML.Indexed as HH
+import Halogen.HTML.Properties.Indexed as HP
 
 import SlamData.Analytics as SA
+import SlamData.AuthenticationMode as AuthenticationMode
 import SlamData.Config as Config
 import SlamData.Effects (SlamDataEffects)
 import SlamData.FileSystem.Resource as R
 import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
+import SlamData.GlobalMenu.Bus (SignInMessage(SignInSuccess, SignInFailure))
 import SlamData.Guide as Guide
 import SlamData.Quasar as Quasar
+import SlamData.Quasar.Auth.Authentication as Authentication
 import SlamData.Quasar.Error as QE
 import SlamData.Wiring (Wiring(..), CardEval, Cache, DeckMessage(..), putCardEval, putCache, getCache, makeCache)
 import SlamData.Wiring as W
@@ -92,8 +97,8 @@ import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
 import SlamData.Workspace.Deck.Component.Query (QueryP, Query(..), DeckAction(..))
 import SlamData.Workspace.Deck.Component.Render as DCR
 import SlamData.Workspace.Deck.Component.State as DCS
-import SlamData.Workspace.Deck.DeckPath (deckPath, deckPath')
 import SlamData.Workspace.Deck.DeckId (DeckId, deckIdToString)
+import SlamData.Workspace.Deck.DeckPath (deckPath, deckPath')
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Dialog.Share.Model (SharingInput)
 import SlamData.Workspace.Deck.Indicator.Component as Indicator
@@ -103,6 +108,7 @@ import SlamData.Workspace.Model as WM
 import SlamData.Workspace.Notification as Notify
 import SlamData.Workspace.Routing (mkWorkspaceHash, mkWorkspaceURL)
 import SlamData.Workspace.StateMode (StateMode(..))
+import SlamData.Workspace.StateMode as StateMode
 
 import Utils.DOM (elementEq)
 import Utils.LocalStorage as LocalStorage
@@ -119,7 +125,14 @@ render opts deckComponent st =
   if st.finalized
   then HH.div_ []
   else case st.stateMode of
-    Error { message, detail } → DCR.renderError message detail
+    Error error →
+      HH.div
+        [ HP.class_ $ HH.className "sd-workspace-error" ]
+        [ DCR.renderError error
+        , if (QE.isUnauthorized error)
+            then HH.p_ (DCR.renderSignInButton <$> st.providers)
+            else HH.text ""
+        ]
     _ → DCR.renderDeck opts deckComponent st
 
 eval ∷ DeckOptions → Query ~> DeckDSL
@@ -175,7 +188,7 @@ eval opts = case _ of
   Publish next → do
     Wiring wiring ← H.liftH $ H.liftH ask
     path ← deckPath' wiring.path <$> H.gets _.id
-    H.fromEff ∘ newTab $ mkWorkspaceURL path (WA.Load AT.ReadOnly)
+    H.fromEff ∘ Browser.newTab $ mkWorkspaceURL path (WA.Load AT.ReadOnly)
     pure next
   -- TODO: How can we get rid of this? What is it's purpose? It smells.
   Reset next → do
@@ -245,7 +258,7 @@ eval opts = case _ of
     st ← H.get
     varMaps ← getURLVarMaps
     let deckHash = mkWorkspaceHash (deckPath' wiring.path st.id) (WA.Load opts.accessType) varMaps
-    H.fromEff $ locationObject >>= Location.setHash deckHash
+    H.fromEff $ Browser.locationObject >>= Location.setHash deckHash
     pure next
   ZoomOut next → do
     Wiring wiring ← H.liftH $ H.liftH ask
@@ -254,9 +267,9 @@ eval opts = case _ of
       Just (Tuple deckId _) → do
         varMaps ← getURLVarMaps
         let deckHash = mkWorkspaceHash (deckPath' wiring.path deckId) (WA.Load opts.accessType) varMaps
-        H.fromEff $ locationObject >>= Location.setHash deckHash
+        H.fromEff $ Browser.locationObject >>= Location.setHash deckHash
       Nothing →
-        void $ H.fromEff $ setHref $ parentURL $ Left wiring.path
+        void $ H.fromEff $ Browser.setHref $ parentURL $ Left wiring.path
     pure next
   StartSliding mouseEvent gDef next → do
     H.gets _.deckElement >>= traverse_ \el → do
@@ -330,8 +343,29 @@ eval opts = case _ of
     initialCard ← H.gets (map DCS.coordModelToCoord ∘ Array.head ∘ _.modelCards)
     for_ initialCard queuePendingCard
     pure next
-
+  SignIn providerR next → do
+    Wiring wiringR ← H.liftH $ H.liftH $ ask
+    idToken ← H.fromAff AVar.makeVar
+    H.fromAff $ Bus.write { providerR, idToken, prompt: true, keySuffix } wiringR.requestIdTokenBus
+    either signInFailure (const $ signInSuccess) =<< (H.fromAff $ AVar.takeVar idToken)
+    pure next
   where
+  keySuffix = AuthenticationMode.toKeySuffix AuthenticationMode.ChosenProvider
+
+  signInSuccess = do
+    Wiring wiringR ← H.liftH $ H.liftH $ ask
+    (H.fromAff $ Bus.write SignInSuccess $ wiringR.signInBus)
+      *> H.fromEff Browser.reload
+
+  signInFailure error = do
+    Wiring wiringR ← H.liftH $ H.liftH $ ask
+    H.fromAff
+      $ maybe
+          (pure unit)
+          (flip Bus.write wiringR.notify)
+          (Authentication.toNotificationOptions error)
+    H.fromAff $ (Bus.write SignInFailure $ wiringR.signInBus)
+
   getBoundingClientWidth =
     H.fromEff ∘ map _.width ∘ getBoundingClientRect
 
@@ -802,7 +836,7 @@ runCardUpdates opts source steps = do
   -- Cleanup initial presentation. Note, we do this here to eliminate jank.
   -- Doing it at the end results in cards jumping around as renders are flushed
   -- when we apply the child updates.
-  when (st.stateMode == Preparing) do
+  when (StateMode.isPreparing st.stateMode) do
     Wiring wiring ← H.liftH $ H.liftH ask
     activeIndex ← map _.cardIndex <$> getCache st.id wiring.activeState
     lastIndex ← H.gets DCS.findLastRealCardIndex
@@ -940,7 +974,7 @@ saveDeck { accessType, cursor } coord = do
           let
             path = deckPath' wiring.path st.id
             deckHash = mkWorkspaceHash path (WA.Load accessType) varMaps
-          H.fromEff $ locationObject >>= Location.setHash deckHash
+          H.fromEff $ Browser.locationObject >>= Location.setHash deckHash
 
   saveMirroredCard st (deckId × card) =
     getDeck deckId >>= case _ of
@@ -964,7 +998,7 @@ loadDeck opts deckId = do
   case res of
     Left err →
       H.modify
-        $ (DCS._stateMode .~ fromQError err)
+        $ (DCS._stateMode .~ Error err)
     Right (deck × modelCards) →
       setModel opts
         { id: deckId
@@ -972,13 +1006,6 @@ loadDeck opts deckId = do
         , modelCards
         , name: deck.name
         }
-
-  where
-  fromQError qError =
-    Error
-      { message: "Couldn't load this SlamData deck."
-      , detail: Just $ QE.printQError qError
-      }
 
 loadMirroredCards
   ∷ Array (DeckId × CardId)
