@@ -6,6 +6,9 @@ jdk:
 
 before_install:
   - mkdir -p $HOME/bin
+  - source /opt/jdk_switcher/jdk_switcher.sh
+  - jdk_switcher use oraclejdk8
+
 install:
   - sudo apt-get update
   - sudo apt-get install imagemagick
