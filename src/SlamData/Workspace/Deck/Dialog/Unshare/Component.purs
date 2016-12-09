@@ -184,8 +184,7 @@ render state =
             $ (if SM.isEmpty state.userPermissions
                  then [ ]
                  else
-                 [ HH.label
-                     [ HP.classes [ HH.className "subject-label" ] ]
+                 [ HH.h5_
                      [ HH.text "Users" ]
                  ]
                  ⊕ (foldMap renderUserOrGroup $ SM.toList state.userPermissions)
@@ -193,8 +192,7 @@ render state =
             ⊕ (if SM.isEmpty state.groupPermissions
                  then [ ]
                  else
-                 [ HH.label
-                    [ HP.classes [ HH.className "subject-label" ] ]
+                 [ HH.h5_
                     [ HH.text "Groups" ]
                  ]
                  ⊕ (foldMap renderUserOrGroup $ SM.toList state.groupPermissions)
@@ -202,8 +200,7 @@ render state =
             ⊕ (if Arr.null state.tokenPermissions
                  then [ ]
                  else
-                   [ HH.label
-                       [ HP.classes [ HH.className "subject-label" ] ]
+                   [ HH.h5_
                        [ HH.text "Tokens" ]
                    ]
                    ⊕ map renderToken state.tokenPermissions
@@ -265,14 +262,20 @@ render state =
 
 renderUserOrGroup ∷ (String × Permission) → Array HTML
 renderUserOrGroup (name × perm) =
-  [ HH.div
+  [ HH.p
     [ HP.classes [ B.row ] ]
     [ HH.div
-        [ HP.classes [ B.colXs7 ] ]
-        [ HH.text name ]
+        [ HP.classes [ B.colMd6 ] ]
+        [ HH.p
+            [ HP.classes [ B.formControlStatic  ] ]
+            [ HH.b_
+                [ HH.text name ]
+            ]
+        ]
+    , HH.text " "
     , HH.div
         [ HP.classes
-            $ [ B.colXs3 ]
+            $ [ B.colMd3 ]
             ⊕ if perm.state ≡ Just ModifyError then [ B.hasError ] else [ ]
         ]
         [ HH.select
@@ -302,13 +305,14 @@ renderUserOrGroup (name × perm) =
                 ]
             ]
         ]
+    , HH.text " "
     , HH.div
         [ HP.classes
-            $ [ B.colXs2 ]
+            $ [ B.colMd3 ]
             ⊕ if perm.state ≡ Just RevokeError then [ B.hasError ] else [ ]
         ]
         [ HH.button
-            [ HP.classes [ B.btn, B.btnDefault, HH.className "unshare-button" ]
+            [ HP.classes [ B.btn, B.btnPrimary, B.btnBlock ]
             , HE.onClick (HE.input_ (Unshare name))
             , HP.disabled $ perm.state ≡ Just Modifying ∨ perm.state ≡ Just Unsharing
             ]
@@ -318,6 +322,7 @@ renderUserOrGroup (name × perm) =
             ]
         ]
     ]
+  , HH.text " "
   ]
 
 renderToken ∷ TokenPermission → HTML
@@ -325,13 +330,21 @@ renderToken token =
   HH.div
     [ HP.classes [ B.row ] ]
     [ HH.div
-        [ HP.classes [ B.colXs4, HH.className "token-name-field" ] ]
-        [ HH.text $ fromMaybe "Untitled token" token.name ]
+        [ HP.classes [ B.colMd4 ] ]
+        [ HH.p
+            [ HP.classes [ B.formControlStatic  ] ]
+            [ HH.b_
+                [ HH.text $ fromMaybe "Untitled token" token.name ]
+            ]
+        ]
     , HH.div
-        [ HP.classes [ B.colXs1 ] ]
-        [ HH.text $ printShareResume token.resume ]
+        [ HP.classes [ B.colMd1 ] ]
+        [ HH.p
+            [ HP.classes [ B.formControlStatic  ] ]
+            [ HH.text $ printShareResume token.resume ]
+        ]
     , HH.div
-        [ HP.classes [ B.colXs5 ] ]
+        [ HP.classes [ B.colMd5 ] ]
         [ HH.div
             [ HP.classes
                 $ [ B.inputGroup ]
@@ -358,11 +371,11 @@ renderToken token =
         ]
     , HH.div
         [ HP.classes
-            $ [ B.colXs2 ]
+            $ [ B.colMd2 ]
             ⊕ if token.state ≡ Just RevokeError then [ B.hasError ] else [ ]
         ]
         [ HH.button
-            [ HP.classes [ B.btn, B.btnDefault, HH.className "unshare-button" ]
+            [ HP.classes [ B.btn, B.btnPrimary, B.btnBlock ]
             , HE.onClick (HE.input_ (UnshareToken token.tokenId))
             , HP.disabled $ token.state ≡ Just Modifying ∨ token.state ≡ Just Unsharing
             ]
