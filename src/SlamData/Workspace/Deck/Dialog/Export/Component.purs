@@ -538,7 +538,7 @@ renderCopyVal locString state
       | F.all SM.isEmpty state.varMaps = ""
       | otherwise
           = line "    // The default variables for the deck(s), you can change their values here:"
-          ⊕ "    vars: " ⊕ renderVarMaps state.varMaps
+          ⊕ "    vars: " ⊕ renderVarMaps "  " state.varMaps
     tokens
       | not state.isLoggedIn = ""
       | otherwise
@@ -561,21 +561,16 @@ renderCopyVal locString state
           , ""
           , """     slamdata.update({"""
           , """       deckId: """ ⊕ quoted deckId ⊕ ""","""
-          , """       vars: """ ⊕ renderMoreIndentedVarMaps state.varMaps
+          , """       vars: """ ⊕ renderVarMaps "     " state.varMaps
           , """     });"""
           , """ */"""
           , """</script>"""
           ]
 
-renderVarMaps ∷ Map.Map DeckId Port.VarMap → String
-renderVarMaps = indent <<< prettyJson <<< encodeVarMaps <<< varMapsForURL
+renderVarMaps ∷ String → Map.Map DeckId Port.VarMap → String
+renderVarMaps prefix = indent <<< prettyJson <<< encodeVarMaps <<< varMapsForURL
   where
-  indent = RX.replace (unsafePartial fromRight $ RX.regex "(\n\r?)" RXF.global) "$1    "
-
-renderMoreIndentedVarMaps ∷ Map.Map DeckId Port.VarMap → String
-renderMoreIndentedVarMaps = indent <<< prettyJson <<< encodeVarMaps <<< varMapsForURL
-  where
-  indent = RX.replace (unsafePartial fromRight $ RX.regex "(\n\r?)" RXF.global) "$1       "
+  indent = RX.replace (unsafePartial fromRight $ RX.regex "(\n\r?)" RXF.global) ("$1" <> prefix)
 
 renderURL ∷ String → State → String
 renderURL locationString state@{sharingInput, varMaps, permToken, isLoggedIn} =
