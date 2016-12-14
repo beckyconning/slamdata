@@ -1,5 +1,7 @@
 .deck-dialog-wrapper {
   position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
   width: 100%;
   background: #000000AA;
@@ -28,24 +30,12 @@
             position: relative;
             overflow-y: auto;
             overflow-x: hidden;
-            :not(.input-group-btn) > .btn {
-              padding-left: 0;
-              padding-right: 0;
-            }
             form {
-                width: 100%;
-                .input-group {
-                    width: 100%;
-                }
-
                 .textarea-copy-button {
                   position: absolute;
                   top: 0;
                   right: 0;
                 }
-            }
-            input, select, label {
-              width: 100%;
             }
         }
         .deck-dialog-cardpath-card:not(:last-child)::after {
@@ -64,9 +54,8 @@
             height: 10rem;
             min-height: 60px;
         }
-        input, select, label {
-          width: 100%;
+        .container-fluid {
+          padding: 0;
         }
     }
-
 }

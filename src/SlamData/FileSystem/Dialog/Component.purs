@@ -26,10 +26,8 @@ import Halogen.Component.ChildPath (ChildPath, cpL, cpR, (:>))
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
-import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Dialog.Error.Component as Error
-import SlamData.Monad (Slam)
 import SlamData.FileSystem.Dialog.Download.Component as Download
 import SlamData.FileSystem.Dialog.Explore.Component as Explore
 import SlamData.FileSystem.Dialog.Mount.Component (MountSettings)
@@ -37,7 +35,9 @@ import SlamData.FileSystem.Dialog.Mount.Component as Mount
 import SlamData.FileSystem.Dialog.Rename.Component as Rename
 import SlamData.FileSystem.Dialog.Share.Component as Share
 import SlamData.FileSystem.Resource (Resource)
+import SlamData.Monad (Slam)
 import SlamData.Render.Common (fadeWhen)
+import SlamData.Workspace.Deck.Component.CSS as CSS
 
 import Utils.Path (DirPath, FilePath)
 
@@ -141,7 +141,7 @@ comp =
 render ∷ State → H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
 render state =
   HH.div
-    [ HP.classes ([B.modal] <> fadeWhen (isNothing state))
+    [ HP.classes ([ CSS.dialogWrapper ] <> fadeWhen (isNothing state))
     , HE.onMouseDown (HE.input_ Dismiss)
     ]
     $ maybe [] (singleton <<< dialog) state
