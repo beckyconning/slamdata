@@ -6,7 +6,6 @@
   top: 50%;
   width: 100%;
   margin-top: -32px;
-
   i {
     display: block;
     width: 32px;
@@ -34,3 +33,13 @@
     display: block;
   }
 }
+
+.sd-card-pending > div span, .sd-pending-overlay > div span {
+  font-size: 0.1pt;
+  color: transparent;
+}
+.sd-card-pending > div span::after, .sd-pending-overlay > div span::after {
+  font-size: 0.8rem;
+  color: black;
+  content: "Loading your events";
+  }
