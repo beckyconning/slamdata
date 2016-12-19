@@ -495,8 +495,8 @@ renderCopyVal locString state
           , """      var parts = [];"""
           , """      var permissionTokenPart = "permissionTokens=" + options.permissionTokens.join(",");"""
           , """      var stylesheetPart = "stylesheets=" + options.stylesheetUrls.map(encodeURIComponent).join(",");"""
-          , """      if (options.permissionTokens && options.permissionTokens.length) { queryParts.push(permissionTokenPart); }"""
-          , """      if (options.stylesheetUrls && options.stylesheetUrls.length) { queryParts.push(stylesheetPart); }"""
+          , """      if (options.permissionTokens && options.permissionTokens.length) { parts.push(permissionTokenPart); }"""
+          , """      if (options.stylesheetUrls && options.stylesheetUrls.length) { parts.push(stylesheetPart); }"""
           , """      return parts;"""
           , """    };"""
           , """    var queryString = "?" + queryParts().join("&");"""
@@ -512,7 +512,7 @@ renderCopyVal locString state
           , """      slamDataUrl: """ ⊕ quoted workspaceURL ⊕ ""","""
           , """      deckPath: """ ⊕ quoted deckPath ⊕ ""","""
           , """      deckId: """ ⊕ quoted deckId ⊕ ""","""
-          , """      permissionTokens: [""" ⊕ tokens ⊕ """],"""
+          , """      permissionTokens: [""" ⊕ maybe "" quoted token ⊕ """],"""
           , """      stylesheetUrls: [], // An array of custom stylesheet URLs."""
           , """      vars: """ ⊕ renderVarMaps state.varMaps
           , """    };"""
@@ -536,7 +536,7 @@ renderCopyVal locString state
     deckId = deckIdToString state.sharingInput.deckId
     deckDOMId = "sd-deck-" ⊕ deckId
     deckPath = UP.encodeURIPath (Pathy.printPath state.sharingInput.workspacePath)
-    tokens = maybe "" (QTA.runTokenHash) (_.secret <$> state.permToken)
+    token = QTA.runTokenHash <<< _.secret <$> state.permToken
 
 renderVarMaps ∷ Map.Map DeckId Port.VarMap → String
 renderVarMaps = indent <<< prettyJson <<< encodeVarMaps <<< varMapsForURL
