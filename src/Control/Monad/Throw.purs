@@ -14,25 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.Analytics.Event where
+module Control.Monad.Throw where
 
-import SlamData.Workspace.Card.CardType (CardType)
-import SlamData.Workspace.Deck.DeckId (DeckId)
-import SlamData.Workspace.AccessType (AccessType)
+import Prelude
 
-data Event
-  = AddCard CardType
-  | Publish DeckId
-  | Embed DeckId
-  | Mirror DeckId
-  | Wrap DeckId
-  | Collapse DeckId
-  | Delete DeckId
-  | Load DeckId AccessType
-  | Explore
-  | ErrorLoadingDeck
-  | ErrorSavingDeck
-  | ErrorSavingMirror
-  | ErrorUpdatingRoot
-  | ErrorDeletingDeck
-  | ErrorInCardEval CardType
+class Monad m ⇐ MonadThrow e m where
+  throw ∷ ∀ a. e → m a
