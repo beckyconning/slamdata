@@ -98,6 +98,7 @@ renderDeck opts deckComponent st =
   renderDialog visible =
     HH.div
       [ HP.classes $ [CSS.dialogWrapper] ⊕ (guard (not visible) $> CSS.invisible)
+      , HE.onClick $ HE.input_ DismissDialog
       , ARIA.hidden $ show $ not visible
       ]
       [ dialogSlot ]

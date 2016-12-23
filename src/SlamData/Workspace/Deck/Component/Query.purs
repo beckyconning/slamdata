@@ -59,5 +59,6 @@ data Query a
   | DismissedCardGuide a
   | GetActiveCoord (Maybe (DeckId × CardId) → a)
   | SignIn ProviderR a
+  | DismissDialog a
 
 type QueryP = OpaqueQuery Query

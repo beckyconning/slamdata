@@ -238,6 +238,10 @@ eval opts = case _ of
     H.fromAff $ Bus.write { providerR, idToken, prompt: true, keySuffix } auth.requestToken
     either signInFailure (const $ signInSuccess) =<< (H.fromAff $ AVar.takeVar idToken)
     pure next
+  DismissDialog next →
+    queryDialog (H.action Dialog.Dismiss)
+      *> H.modify (DCS._displayMode .~ DCS.Backside)
+      $> next
   where
   keySuffix = AuthenticationMode.toKeySuffix AuthenticationMode.ChosenProvider
 
