@@ -17,11 +17,13 @@ limitations under the License.
 module SlamData.Workspace.Card.Open.Component.Query where
 
 import SlamData.Prelude
-import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery)
-import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
 
 import Halogen (ChildF)
 
+import SlamData.FileSystem.Resource as R
+import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery)
+import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
+
 import Utils.Path (AnyPath)
 
-type QueryP = Coproduct CardEvalQuery (ChildF Unit (MCI.BasicColumnsQuery AnyPath))
+type QueryP = Coproduct CardEvalQuery (ChildF Unit (MCI.BasicColumnsQuery R.Resource AnyPath))
