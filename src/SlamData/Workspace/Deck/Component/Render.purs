@@ -75,7 +75,9 @@ renderDeck opts deckComponent st =
         , HP.key "deck"
         ]
         [ Slider.render opts deckComponent st $ not $ st.displayMode ≡ DCS.Backside
-        , renderBackside $ not $ st.displayMode ≡ DCS.Normal
+        , renderBackside
+            $ st.displayMode ≡ DCS.Backside
+            ∨ (st.displayMode ≡ DCS.Dialog ∧ st.prevDisplayMode ≡ Just DCS.Backside)
         , renderDialogBackdrop $ st.displayMode ≡ DCS.Dialog
         , renderDialog $ st.displayMode ≡ DCS.Dialog
         ]
