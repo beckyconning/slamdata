@@ -315,8 +315,10 @@ renderToken token =
     [ HP.class_ $ HH.className "sd-unshare-subject" ]
     [ HH.label_
         [ HH.text $ fromMaybe "Untitled token" token.name
-        , HH.i_ [ HH.text $ " (" ⊕ printShareResume token.resume ⊕ ")" ]
         ]
+    , HH.span
+        [ HP.classes [ HH.className "sd-unshare-subject-access-type" ] ]
+        [ HH.text $ printShareResume token.resume ]
     , HH.div
         [ HP.classes
             $ [ HH.className "sd-url" ]
