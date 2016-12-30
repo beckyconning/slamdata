@@ -89,16 +89,24 @@ renderDeck opts deckComponent st =
         ]
         [ Slider.render opts deckComponent st $ not $ st.displayMode ≡ DCS.Backside
         , renderBackside $ not $ st.displayMode ≡ DCS.Normal
+        , renderDialogBackdrop $ st.displayMode ≡ DCS.Dialog
         , renderDialog $ st.displayMode ≡ DCS.Dialog
         ]
     ]
 
   where
 
+  renderDialogBackdrop visible =
+    HH.div
+      [ HP.classes $ [CSS.dialogBackdrop] ⊕ (guard (not visible) $> CSS.invisible)
+      , HE.onClick $ HE.input_ DismissDialog
+      , ARIA.hidden $ show $ not visible
+      ]
+      [ ]
+
   renderDialog visible =
     HH.div
-      [ HP.classes $ [CSS.dialogWrapper] ⊕ (guard (not visible) $> CSS.invisible)
-      , HE.onClick $ HE.input_ DismissDialog
+      [ HP.classes $ [] ⊕ (guard (not visible) $> CSS.invisible)
       , ARIA.hidden $ show $ not visible
       ]
       [ dialogSlot ]

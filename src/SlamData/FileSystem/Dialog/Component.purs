@@ -26,6 +26,7 @@ import Halogen.Component.ChildPath (ChildPath, cpL, cpR, (:>))
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
+import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 
 import SlamData.Dialog.Error.Component as Error
 import SlamData.FileSystem.Dialog.Download.Component as Download
@@ -36,7 +37,6 @@ import SlamData.FileSystem.Dialog.Rename.Component as Rename
 import SlamData.FileSystem.Dialog.Share.Component as Share
 import SlamData.FileSystem.Resource (Resource)
 import SlamData.Monad (Slam)
-import SlamData.Render.Common (fadeWhen)
 import SlamData.Workspace.Deck.Component.CSS as CSS
 
 import Utils.Path (DirPath, FilePath)
@@ -140,11 +140,19 @@ comp =
 
 render ∷ State → H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
 render state =
-  HH.div
-    [ HP.classes ([ CSS.dialogWrapper ] <> fadeWhen (isNothing state))
-    , HE.onMouseDown (HE.input_ Dismiss)
+  HH.div_
+    [ HH.div
+        [ HP.classes $ [ CSS.dialogBackdrop ] ⊕ (guard (isNothing state) $> CSS.invisible)
+        , HE.onMouseDown (HE.input_ Dismiss)
+        , ARIA.hidden $ show $ isNothing state
+        ]
+        []
+    , HH.div
+        [ HP.classes $ [] ⊕ (guard (isNothing state) $> CSS.invisible)
+        , ARIA.hidden $ show $ isNothing state
+        ]
+        $ maybe [] (singleton <<< dialog) state
     ]
-    $ maybe [] (singleton <<< dialog) state
   where
   dialog (Error str) =
     HH.slot' cpError unit \_ →
