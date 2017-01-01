@@ -26,8 +26,9 @@ import Data.Lens ((.~))
 
 import Halogen as H
 import Halogen.Component.ChildPath (cpI)
-import Halogen.HTML.Indexed as HH
 import Halogen.Component.Utils as HU
+import Halogen.HTML.CSS.Indexed as HCSS
+import Halogen.HTML.Indexed as HH
 
 import SlamData.ActionList.Component as ActionList
 import SlamData.Monad (Slam)
@@ -40,6 +41,7 @@ import SlamData.Workspace.Card.Next.Component.State (StateP, State, initialState
 import SlamData.Workspace.Card.Next.Component.State as State
 import SlamData.Workspace.Card.Port as Port
 
+import Utils.CSS as CSSUtils
 import Utils.LocalStorage as LocalStorage
 
 type NextHTML =
@@ -68,7 +70,8 @@ nextCardComponent = H.parentComponent
 
 render ∷ State → NextHTML
 render state =
-  HH.div_
+  HH.div
+    [ HCSS.style $ CSSUtils.width "100%" *> CSSUtils.height "100%" ]
     $ (guard state.presentAddCardGuide $>
         Guide.render
           Guide.DownArrow

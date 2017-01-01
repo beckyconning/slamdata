@@ -18,29 +18,45 @@ module SlamData.ActionList.Component where
 
 import SlamData.Prelude
 
-import Data.Array as A
-import Data.Foldable as F
+import CSS as CSS
+
+import Data.Array ((..))
+import Data.Array as Array
+import Data.Foldable as Foldable
+import Data.Int as Int
 import Data.Lens (Lens', lens, (.~))
-import Data.String as S
+import Data.String as String
+
+import DOM.HTML.Types (HTMLElement)
 
 import Halogen as H
+import Halogen.HTML.CSS.Indexed as HCSS
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 
+import Math as Math
+
 import SlamData.Monad (Slam)
 import SlamData.Render.Common as RC
+
+import Utils.DOM (DOMRect)
+import Utils.DOM as DOMUtils
 
 data Query a b
   = Selected (Action a) b
   | UpdateFilter String b
   | UpdateActions (Array (Action a)) b
+  | CalculateBoundingRect b
+  | SetBoundingElement (Maybe HTMLElement) b
 
 type State a =
   { actions ∷ Array (Action a)
   , previousActions ∷ Array (Action a)
   , filterString ∷ String
+  , boundingElement ∷ Maybe HTMLElement
+  , boundingDimensions ∷ Maybe Dimensions
   }
 
 type HTML a = H.ComponentHTML (Query a)
@@ -56,6 +72,8 @@ data Action a
   | Drill ActionName ActionIconSrc ActionDescription (Array (Action a))
   | GoBack
 
+type Dimensions = { width ∷ Number, height ∷ Number }
+
 _actions ∷ ∀ a r. Lens' { actions ∷ a |r } a
 _actions =
   lens _.actions (_ { actions = _ })
@@ -67,6 +85,14 @@ _previousActions =
 _filterString ∷ ∀ a r. Lens' { filterString ∷ a | r } a
 _filterString =
   lens _.filterString (_ { filterString = _ })
+
+_boundingElement ∷ ∀ a r. Lens' { boundingElement ∷ a | r } a
+_boundingElement =
+  lens _.boundingElement (_ { boundingElement = _ })
+
+_boundingDimensions ∷ ∀ a r. Lens' { boundingDimensions ∷ a | r } a
+_boundingDimensions =
+  lens _.boundingDimensions (_ { boundingDimensions = _ })
 
 isDo ∷ ∀ a. Action a → Boolean
 isDo =
@@ -90,7 +116,7 @@ isHighlighted =
     Do _ _ _ (ActionHighlighted highlighted) _ →
       highlighted
     Drill _ _ _ actions →
-      F.any isHighlighted actions
+      Foldable.any isHighlighted actions
     GoBack → true
 
 searchFilters ∷ ∀ a. Action a → Array String
@@ -99,7 +125,7 @@ searchFilters =
     Do (ActionName name) _ _ _ _ →
       [ name ]
     Drill (ActionName name) _ _ actions →
-      [ name ] ⊕ A.concat (map searchFilters actions)
+      [ name ] ⊕ Array.concat (map searchFilters actions)
     GoBack →
       [ "go back" ]
 
@@ -130,48 +156,106 @@ initialState actions =
   { actions
   , previousActions: [ ]
   , filterString: ""
+  , boundingElement: Nothing
+  , boundingDimensions: Nothing
   }
 
 comp ∷ ∀ a. Eq a ⇒ H.Component (State a) (Query a) Slam
 comp =
-  H.component
+  H.lifecycleComponent
     { render
+    , initializer: Just $ H.action CalculateBoundingRect
+    , finalizer: Nothing
     , eval
     }
+
+--f ∷ Int → Dimensions → Dimensions
+--f i boundingDimensions =
+--  { width: 0.0, height: 0.0 }
+--  where
+--  goldenRatio =
+--    1.61803398875
+--
+--  verticalCount =
+--    Math.round(Math.sqrt((boundingDimensions.height * Int.toNumber i)
+--      / (goldenRatio * boundingDimensions.width)))
+--
+--  sortOfGoldenRatio =
+--    (boundingDimensions.height * Int.toNumber i)
+--      / ((verticalCount `Math.pow` 2.0) * boundingDimensions.width)
+--
+--  actionWidth =
+--    Math.sqrt((boundingDimensions.width * boundingDimensions.height)
+--      / (Int.toNumber i * sortOfGoldenRatio))
+--
+--  actionHeight =
+--    actionWidth / sortOfGoldenRatio
 
 render ∷ ∀ a. State a → HTML a
 render state =
   HH.div
     [ HP.class_ $ HH.className "sd-action-list" ]
-    ([ HH.form_
-         [ HH.div_
-             [ HH.div
-                 [ HP.class_ (HH.className "sd-action-filter-icon") ]
-                 [ RC.searchFieldIcon ]
-             , HH.input
-                 [ HP.value state.filterString
-                 , HE.onValueInput (HE.input (\s → UpdateFilter s))
-                 , ARIA.label "Filter next actions"
-                 , HP.placeholder "Filter actions"
-                 ]
-             , HH.button
-                 [ HP.buttonType HP.ButtonButton
-                 , HE.onClick (HE.input_ (UpdateFilter ""))
-                 , HP.enabled (state.filterString /= "")
-                 ]
-                 [ RC.clearFieldIcon "Clear filter" ]
-             ]
+    [ HH.form_
+        [ HH.div_
+            [ HH.div
+                [ HP.class_ (HH.className "sd-action-filter-icon") ]
+                [ RC.searchFieldIcon ]
+            , HH.input
+                [ HP.value state.filterString
+                , HE.onValueInput (HE.input (\s → UpdateFilter s))
+                , ARIA.label "Filter next actions"
+                , HP.placeholder "Filter actions"
+                ]
+            , HH.button
+                [ HP.buttonType HP.ButtonButton
+                , HE.onClick (HE.input_ (UpdateFilter ""))
+                , HP.enabled (state.filterString /= "")
+                ]
+                [ RC.clearFieldIcon "Clear filter" ]
+            ]
         ]
-    ] ⊕ [ HH.ul_ $ map button state.actions ])
+    , HH.ul
+        [ HP.ref $ H.action ∘ SetBoundingElement ]
+        (maybe
+           []
+           (\buttonDimensions → button buttonDimensions <$> state.actions)
+           $ f (Array.length state.actions) =<< state.boundingDimensions)
+    ]
   where
+  --pluckCellWidth ∷ ∀ b. Cell b → Number
+  --pluckCellWidth (Cell (Rectangle _ _ width _) _) =
+  --  width
+
+  --pluckCellHeight ∷ ∀ b. Cell b → Number
+  --pluckCellHeight (Cell (Rectangle _ _ _ height) _) =
+  --  height
+
+  --squareWidth ∷ List (Cell (Action a)) → Maybe Number
+  --squareWidth =
+  --  F.minimum ∘ map pluckCellWidth
+
+  --squareHeight ∷ List (Cell (Action a)) → Maybe Number
+  --squareHeight =
+  --  F.minimum ∘ map pluckCellHeight
+
+  --square ∷ List (Cell (Action a)) → Maybe { width ∷ Number, height ∷ Number }
+  --square cells = do
+  --  width ← squareWidth cells
+  --  height ← squareHeight cells
+  --  pure { width, height }
+
 
   filterString ∷ String
   filterString =
-    S.toLower state.filterString
+    String.toLower state.filterString
 
-  button ∷ Action a → HTML a
-  button action =
-    HH.li_
+  button ∷ Dimensions → Action a → HTML a
+  button dimensions action =
+    HH.li
+      [ HCSS.style
+          $ CSS.width (CSS.px dimensions.width)
+          *> CSS.height (CSS.px dimensions.height)
+      ]
       [ HH.button attrs
           [ HH.img [ HP.src $ actionIconSrc action ]
           , HH.p_ [ HH.text $ actionName action ]
@@ -184,7 +268,9 @@ render state =
         GoBack →
           true
         _ →
-          F.any (S.contains (S.Pattern filterString) ∘ S.toLower) $ searchFilters action
+          Foldable.any
+            (String.contains (String.Pattern filterString) ∘ String.toLower)
+            (searchFilters action)
 
     attrs =
       [ HP.title $ actionDescription action
@@ -249,17 +335,26 @@ updateActions newActions state =
   where
   activeDrill ∷ Maybe (Action a)
   activeDrill =
-    F.find
+    Foldable.find
       (maybe false (eq state.actions) ∘ pluckDrillActions)
       state.previousActions
 
   newActiveDrill =
-    F.find (eq activeDrill ∘ Just) newActions
+    Foldable.find (eq activeDrill ∘ Just) newActions
 
   pluckDrillActions =
     case _ of
       Drill _ _ _ xs → Just xs
       _ → Nothing
+
+domRectToDimensions ∷ DOMRect → Dimensions
+domRectToDimensions domRect =
+  { width: domRect.width, height: domRect.height }
+
+getBoundingDOMRect ∷ ∀ a. DSL a (Maybe DOMRect)
+getBoundingDOMRect =
+  traverse (H.fromEff ∘ DOMUtils.getOffsetClientRect)
+    =<< H.gets _.boundingElement
 
 eval ∷ ∀ a. Eq a ⇒ Query a ~> DSL a
 eval =
@@ -272,7 +367,7 @@ eval =
         Do _ _ _ _ _ → pure unit
         Drill _ _ _ actions →
           H.modify
-            $ (_actions .~ (GoBack `A.cons` actions))
+            $ (_actions .~ (GoBack `Array.cons` actions))
             ∘ (_previousActions .~ st.actions)
         GoBack →
           H.modify
@@ -281,3 +376,55 @@ eval =
       pure next
     UpdateActions actions next →
       H.modify (updateActions actions) $> next
+    CalculateBoundingRect next →
+      (H.modify
+        ∘ (_boundingDimensions .~ _)
+        ∘ map domRectToDimensions
+        =<< getBoundingDOMRect)
+        $> next
+    SetBoundingElement element next →
+      H.modify (_boundingElement .~ element)
+        $> next
+
+
+f ∷ Int → Dimensions → Maybe Dimensions
+f i boundingDimensions =
+  Foldable.minimumBy
+    (\x y → carat x `compare` carat y)
+    solutions
+  where
+  solutions ∷ Array Dimensions
+  solutions =
+    solution <$> factors i
+
+  factors ∷ Int → Array Int
+  factors n = do
+    factor ← 1 .. n
+    guard $ n `mod` factor ≡ 0
+    pure factor
+
+  goldenRatio ∷ Number
+  goldenRatio =
+    1.61803398875
+
+  carat ∷ Dimensions → Number
+  carat dimensions =
+    Math.abs $ goldenRatio - (dimensions.width / dimensions.height)
+
+  solution ∷ Int → Dimensions
+  solution factor =
+    { width: boundingDimensions.width / (Int.toNumber $ numberOfRows factor)
+    , height: boundingDimensions.height / (Int.toNumber $ numberOfColumns factor)
+    }
+
+  numberOfRows ∷ Int → Int
+  numberOfRows factor =
+    if boundingDimensions.width > boundingDimensions.height
+       then factor
+       else i / factor
+
+  numberOfColumns ∷ Int → Int
+  numberOfColumns factor =
+    if boundingDimensions.width > boundingDimensions.height
+       then i / factor
+       else factor

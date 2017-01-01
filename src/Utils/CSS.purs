@@ -30,6 +30,9 @@ calc s = "calc(" <> s <> ")"
 width :: String -> CSS
 width = key (fromString "width")
 
+height :: String -> CSS
+height = key (fromString "height")
+
 left :: String -> CSS
 left = key (fromString "left")
 
