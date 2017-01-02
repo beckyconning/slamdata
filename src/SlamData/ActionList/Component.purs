@@ -18,6 +18,8 @@ module SlamData.ActionList.Component where
 
 import SlamData.Prelude
 
+import Control.Monad.Rec.Class (tailRec, Step(Loop, Done))
+
 import CSS as CSS
 
 import Data.Array ((..))
@@ -169,28 +171,6 @@ comp =
     , eval
     }
 
---f ∷ Int → Dimensions → Dimensions
---f i boundingDimensions =
---  { width: 0.0, height: 0.0 }
---  where
---  goldenRatio =
---    1.61803398875
---
---  verticalCount =
---    Math.round(Math.sqrt((boundingDimensions.height * Int.toNumber i)
---      / (goldenRatio * boundingDimensions.width)))
---
---  sortOfGoldenRatio =
---    (boundingDimensions.height * Int.toNumber i)
---      / ((verticalCount `Math.pow` 2.0) * boundingDimensions.width)
---
---  actionWidth =
---    Math.sqrt((boundingDimensions.width * boundingDimensions.height)
---      / (Int.toNumber i * sortOfGoldenRatio))
---
---  actionHeight =
---    actionWidth / sortOfGoldenRatio
-
 render ∷ ∀ a. State a → HTML a
 render state =
   HH.div
@@ -219,9 +199,25 @@ render state =
         (maybe
            []
            (\buttonDimensions → button buttonDimensions <$> state.actions)
-           $ mostSquareFittingRectangle (Array.length state.actions) =<< state.boundingDimensions)
+           (flipIfOneRow
+              <$> state.boundingDimensions
+              <*> (actionSize
+                    (Array.length state.actions)
+                    =<< state.boundingDimensions)))
     ]
   where
+  actionSize ∷ Int → Dimensions → Maybe Dimensions
+  actionSize i boundingDimensions = do
+    firstTry ← mostSquareFittingRectangle i boundingDimensions
+    if firstTry.height ≡ boundingDimensions.height
+      then do
+        secondTry ← mostSquareFittingRectangle (nextNonPrime i) boundingDimensions
+        if secondTry.height ≡ boundingDimensions.height
+           then pure firstTry
+           else pure secondTry
+      else pure firstTry
+
+
   filterString ∷ String
   filterString =
     String.toLower state.filterString
@@ -298,6 +294,22 @@ render state =
           , HH.className "sd-button-warning"
           ]
 
+factors ∷ Int → Array Int
+factors n = spy $ do
+  factor ← 1 .. n
+  traceAnyA factor
+  guard $ n `mod` factor ≡ 0
+  pure factor
+
+nextNonPrime :: Int -> Int
+nextNonPrime = tailRec go
+  where
+  go :: Int -> Step Int Int
+  go i =
+    if Array.length (factors i) ≡ 2
+      then Loop $ i + 1
+      else Done i
+
 updateActions ∷ ∀ a. Eq a ⇒ Array (Action a) → State a → State a
 updateActions newActions state =
   case activeDrill of
@@ -363,6 +375,14 @@ eval =
       H.modify (_boundingElement .~ element)
         $> next
 
+flipIfOneRow ∷ Dimensions → Dimensions → Dimensions
+flipIfOneRow boundingDimensions dimensions =
+  if dimensions.height ≡ boundingDimensions.height
+    then { width: boundingDimensions.width, height: rowHeight }
+    else dimensions
+  where
+  numberOfColumns = boundingDimensions.width / dimensions.width
+  rowHeight = boundingDimensions.height / numberOfColumns
 
 mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
 mostSquareFittingRectangle i boundingDimensions =
@@ -373,12 +393,6 @@ mostSquareFittingRectangle i boundingDimensions =
   solutions ∷ Array Dimensions
   solutions =
     solution <$> factors i
-
-  factors ∷ Int → Array Int
-  factors n = do
-    factor ← 1 .. n
-    guard $ n `mod` factor ≡ 0
-    pure factor
 
   goldenRatio ∷ Number
   goldenRatio =
