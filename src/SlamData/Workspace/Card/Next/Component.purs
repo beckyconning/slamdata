@@ -18,6 +18,7 @@ module SlamData.Workspace.Card.Next.Component
  ( nextCardComponent
  , module SlamData.Workspace.Card.Next.Component.Query
  , module SlamData.Workspace.Card.Next.Component.State
+ , module NA
  ) where
 
 import SlamData.Prelude

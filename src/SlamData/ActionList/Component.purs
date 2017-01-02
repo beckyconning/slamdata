@@ -219,32 +219,9 @@ render state =
         (maybe
            []
            (\buttonDimensions → button buttonDimensions <$> state.actions)
-           $ f (Array.length state.actions) =<< state.boundingDimensions)
+           $ mostSquareFittingRectangle (Array.length state.actions) =<< state.boundingDimensions)
     ]
   where
-  --pluckCellWidth ∷ ∀ b. Cell b → Number
-  --pluckCellWidth (Cell (Rectangle _ _ width _) _) =
-  --  width
-
-  --pluckCellHeight ∷ ∀ b. Cell b → Number
-  --pluckCellHeight (Cell (Rectangle _ _ _ height) _) =
-  --  height
-
-  --squareWidth ∷ List (Cell (Action a)) → Maybe Number
-  --squareWidth =
-  --  F.minimum ∘ map pluckCellWidth
-
-  --squareHeight ∷ List (Cell (Action a)) → Maybe Number
-  --squareHeight =
-  --  F.minimum ∘ map pluckCellHeight
-
-  --square ∷ List (Cell (Action a)) → Maybe { width ∷ Number, height ∷ Number }
-  --square cells = do
-  --  width ← squareWidth cells
-  --  height ← squareHeight cells
-  --  pure { width, height }
-
-
   filterString ∷ String
   filterString =
     String.toLower state.filterString
@@ -387,10 +364,10 @@ eval =
         $> next
 
 
-f ∷ Int → Dimensions → Maybe Dimensions
-f i boundingDimensions =
-  Foldable.minimumBy
-    (\x y → carat x `compare` carat y)
+mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
+mostSquareFittingRectangle i boundingDimensions =
+  Foldable.maximumBy
+    (\x y → karat x `compare` karat y)
     solutions
   where
   solutions ∷ Array Dimensions
@@ -407,9 +384,9 @@ f i boundingDimensions =
   goldenRatio =
     1.61803398875
 
-  carat ∷ Dimensions → Number
-  carat dimensions =
-    Math.abs $ goldenRatio - (dimensions.width / dimensions.height)
+  karat ∷ Dimensions → Number
+  karat dimensions =
+    -(Math.abs $ goldenRatio - (dimensions.width / dimensions.height))
 
   solution ∷ Int → Dimensions
   solution factor =

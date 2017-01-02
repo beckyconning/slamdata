@@ -47,6 +47,7 @@ import Halogen.Component.Utils (liftH', raise', sendAfter', subscribeToBus')
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 
+import SlamData.ActionList.Component as ActionList
 import SlamData.Config as Config
 import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
@@ -63,8 +64,8 @@ import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQu
 import SlamData.Workspace.Card.Component.Query as CQ
 import SlamData.Workspace.Card.InsertableCardType as ICT
 import SlamData.Workspace.Card.Model as Card
+import SlamData.Workspace.Card.Next.Component as Next
 import SlamData.Workspace.Card.Port as Port
-import SlamData.Workspace.Card.Next.Component.Query as Next
 import SlamData.Workspace.Class (navigate, Routes(..))
 import SlamData.Workspace.Deck.BackSide.Component as Back
 import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
@@ -73,8 +74,8 @@ import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
 import SlamData.Workspace.Deck.Component.Query (QueryP, Query(..))
 import SlamData.Workspace.Deck.Component.Render as DCR
 import SlamData.Workspace.Deck.Component.State as DCS
-import SlamData.Workspace.Deck.DeckPath (deckPath, deckPath')
 import SlamData.Workspace.Deck.DeckId (DeckId)
+import SlamData.Workspace.Deck.DeckPath (deckPath, deckPath')
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Model as Model
 import SlamData.Workspace.Deck.Slider as Slider
@@ -331,6 +332,12 @@ queryCard cid =
     ∘ H.ChildF unit
     ∘ right
 
+queryNextActionList ∷ ∀ a. ActionList.Query Next.NextAction a → DeckDSL (Maybe a)
+queryNextActionList =
+  H.query' cpNext unit
+    ∘ right
+    ∘ H.ChildF unit
+
 queryCardEval ∷ ∀ a. CardId → CQ.CardQuery a → DeckDSL (Maybe a)
 queryCardEval cid =
   H.query' cpCard cid ∘ left
@@ -525,6 +532,7 @@ getDeckTree deckId = do
 updateCardSize ∷ DeckDSL Unit
 updateCardSize = do
   H.queryAll' cpCard $ left $ H.action UpdateDimensions
+  queryNextActionList $ H.action ActionList.CalculateBoundingRect
   H.gets _.deckElement >>= traverse_ \el → do
     { width } ← H.fromEff $ getBoundingClientRect el
     H.modify $ DCS._responsiveSize .~ breakpoint width
