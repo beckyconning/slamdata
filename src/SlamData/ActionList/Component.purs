@@ -43,6 +43,7 @@ import Math as Math
 import SlamData.Monad (Slam)
 import SlamData.Render.Common as RC
 
+import Utils as Utils
 import Utils.DOM (DOMRect)
 import Utils.DOM as DOMUtils
 
@@ -199,13 +200,17 @@ render state =
         (maybe
            []
            (\buttonDimensions → button buttonDimensions <$> state.actions)
-           (flipIfOneRow
-              <$> state.boundingDimensions
-              <*> (actionSize
-                    (Array.length state.actions)
-                    =<< state.boundingDimensions)))
+           (actionSize
+              (Array.length state.actions)
+              =<< state.boundingDimensions))
     ]
   where
+  f ∷ Int → Number → Number
+  f i n =
+    (Math.floor $ n * multiplier) / multiplier
+    where
+    multiplier = Math.pow 10.0 $ Int.toNumber i
+
   actionSize ∷ Int → Dimensions → Maybe Dimensions
   actionSize i boundingDimensions = do
     firstTry ← mostSquareFittingRectangle i boundingDimensions
@@ -226,8 +231,8 @@ render state =
   button dimensions action =
     HH.li
       [ HCSS.style
-          $ CSS.width (CSS.px dimensions.width)
-          *> CSS.height (CSS.px dimensions.height)
+          $ CSS.width (CSS.px $ firefoxify dimensions.width)
+          *> CSS.height (CSS.px $ firefoxify dimensions.height)
       ]
       [ HH.button attrs
           [ HH.img [ HP.src $ actionIconSrc action ]
@@ -235,6 +240,12 @@ render state =
           ]
       ]
     where
+    firefoxify ∷ Number → Number
+    firefoxify n =
+      if Utils.isFirefox
+         then f 1 n
+         else n
+
     enabled ∷ Boolean
     enabled =
       case action of
@@ -375,14 +386,9 @@ eval =
       H.modify (_boundingElement .~ element)
         $> next
 
-flipIfOneRow ∷ Dimensions → Dimensions → Dimensions
-flipIfOneRow boundingDimensions dimensions =
-  if dimensions.height ≡ boundingDimensions.height
-    then { width: boundingDimensions.width, height: rowHeight }
-    else dimensions
-  where
-  numberOfColumns = boundingDimensions.width / dimensions.width
-  rowHeight = boundingDimensions.height / numberOfColumns
+floor ∷ Dimensions → Dimensions
+floor dimensions =
+  { width: Math.floor dimensions.width, height: Math.floor dimensions.height }
 
 mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
 mostSquareFittingRectangle i boundingDimensions =

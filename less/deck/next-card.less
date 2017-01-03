@@ -66,29 +66,26 @@
 
   ul {
     flex: 1 1 auto;
-    flex-wrap: wrap;
-    position: relative;
     list-style: none;
     overflow: hidden;
     margin: 1px;
     padding: 0;
     li {
-        display: inline-block;
+        display: block;
         float: left;
-        position: relative;
-        vertical-align: top;
-        border: 1px solid white;
         margin: 0;
+        padding: 0;
+        position: relative;
+        border: 1px solid transparent;
+        box-sizing: border-box;
         button {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
             border: none;
             background: #bbb;
             color: #fff;
             padding: 0;
+            margin: 0;
             text-align: center;
             img {
                 width: 30%;
@@ -99,9 +96,7 @@
                 margin-top: 5%;
                 width: 100%;
                 font-size: 0.7rem;
-                // margin: 0.25rem 0 0 0;
-                padding: 0 4px;
-                line-height: 0.75rem;
+                overflow: hidden;
                 text-overflow: ellipsis;
             }
             &:not(.sd-button-warning):not(:disabled):not(:hover) {
@@ -114,22 +109,6 @@
                 &:hover {
                     background: #337ab7;
                 }
-            }
-            &:after {
-                content: " ";
-                font-size: 1.5rem;
-            }
-            &:not(.sd-button-warning):not(:disabled)::before {
-                content: "✔︎";
-                position: absolute;
-                top: 0px;
-                right: 0px;
-                top: 5%;
-                right: 5%;
-                font-size: 1rem;
-                line-height: 0.5rem;
-                font-weight: bold;
-                display: block;
             }
         }
     }

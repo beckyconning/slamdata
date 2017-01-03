@@ -69,3 +69,5 @@ lowercaseFirstChar ∷ String → String
 lowercaseFirstChar s = S.toLower (S.take 1 s) <> S.drop 1 s
 
 foreign import prettyJson ∷ J.Json → String
+
+foreign import isFirefox ∷ Boolean
