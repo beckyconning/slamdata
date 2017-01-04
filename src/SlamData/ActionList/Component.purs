@@ -243,6 +243,7 @@ render state =
                    , HCSS.style
                        $ CSS.width (CSS.px $ dimensions.width * 0.3)
                        *> CSS.height (CSS.px $ dimensions.height * 0.3)
+                       *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
                    ])
               <> [ HH.p
                     [ HCSS.style
@@ -271,8 +272,8 @@ render state =
 
     spaceTextHasToFitIn ∷ Dimensions
     spaceTextHasToFitIn =
-      { width: dimensions.width * 0.95
-      , height: dimensions.height * 0.5
+      { width: dimensions.width * 0.75
+      , height: dimensions.height * 0.4
       }
 
     enabled ∷ Boolean
@@ -450,19 +451,15 @@ lines width text =
 
 fontSizePx ∷ Number
 fontSizePx =
-  10.0
+  12.0
 
 lineHeightPx ∷ Number
 lineHeightPx =
-  11.0
+  13.0
 
 iconSizePercent ∷ Number
 iconSizePercent =
   30.0
-
-textHorizontalPaddingPx ∷ Number
-textHorizontalPaddingPx =
-  2.0
 
 mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
 mostSquareFittingRectangle i boundingDimensions =
