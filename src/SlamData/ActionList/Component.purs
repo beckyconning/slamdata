@@ -236,33 +236,45 @@ render state =
       ]
       [ HH.button
           attrs
-          ((guard
-              (textFits spaceTextHasToFitIn $ actionName action)
-              $> HH.img
-                   [ HP.src $ actionIconSrc action
-                   , HCSS.style
-                       $ CSS.width (CSS.px $ dimensions.width * 0.3)
-                       *> CSS.height (CSS.px $ dimensions.height * 0.3)
-                       *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
-                   ])
-              <> [ HH.p
-                    [ HCSS.style
-                        $ CSS.fontSize (CSS.px $ fontSizePx)
-                        *> CSSUtils.lineHeight (show lineHeightPx <> "px")
-                    ]
-                    renderActionName
-                 ])
+          ((guard presentIcon $> renderIcon) <> (guard presentText $> renderName))
       ]
     where
-    renderActionName ∷ Array (HTML a)
-    renderActionName =
-      Array.intercalate
-        [ HH.br_ ]
-        $ Array.singleton ∘ HH.text <$> actionNameLines
+    renderIcon ∷ HTML a
+    renderIcon =
+      HH.img
+        [ HP.src $ actionIconSrc action
+        , HCSS.style
+            $ CSS.width (CSS.px $ dimensions.width * 0.3)
+            *> CSS.height (CSS.px $ dimensions.height * 0.3)
+            *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
+        ]
+
+    renderName ∷ HTML a
+    renderName =
+      HH.p
+        [ HCSS.style
+            $ CSS.fontSize (CSS.px $ fontSizePx)
+            *> CSSUtils.lineHeight (show lineHeightPx <> "px")
+        ]
+        $ Array.intercalate
+            [ HH.br_ ]
+            $ Array.singleton ∘ HH.text <$> actionNameLines
+
+    presentText ∷ Boolean
+    presentText =
+      textFits spaceForTextWithIcon (actionName action) || textFitsVertically
+
+    presentIcon ∷ Boolean
+    presentIcon =
+      textFits spaceForTextWithIcon (actionName action) || not textFitsVertically
+
+    textFitsVertically ∷ Boolean
+    textFitsVertically =
+      dimensions.height >= ((Int.toNumber $ Array.length $ actionNameLines) * lineHeightPx)
 
     actionNameLines ∷ Array String
     actionNameLines =
-      lines spaceTextHasToFitIn.width $ actionName action
+      lines spaceForTextWithIcon.width $ actionName action
 
     firefoxify ∷ Number → Number
     firefoxify n =
@@ -270,8 +282,8 @@ render state =
          then decimalCrop 1 n
          else n
 
-    spaceTextHasToFitIn ∷ Dimensions
-    spaceTextHasToFitIn =
+    spaceForTextWithIcon ∷ Dimensions
+    spaceForTextWithIcon =
       { width: dimensions.width * 0.75
       , height: dimensions.height * 0.4
       }
