@@ -31,10 +31,11 @@ import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (class MonadRec, tailRecM, Step(..))
 import Control.Monad.Throw (class MonadThrow)
 import Control.Parallel (parallel, sequential)
-import Control.UI.Browser (locationObject)
+import Control.UI.Browser (locationObject, locationString)
 
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
+import Data.String as String
 
 import DOM.HTML.Location (setHash)
 
@@ -143,7 +144,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
     Aff aff →
       aff
     GetAuthIdToken k → do
-      idToken ← hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
+      idToken ← getIdTokenSilently'
       case idToken of
         Just (Left error) →
           for_ (Auth.toNotificationOptions error) \opts →
@@ -152,7 +153,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
           pure unit
       pure $ k $ maybe Nothing hush idToken
     Quasar qf → do
-      idToken ← hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
+      idToken ← getIdTokenSilently'
       case idToken of
         Just (Left error) →
           for_ (Auth.toNotificationOptions error) \opts →
@@ -178,6 +179,13 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         hash  = Routing.mkWorkspaceHash path' action varMaps
       liftEff $ locationObject >>= setHash hash
       pure a
+
+  getIdTokenSilently' ∷ Aff SlamDataEffects (Maybe Auth.EIdToken)
+  getIdTokenSilently' = do
+    hasPermissionToken ← liftEff $ String.contains (String.Pattern "permissionTokens=") <$> locationString
+    if hasPermissionToken
+       then pure Nothing
+       else hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
 
   goFork ∷ FF.Fork Slam ~> Aff SlamDataEffects
   goFork = FF.unFork \(FF.ForkF fx k) →
