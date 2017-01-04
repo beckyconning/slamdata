@@ -46,6 +46,7 @@ import SlamData.Render.Common as RC
 import Utils as Utils
 import Utils.DOM (DOMRect)
 import Utils.DOM as DOMUtils
+import Utils.CSS as CSSUtils
 
 data Query a b
   = Selected (Action a) b
@@ -205,8 +206,8 @@ render state =
               =<< state.boundingDimensions))
     ]
   where
-  f ∷ Int → Number → Number
-  f i n =
+  decimalCrop ∷ Int → Number → Number
+  decimalCrop i n =
     (Math.floor $ n * multiplier) / multiplier
     where
     multiplier = Math.pow 10.0 $ Int.toNumber i
@@ -222,7 +223,6 @@ render state =
            else pure secondTry
       else pure firstTry
 
-
   filterString ∷ String
   filterString =
     String.toLower state.filterString
@@ -234,17 +234,46 @@ render state =
           $ CSS.width (CSS.px $ firefoxify dimensions.width)
           *> CSS.height (CSS.px $ firefoxify dimensions.height)
       ]
-      [ HH.button attrs
-          [ HH.img [ HP.src $ actionIconSrc action ]
-          , HH.p_ [ HH.text $ actionName action ]
-          ]
+      [ HH.button
+          attrs
+          ((guard
+              (textFits spaceTextHasToFitIn $ actionName action)
+              $> HH.img
+                   [ HP.src $ actionIconSrc action
+                   , HCSS.style
+                       $ CSS.width (CSS.px $ dimensions.width * 0.3)
+                       *> CSS.height (CSS.px $ dimensions.height * 0.3)
+                   ])
+              <> [ HH.p
+                    [ HCSS.style
+                        $ CSS.fontSize (CSS.px $ fontSizePx)
+                        *> CSSUtils.lineHeight (show lineHeightPx <> "px")
+                    ]
+                    renderActionName
+                 ])
       ]
     where
+    renderActionName ∷ Array (HTML a)
+    renderActionName =
+      Array.intercalate
+        [ HH.br_ ]
+        $ Array.singleton ∘ HH.text <$> actionNameLines
+
+    actionNameLines ∷ Array String
+    actionNameLines =
+      lines spaceTextHasToFitIn.width $ actionName action
+
     firefoxify ∷ Number → Number
     firefoxify n =
       if Utils.isFirefox
-         then f 1 n
+         then decimalCrop 1 n
          else n
+
+    spaceTextHasToFitIn ∷ Dimensions
+    spaceTextHasToFitIn =
+      { width: dimensions.width * 0.95
+      , height: dimensions.height * 0.5
+      }
 
     enabled ∷ Boolean
     enabled =
@@ -263,6 +292,7 @@ render state =
       , HP.classes classes
       , HE.onClick (HE.input_ $ Selected action)
       , HP.buttonType HP.ButtonButton
+      , HCSS.style $ CSS.position CSS.relative
       ]
 
     actionDescription ∷ Action a → String
@@ -306,14 +336,14 @@ render state =
           ]
 
 factors ∷ Int → Array Int
-factors n = spy $ do
+factors n = do
   factor ← 1 .. n
-  traceAnyA factor
   guard $ n `mod` factor ≡ 0
   pure factor
 
 nextNonPrime :: Int -> Int
-nextNonPrime = tailRec go
+nextNonPrime =
+  tailRec go
   where
   go :: Int -> Step Int Int
   go i =
@@ -388,7 +418,51 @@ eval =
 
 floor ∷ Dimensions → Dimensions
 floor dimensions =
-  { width: Math.floor dimensions.width, height: Math.floor dimensions.height }
+  { width: Math.floor dimensions.width
+  , height: Math.floor dimensions.height
+}
+
+textFits ∷ Dimensions → String → Boolean
+textFits dimensions =
+  (>=) dimensions.height
+    ∘ (_ * lineHeightPx)
+    ∘ Int.toNumber
+    ∘ Array.length
+    ∘ lines dimensions.width
+
+lines ∷ Number → String → Array String
+lines width text =
+  foldl go [] $ Utils.words text
+  where
+  go ∷ Array String → String → Array String
+  go acc s =
+    case Array.uncons acc of
+      Nothing →
+        [ s ]
+      Just { head, tail } →
+        if (textWidth $ head <> " " <> s) <= width
+          then Array.snoc tail (head <> " " <> s)
+          else Array.snoc acc s
+
+  textWidth ∷ String → Number
+  textWidth =
+    flip DOMUtils.getTextWidthPure (show fontSizePx <> "px")
+
+fontSizePx ∷ Number
+fontSizePx =
+  10.0
+
+lineHeightPx ∷ Number
+lineHeightPx =
+  11.0
+
+iconSizePercent ∷ Number
+iconSizePercent =
+  30.0
+
+textHorizontalPaddingPx ∷ Number
+textHorizontalPaddingPx =
+  2.0
 
 mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
 mostSquareFittingRectangle i boundingDimensions =

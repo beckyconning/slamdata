@@ -71,14 +71,14 @@
     margin: 1px;
     padding: 0;
     li {
-        display: block;
         float: left;
         margin: 0;
         padding: 0;
         position: relative;
         border: 1px solid transparent;
-        box-sizing: border-box;
+        vertical-align: top;
         button {
+            display: block;
             width: 100%;
             height: 100%;
             border: none;
@@ -88,26 +88,25 @@
             margin: 0;
             text-align: center;
             img {
-                width: 30%;
-                height: 30%;
+                margin: 0;
+                padding: 0;
             }
             p {
+                padding: 0;
                 margin: 0;
-                margin-top: 5%;
-                width: 100%;
-                font-size: 0.7rem;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                white-space: nowrap;
             }
-            &:not(.sd-button-warning):not(:disabled):not(:hover) {
-                background: #999;
+            &:not(.sd-button-warning):not(:disabled) {
+                background: #337ab7;
             }
             &:disabled {
-              background: #ddd;
+                background: #ddd;
             }
             &:not(:disabled):hover {
                 &:hover {
-                    background: #337ab7;
+                    opacity: 0.8;
                 }
             }
         }

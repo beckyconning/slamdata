@@ -36,6 +36,9 @@ height = key (fromString "height")
 left :: String -> CSS
 left = key (fromString "left")
 
+lineHeight :: String -> CSS
+lineHeight = key (fromString "lineHeight")
+
 transform :: String -> CSS
 transform = key (fromString "transform")
 
