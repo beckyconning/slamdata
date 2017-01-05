@@ -49,15 +49,15 @@ import Utils.DOM as DOMUtils
 import Utils.CSS as CSSUtils
 
 data Query a b
-  = Selected (Action a) b
+  = Selected (ActionInternal a) b
   | UpdateFilter String b
   | UpdateActions (Array (Action a)) b
   | CalculateBoundingRect b
   | SetBoundingElement (Maybe HTMLElement) b
 
 type State a =
-  { actions ∷ Array (Action a)
-  , previousActions ∷ Array (Action a)
+  { actions ∷ Array (ActionInternal a)
+  , previousActions ∷ Array (ActionInternal a)
   , filterString ∷ String
   , boundingElement ∷ Maybe HTMLElement
   , boundingDimensions ∷ Maybe Dimensions
@@ -66,17 +66,84 @@ type State a =
 type HTML a = H.ComponentHTML (Query a)
 type DSL a = H.ComponentDSL (State a) (Query a) Slam
 
+-- TODO: Add Pixels newtype
 newtype ActionIconSrc = ActionIconSrc String
 newtype ActionName = ActionName String
+newtype ActionNameWord = ActionNameWord { word ∷ String, widthPx ∷ Number }
 newtype ActionDescription = ActionDescription String
 newtype ActionHighlighted = ActionHighlighted Boolean
 
 data Action a
   = Do ActionName ActionIconSrc ActionDescription ActionHighlighted a
   | Drill ActionName ActionIconSrc ActionDescription (Array (Action a))
-  | GoBack
+
+data ActionInternal a
+  = DoInternal (Array ActionNameWord) ActionIconSrc ActionDescription ActionHighlighted a
+  | DrillInternal (Array ActionNameWord) ActionIconSrc ActionDescription (Array (ActionInternal a))
+  | GoBackInternal
+
+data Presentation
+  = IconOnly
+  | TextOnly
+  | IconAndText
 
 type Dimensions = { width ∷ Number, height ∷ Number }
+
+derive newtype instance eqActionIconSrc :: Eq ActionIconSrc
+derive newtype instance eqActionDescription :: Eq ActionDescription
+derive newtype instance eqActionHighlighted :: Eq ActionHighlighted
+
+instance eqActionNameWord ∷ Eq ActionNameWord where
+  eq (ActionNameWord x) (ActionNameWord y) =
+    x.word == y.word ∧ x.widthPx == y.widthPx
+
+instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a) where
+  eq GoBackInternal GoBackInternal =
+    true
+  eq (DoInternal n1 i1 d1 h1 a1) (DoInternal n2 i2 d2 h2 a2) =
+    n1 ≡ n2
+      ∧ i1 ≡ i2
+      ∧ d1 ≡ d2
+      ∧ h1 ≡ h2
+      ∧ a1 ≡ a2
+  eq (DrillInternal n1 i1 d1 a1) (DrillInternal n2 i2 d2 a2) =
+    n1 ≡ n2
+      ∧ i1 ≡ i2
+      ∧ d1 ≡ d2
+      ∧ a1 ≡ a2
+  eq _ _ =
+    false
+
+wordify ∷ ActionName → Array ActionNameWord
+wordify (ActionName s) =
+  ActionNameWord
+    ∘ (\word → { word, widthPx: textWidth word })
+    <$> Utils.words s
+
+printActionNameWord ∷ ActionNameWord → String
+printActionNameWord (ActionNameWord { word }) =
+  word
+
+printActionNameWords ∷ Array ActionNameWord → String
+printActionNameWords =
+  String.joinWith " " ∘ map printActionNameWord
+
+toActionInternal ∷ ∀ a. Action a → ActionInternal a
+toActionInternal =
+  case _ of
+    Do actionName actionIconSrc actionDescription actionHighlighted a →
+      DoInternal
+        (wordify actionName)
+        actionIconSrc
+        actionDescription
+        actionHighlighted
+        a
+    Drill actionName actionIconSrc actionDescription xs →
+      DrillInternal
+        (wordify actionName)
+        actionIconSrc
+        actionDescription
+        (toActionInternal <$> xs)
 
 _actions ∷ ∀ a r. Lens' { actions ∷ a |r } a
 _actions =
@@ -98,66 +165,74 @@ _boundingDimensions ∷ ∀ a r. Lens' { boundingDimensions ∷ a | r } a
 _boundingDimensions =
   lens _.boundingDimensions (_ { boundingDimensions = _ })
 
-isDo ∷ ∀ a. Action a → Boolean
+isDo ∷ ∀ a. ActionInternal a → Boolean
 isDo =
   case _ of
-    Do _ _ _ _ _ →
+    DoInternal _ _ _ _ _ →
       true
     _ →
       false
 
-isDrill ∷ ∀ a. Action a → Boolean
+isDrill ∷ ∀ a. ActionInternal a → Boolean
 isDrill =
   case _ of
-    Drill _ _ _ _ →
+    DrillInternal _ _ _ _ →
       true
     _ →
       false
 
-isHighlighted ∷ ∀ a. Action a → Boolean
+isHighlighted ∷ ∀ a. ActionInternal a → Boolean
 isHighlighted =
   case _ of
-    Do _ _ _ (ActionHighlighted highlighted) _ →
+    DoInternal _ _ _ (ActionHighlighted highlighted) _ →
       highlighted
-    Drill _ _ _ actions →
+    DrillInternal _ _ _ actions →
       Foldable.any isHighlighted actions
-    GoBack → true
+    GoBackInternal → true
 
-searchFilters ∷ ∀ a. Action a → Array String
+searchFilters ∷ ∀ a. ActionInternal a → Array String
 searchFilters =
   case _ of
-    Do (ActionName name) _ _ _ _ →
-      [ name ]
-    Drill (ActionName name) _ _ actions →
-      [ name ] ⊕ Array.concat (map searchFilters actions)
-    GoBack →
+    DoInternal words _ _ _ _ →
+      [ printActionNameWords words ]
+    DrillInternal words _ _ actions →
+      [ printActionNameWords words ] ⊕ Array.concat (map searchFilters actions)
+    GoBackInternal →
       [ "go back" ]
 
-derive newtype instance eqActionIconSrc :: Eq ActionIconSrc
-derive newtype instance eqActionName :: Eq ActionName
-derive newtype instance eqActionDescription :: Eq ActionDescription
-derive newtype instance eqActionHighlighted :: Eq ActionHighlighted
+actionDescription ∷ ∀ a. ActionInternal a → String
+actionDescription =
+  case _ of
+    DoInternal _ _ (ActionDescription s) _ _ →
+      s
+    DrillInternal _ _ (ActionDescription s) _ →
+      s
+    GoBackInternal →
+      "Go back"
 
-instance eqAction ∷ Eq a ⇒ Eq (Action a) where
-  eq GoBack GoBack =
-    true
-  eq (Do n1 i1 d1 h1 a1) (Do n2 i2 d2 h2 a2) =
-    n1 ≡ n2
-      ∧ i1 ≡ i2
-      ∧ d1 ≡ d2
-      ∧ h1 ≡ h2
-      ∧ a1 ≡ a2
-  eq (Drill n1 i1 d1 a1) (Drill n2 i2 d2 a2) =
-    n1 ≡ n2
-      ∧ i1 ≡ i2
-      ∧ d1 ≡ d2
-      ∧ a1 ≡ a2
-  eq _ _ =
-    false
+actionIconSrc ∷ ∀ a. ActionInternal a → String
+actionIconSrc =
+  case _ of
+    DoInternal _ (ActionIconSrc s) _ _ _ →
+      s
+    DrillInternal _ (ActionIconSrc s) _ _ →
+      s
+    GoBackInternal →
+      "/img/go-back.svg"
+
+actionNameWords ∷ ∀ a. ActionInternal a → Array ActionNameWord
+actionNameWords =
+  case _ of
+    DoInternal xs _ _ _ _ →
+      xs
+    DrillInternal xs _ _ _ →
+      xs
+    GoBackInternal →
+      wordify $ ActionName "Go back"
 
 initialState ∷ ∀ a. Array (Action a) → State a
 initialState actions =
-  { actions
+  { actions: toActionInternal <$> actions
   , previousActions: [ ]
   , filterString: ""
   , boundingElement: Nothing
@@ -200,12 +275,59 @@ render state =
         [ HP.ref $ H.action ∘ SetBoundingElement ]
         (maybe
            []
-           (\buttonDimensions → button buttonDimensions <$> state.actions)
+           renderButtons
            (actionSize
               (Array.length state.actions)
               =<< state.boundingDimensions))
     ]
   where
+  iconHeightRatio ∷ Number
+  iconHeightRatio =
+    0.3
+
+  renderButtons buttonDimensions =
+    renderButton presentation buttonDimensions <$> actions
+    where
+    actions =
+      f (buttonDimensions.width * 0.95) <$> state.actions
+
+    maxNumberOfLines =
+      fromMaybe 0 $ Foldable.maximum $ Array.length ∘ _.lines <$> actions
+
+    maxTextHeight =
+      Int.toNumber maxNumberOfLines * fontSizePx
+
+    -- Allows text which fits vertically but not horizontally.
+    -- Styling truncates overflowing lines with ellipses.
+    --
+    -- E.g. where there is only room for two lines:
+    -- "Show Chart" would be presented without an icon as
+    --
+    -- Sh...
+    -- Ch...
+    --
+    -- But "Build pie chart" would be presented with only an icon.
+    --
+    -- The reasoning behind this is that presentation should be
+    -- unform per action list but that the entire list shouldn't be
+    -- reduced to only icons just because "Troubleshoot" would be
+    -- truncated to "Troublesh...".
+    presentation ∷ Presentation
+    presentation =
+      if maxTextHeight > buttonDimensions.height ∨ buttonDimensions.width < 40.0
+        then
+          IconOnly
+        else
+          if maxTextHeight + (iconHeightRatio + 0.2) * buttonDimensions.height > buttonDimensions.height
+            then
+              TextOnly
+            else
+              IconAndText
+
+  f ∷ Number → ActionInternal a → { action ∷ ActionInternal a, lines ∷ Array String }
+  f widthPx action =
+    { action, lines: lines widthPx $ printActionNameWord <$> actionNameWords action }
+
   decimalCrop ∷ Int → Number → Number
   decimalCrop i n =
     (Math.floor $ n * multiplier) / multiplier
@@ -227,8 +349,12 @@ render state =
   filterString =
     String.toLower state.filterString
 
-  button ∷ Dimensions → Action a → HTML a
-  button dimensions action =
+  renderButton
+    ∷ Presentation
+    → Dimensions
+    → { action ∷ ActionInternal a, lines ∷ Array String }
+    → HTML a
+  renderButton presentation dimensions { action, lines } =
     HH.li
       [ HCSS.style
           $ CSS.width (CSS.px $ firefoxify dimensions.width)
@@ -236,17 +362,23 @@ render state =
       ]
       [ HH.button
           attrs
-          ((guard presentIcon $> renderIcon) <> (guard presentText $> renderName))
+          $ case presentation of
+              IconOnly →
+                [ renderIcon 0.5 0.0 ]
+              TextOnly →
+                [ renderName ]
+              IconAndText →
+                [ renderIcon 0.3 0.05, renderName ]
       ]
     where
-    renderIcon ∷ HTML a
-    renderIcon =
+    renderIcon ∷ Number → Number → HTML a
+    renderIcon sizeRatio marginRatio =
       HH.img
         [ HP.src $ actionIconSrc action
         , HCSS.style
-            $ CSS.width (CSS.px $ dimensions.width * 0.3)
-            *> CSS.height (CSS.px $ dimensions.height * 0.3)
-            *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
+            $ CSS.width (CSS.px $ dimensions.width * sizeRatio)
+            *> CSS.height (CSS.px $ dimensions.height * sizeRatio)
+            *> CSS.marginBottom (CSS.px $ dimensions.height * marginRatio)
         ]
 
     renderName ∷ HTML a
@@ -258,23 +390,7 @@ render state =
         ]
         $ Array.intercalate
             [ HH.br_ ]
-            $ Array.singleton ∘ HH.text <$> actionNameLines
-
-    presentText ∷ Boolean
-    presentText =
-      textFits spaceForTextWithIcon (actionName action) || textFitsVertically
-
-    presentIcon ∷ Boolean
-    presentIcon =
-      textFits spaceForTextWithIcon (actionName action) || not textFitsVertically
-
-    textFitsVertically ∷ Boolean
-    textFitsVertically =
-      dimensions.height >= ((Int.toNumber $ Array.length $ actionNameLines) * lineHeightPx)
-
-    actionNameLines ∷ Array String
-    actionNameLines =
-      lines spaceForTextWithIcon.width $ actionName action
+            $ Array.singleton ∘ HH.text <$> lines
 
     firefoxify ∷ Number → Number
     firefoxify n =
@@ -282,16 +398,10 @@ render state =
          then decimalCrop 1 n
          else n
 
-    spaceForTextWithIcon ∷ Dimensions
-    spaceForTextWithIcon =
-      { width: dimensions.width * 0.75
-      , height: dimensions.height * 0.4
-      }
-
     enabled ∷ Boolean
     enabled =
       case action of
-        GoBack →
+        GoBackInternal →
           true
         _ →
           Foldable.any
@@ -307,36 +417,6 @@ render state =
       , HP.buttonType HP.ButtonButton
       , HCSS.style $ CSS.position CSS.relative
       ]
-
-    actionDescription ∷ Action a → String
-    actionDescription =
-      case _ of
-        Do _ _ (ActionDescription s) _ _ →
-          s
-        Drill _ _ (ActionDescription s) _ →
-          s
-        GoBack →
-          "Go back"
-
-    actionIconSrc ∷ Action a → String
-    actionIconSrc =
-      case _ of
-        Do _ (ActionIconSrc s) _ _ _ →
-          s
-        Drill _ (ActionIconSrc s) _ _ →
-          s
-        GoBack →
-          "/img/go-back.svg"
-
-    actionName ∷ Action a → String
-    actionName =
-      case _ of
-        Do (ActionName s) _ _ _ _ →
-          s
-        Drill (ActionName s) _ _ _ →
-          s
-        GoBack →
-          "Go back"
 
     classes ∷ Array HH.ClassName
     classes =
@@ -364,7 +444,7 @@ nextNonPrime =
       then Loop $ i + 1
       else Done i
 
-updateActions ∷ ∀ a. Eq a ⇒ Array (Action a) → State a → State a
+updateActions ∷ ∀ a. Eq a ⇒ Array (ActionInternal a) → State a → State a
 updateActions newActions state =
   case activeDrill of
     Nothing →
@@ -376,7 +456,7 @@ updateActions newActions state =
         , actions = fromMaybe [] $ pluckDrillActions =<< newActiveDrill
         }
   where
-  activeDrill ∷ Maybe (Action a)
+  activeDrill ∷ Maybe (ActionInternal a)
   activeDrill =
     Foldable.find
       (maybe false (eq state.actions) ∘ pluckDrillActions)
@@ -387,7 +467,7 @@ updateActions newActions state =
 
   pluckDrillActions =
     case _ of
-      Drill _ _ _ xs → Just xs
+      DrillInternal _ _ _ xs → Just xs
       _ → Nothing
 
 domRectToDimensions ∷ DOMRect → Dimensions
@@ -407,18 +487,18 @@ eval =
     Selected action next → do
       st ← H.get
       case action of
-        Do _ _ _ _ _ → pure unit
-        Drill _ _ _ actions →
+        DoInternal _ _ _ _ _ → pure unit
+        DrillInternal _ _ _ actions →
           H.modify
-            $ (_actions .~ (GoBack `Array.cons` actions))
+            $ (_actions .~ (GoBackInternal `Array.cons` actions))
             ∘ (_previousActions .~ st.actions)
-        GoBack →
+        GoBackInternal →
           H.modify
             $ (_actions .~ st.previousActions)
             ∘ (_previousActions .~ [ ])
       pure next
     UpdateActions actions next →
-      H.modify (updateActions actions) $> next
+      H.modify (updateActions $ toActionInternal <$> actions) $> next
     CalculateBoundingRect next →
       (H.modify
         ∘ (_boundingDimensions .~ _)
@@ -435,17 +515,9 @@ floor dimensions =
   , height: Math.floor dimensions.height
 }
 
-textFits ∷ Dimensions → String → Boolean
-textFits dimensions =
-  (>=) dimensions.height
-    ∘ (_ * lineHeightPx)
-    ∘ Int.toNumber
-    ∘ Array.length
-    ∘ lines dimensions.width
-
-lines ∷ Number → String → Array String
-lines width text =
-  foldl go [] $ Utils.words text
+lines ∷ Number → Array String → Array String
+lines width words =
+  foldl go [] words
   where
   go ∷ Array String → String → Array String
   go acc s =
@@ -457,9 +529,11 @@ lines width text =
           then Array.snoc tail (head <> " " <> s)
           else Array.snoc acc s
 
-  textWidth ∷ String → Number
-  textWidth =
-    flip DOMUtils.getTextWidthPure (show fontSizePx <> "px")
+textWidth ∷ String → Number
+textWidth =
+  flip
+    DOMUtils.getTextWidthPure
+    $ "normal " <> show fontSizePx <> "px Ubuntu"
 
 fontSizePx ∷ Number
 fontSizePx =

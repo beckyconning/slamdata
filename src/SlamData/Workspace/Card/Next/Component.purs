@@ -138,11 +138,11 @@ peek ∷ ∀ a. ActionList.Query NA.NextAction a → NextDSL Unit
 peek = case _ of
   ActionList.Selected action _ →
     case action of
-      ActionList.GoBack →
+      ActionList.GoBackInternal →
         pure unit
-      ActionList.Drill _ _ _ _ →
+      ActionList.DrillInternal _ _ _ _ →
         pure unit
-      ActionList.Do _ _ _ _ nextAction →
+      ActionList.DoInternal _ _ _ _ nextAction →
         case nextAction of
           NA.Insert cardType →
             HU.raise' $ H.action $ AddCard cardType
