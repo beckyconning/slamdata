@@ -114,6 +114,12 @@ instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a) where
   eq _ _ =
     false
 
+isIconOnly ∷ Presentation → Boolean
+isIconOnly =
+  case _ of
+    IconOnly → true
+    _ → false
+
 wordify ∷ ActionName → Array ActionNameWord
 wordify (ActionName s) =
   ActionNameWord
@@ -364,22 +370,38 @@ render state =
           attrs
           $ case presentation of
               IconOnly →
-                [ renderIcon 0.5 0.0 ]
+                [ renderIcon 0.5 ]
               TextOnly →
                 [ renderName ]
               IconAndText →
-                [ renderIcon 0.3 0.05, renderName ]
+                [ renderIcon 0.3, renderName ]
       ]
     where
-    renderIcon ∷ Number → Number → HTML a
-    renderIcon sizeRatio marginRatio =
+    renderIcon ∷ Number → HTML a
+    renderIcon sizeRatio =
       HH.img
         [ HP.src $ actionIconSrc action
         , HCSS.style
             $ CSS.width (CSS.px $ dimensions.width * sizeRatio)
             *> CSS.height (CSS.px $ dimensions.height * sizeRatio)
-            *> CSS.marginBottom (CSS.px $ dimensions.height * marginRatio)
+            *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
+            -- Stops icon only presentations from being cut off in squat buttons.
+            *> (if (isIconOnly presentation)
+                  then
+                    CSS.position CSS.absolute
+                      *> CSS.left (CSS.px $ iconOnlyLeftPx sizeRatio)
+                      *> CSS.top (CSS.px $ iconOnlyTopPx sizeRatio)
+                  else
+                    CSS.position CSS.relative)
         ]
+
+    iconOnlyLeftPx ∷ Number → Number
+    iconOnlyLeftPx sizeRatio =
+      (dimensions.width / 2.0) - ((dimensions.width * sizeRatio) / 2.0)
+
+    iconOnlyTopPx ∷ Number → Number
+    iconOnlyTopPx sizeRatio =
+      (dimensions.height / 2.0) - ((dimensions.height * sizeRatio) / 2.0) - 1.0
 
     renderName ∷ HTML a
     renderName =
