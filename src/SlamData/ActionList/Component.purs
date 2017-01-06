@@ -18,8 +18,6 @@ module SlamData.ActionList.Component where
 
 import SlamData.Prelude
 
-import Control.Monad.Rec.Class (tailRec, Step(Loop, Done))
-
 import CSS as CSS
 
 import Data.Array ((..))
@@ -318,23 +316,38 @@ render state =
               =<< state.boundingDimensions))
     ]
   where
-  actionSize ∷ Int → Dimensions → Maybe Dimensions
+  actionSize
+    ∷ Int
+    → Dimensions
+    → Maybe { dimensions ∷ Dimensions, leavesASpace ∷ Boolean }
   actionSize i boundingDimensions = do
     firstTry ← mostSquareFittingRectangle i boundingDimensions
     if firstTry.height ≡ boundingDimensions.height
       then do
-        secondTry ← mostSquareFittingRectangle (nextNonPrime i) boundingDimensions
+        secondTry ← mostSquareFittingRectangle (i + 1) boundingDimensions
         if secondTry.height ≡ boundingDimensions.height
-           then pure firstTry
-           else pure secondTry
-      else pure firstTry
+           then pure { dimensions: firstTry, leavesASpace: false }
+           else pure { dimensions: secondTry, leavesASpace: true }
+        else pure { dimensions: firstTry, leavesASpace: false }
 
-renderButtons ∷ ∀ a. String → Array (ActionInternal a) → Dimensions → Array (HTML a)
+renderButtons
+  ∷ ∀ a
+  . String
+  → Array (ActionInternal a)
+  → { dimensions ∷ Dimensions, leavesASpace ∷ Boolean }
+  → Array (HTML a)
 renderButtons filterString actions buttonDimensions =
-  renderButton filterString presentation metrics <$> actionsWithLines
+  if buttonDimensions.leavesASpace
+    then realButtons <> [ renderSpaceFillerButton metrics ]
+    else realButtons
   where
+  realButtons ∷ Array (HTML a)
+  realButtons =
+    renderButton filterString presentation metrics <$> actionsWithLines
+
+  actionsWithLines ∷ Array { action ∷ ActionInternal a, lines ∷ Array String }
   actionsWithLines =
-    toActionWithLines (buttonDimensions.width * 0.95) <$> actions
+    toActionWithLines (buttonDimensions.dimensions.width * 0.95) <$> actions
 
   toActionWithLines
     ∷ Number
@@ -347,17 +360,17 @@ renderButtons filterString actions buttonDimensions =
 
   iconDimensions ∷ Dimensions
   iconDimensions =
-    { width: buttonDimensions.width * iconSizeRatio
-    , height: buttonDimensions.height * iconSizeRatio
+    { width: buttonDimensions.dimensions.width * iconSizeRatio
+    , height: buttonDimensions.dimensions.height * iconSizeRatio
     }
 
   metrics ∷ ButtonMetrics
   metrics =
-    { dimensions: buttonDimensions
+    { dimensions: buttonDimensions.dimensions
     , iconDimensions: iconDimensions
-    , iconMarginPx: buttonDimensions.height * 0.05
-    , iconOnlyLeftPx: (buttonDimensions.width / 2.0) - (iconDimensions.width / 2.0)
-    , iconOnlyTopPx: (buttonDimensions.height / 2.0) - (iconDimensions.height / 2.0) - 1.0
+    , iconMarginPx: buttonDimensions.dimensions.height * 0.05
+    , iconOnlyLeftPx: (buttonDimensions.dimensions.width / 2.0) - (iconDimensions.width / 2.0)
+    , iconOnlyTopPx: (buttonDimensions.dimensions.height / 2.0) - (iconDimensions.height / 2.0) - 1.0
     }
 
   maxNumberOfLines ∷ Int
@@ -370,7 +383,7 @@ renderButtons filterString actions buttonDimensions =
 
   buttonPaddingEstimatePx ∷ Number
   buttonPaddingEstimatePx =
-    buttonDimensions.height * buttonPaddingHighEstimate
+    buttonDimensions.dimensions.height * buttonPaddingHighEstimate
 
   textDoesNotFitWithIcon ∷ Boolean
   textDoesNotFitWithIcon =
@@ -378,12 +391,12 @@ renderButtons filterString actions buttonDimensions =
       + iconDimensions.height
       + metrics.iconMarginPx
       + buttonPaddingEstimatePx
-      > buttonDimensions.height
+      > buttonDimensions.dimensions.height
 
   textDoesNotFitOnItsOwn ∷ Boolean
   textDoesNotFitOnItsOwn =
-    maxTextHeightPx > buttonDimensions.height
-      ∨ buttonDimensions.width < 40.0
+    maxTextHeightPx > buttonDimensions.dimensions.height
+      ∨ buttonDimensions.dimensions.width < 40.0
 
   -- Allows text which fits vertically but not horizontally.
   -- Styling truncates overflowing lines with ellipses.
@@ -423,6 +436,24 @@ firefoxify n =
   if Utils.isFirefox
      then decimalCrop 1 n
      else n
+
+renderSpaceFillerButton ∷ ∀ a. ButtonMetrics → HTML a
+renderSpaceFillerButton metrics =
+  HH.li
+    [ HCSS.style
+        $ CSS.width (CSS.px $ firefoxify metrics.dimensions.width)
+        *> CSS.height (CSS.px $ firefoxify metrics.dimensions.height)
+    ]
+    [ HH.button
+        [ HP.classes
+            [ HH.className "sd-button"
+            , HH.className "sd-button-warning"
+            ]
+        , HP.disabled true
+        , HP.buttonType HP.ButtonButton
+        ]
+        []
+    ]
 
 renderButton
   ∷ ∀ a
@@ -491,10 +522,10 @@ renderButton filterString presentation metrics { action, lines } =
   attrs =
     [ HP.title $ pluckActionDescription action
     , HP.disabled $ not enabled
+    , HP.buttonType HP.ButtonButton
     , ARIA.label $ pluckActionDescription action
     , HP.classes classes
     , HE.onClick (HE.input_ $ Selected action)
-    , HP.buttonType HP.ButtonButton
     , HCSS.style $ CSS.position CSS.relative
     ]
 
@@ -513,16 +544,6 @@ factors n = do
   factor ← 1 .. n
   guard $ n `mod` factor ≡ 0
   pure factor
-
-nextNonPrime :: Int -> Int
-nextNonPrime =
-  tailRec go
-  where
-  go :: Int -> Step Int Int
-  go i =
-    if Array.length (factors i) ≡ 2
-      then Loop $ i + 1
-      else Done i
 
 updateActions ∷ ∀ a. Eq a ⇒ Array (ActionInternal a) → State a → State a
 updateActions newActions state =
