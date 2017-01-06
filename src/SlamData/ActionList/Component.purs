@@ -70,6 +70,7 @@ type DSL a = H.ComponentDSL (State a) (Query a) Slam
 newtype ActionIconSrc = ActionIconSrc String
 newtype ActionName = ActionName String
 newtype ActionNameWord = ActionNameWord { word ∷ String, widthPx ∷ Number }
+newtype ActionNameLine = ActionNameLine { line ∷ String, widthPx ∷ Number }
 newtype ActionDescription = ActionDescription String
 newtype ActionHighlighted = ActionHighlighted Boolean
 
@@ -89,13 +90,21 @@ data Presentation
 
 type Dimensions = { width ∷ Number, height ∷ Number }
 
+type ButtonMetrics =
+  { dimensions ∷ Dimensions
+  , iconDimensions ∷ Dimensions
+  , iconMarginPx ∷ Number
+  , iconOnlyLeftPx ∷ Number
+  , iconOnlyTopPx ∷ Number
+  }
+
 derive newtype instance eqActionIconSrc :: Eq ActionIconSrc
 derive newtype instance eqActionDescription :: Eq ActionDescription
 derive newtype instance eqActionHighlighted :: Eq ActionHighlighted
 
 instance eqActionNameWord ∷ Eq ActionNameWord where
   eq (ActionNameWord x) (ActionNameWord y) =
-    x.word == y.word ∧ x.widthPx == y.widthPx
+    x.word ≡ y.word ∧ x.widthPx ≡ y.widthPx
 
 instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a) where
   eq GoBackInternal GoBackInternal =
@@ -114,6 +123,24 @@ instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a) where
   eq _ _ =
     false
 
+fontSizePx ∷ Number
+fontSizePx =
+  12.0
+
+lineHeightPx ∷ Number
+lineHeightPx =
+  13.0
+
+iconSizeRatio ∷ Number
+iconSizeRatio =
+  0.3
+
+-- Buttons are rendered with mystery centering and padding.
+-- This can cause text to overflow.
+buttonPaddingHighEstimate ∷ Number
+buttonPaddingHighEstimate =
+  0.2
+
 isIconOnly ∷ Presentation → Boolean
 isIconOnly =
   case _ of
@@ -129,6 +156,10 @@ wordify (ActionName s) =
 printActionNameWord ∷ ActionNameWord → String
 printActionNameWord (ActionNameWord { word }) =
   word
+
+printActionNameLine ∷ ActionNameLine → String
+printActionNameLine (ActionNameLine { line }) =
+  line
 
 printActionNameWords ∷ Array ActionNameWord → String
 printActionNameWords =
@@ -206,8 +237,8 @@ searchFilters =
     GoBackInternal →
       [ "go back" ]
 
-actionDescription ∷ ∀ a. ActionInternal a → String
-actionDescription =
+pluckActionDescription ∷ ∀ a. ActionInternal a → String
+pluckActionDescription =
   case _ of
     DoInternal _ _ (ActionDescription s) _ _ →
       s
@@ -216,8 +247,8 @@ actionDescription =
     GoBackInternal →
       "Go back"
 
-actionIconSrc ∷ ∀ a. ActionInternal a → String
-actionIconSrc =
+pluckActionIconSrc ∷ ∀ a. ActionInternal a → String
+pluckActionIconSrc =
   case _ of
     DoInternal _ (ActionIconSrc s) _ _ _ →
       s
@@ -281,65 +312,12 @@ render state =
         [ HP.ref $ H.action ∘ SetBoundingElement ]
         (maybe
            []
-           renderButtons
+           (renderButtons (String.toLower state.filterString) state.actions)
            (actionSize
               (Array.length state.actions)
               =<< state.boundingDimensions))
     ]
   where
-  iconHeightRatio ∷ Number
-  iconHeightRatio =
-    0.3
-
-  renderButtons buttonDimensions =
-    renderButton presentation buttonDimensions <$> actions
-    where
-    actions =
-      f (buttonDimensions.width * 0.95) <$> state.actions
-
-    maxNumberOfLines =
-      fromMaybe 0 $ Foldable.maximum $ Array.length ∘ _.lines <$> actions
-
-    maxTextHeight =
-      Int.toNumber maxNumberOfLines * fontSizePx
-
-    -- Allows text which fits vertically but not horizontally.
-    -- Styling truncates overflowing lines with ellipses.
-    --
-    -- E.g. where there is only room for two lines:
-    -- "Show Chart" would be presented without an icon as
-    --
-    -- Sh...
-    -- Ch...
-    --
-    -- But "Build pie chart" would be presented with only an icon.
-    --
-    -- The reasoning behind this is that presentation should be
-    -- unform per action list but that the entire list shouldn't be
-    -- reduced to only icons just because "Troubleshoot" would be
-    -- truncated to "Troublesh...".
-    presentation ∷ Presentation
-    presentation =
-      if maxTextHeight > buttonDimensions.height ∨ buttonDimensions.width < 40.0
-        then
-          IconOnly
-        else
-          if maxTextHeight + (iconHeightRatio + 0.2) * buttonDimensions.height > buttonDimensions.height
-            then
-              TextOnly
-            else
-              IconAndText
-
-  f ∷ Number → ActionInternal a → { action ∷ ActionInternal a, lines ∷ Array String }
-  f widthPx action =
-    { action, lines: lines widthPx $ printActionNameWord <$> actionNameWords action }
-
-  decimalCrop ∷ Int → Number → Number
-  decimalCrop i n =
-    (Math.floor $ n * multiplier) / multiplier
-    where
-    multiplier = Math.pow 10.0 $ Int.toNumber i
-
   actionSize ∷ Int → Dimensions → Maybe Dimensions
   actionSize i boundingDimensions = do
     firstTry ← mostSquareFittingRectangle i boundingDimensions
@@ -351,104 +329,184 @@ render state =
            else pure secondTry
       else pure firstTry
 
-  filterString ∷ String
-  filterString =
-    String.toLower state.filterString
+renderButtons ∷ ∀ a. String → Array (ActionInternal a) → Dimensions → Array (HTML a)
+renderButtons filterString actions buttonDimensions =
+  renderButton filterString presentation metrics <$> actionsWithLines
+  where
+  actionsWithLines =
+    toActionWithLines (buttonDimensions.width * 0.95) <$> actions
 
-  renderButton
-    ∷ Presentation
-    → Dimensions
+  toActionWithLines
+    ∷ Number
+    → ActionInternal a
     → { action ∷ ActionInternal a, lines ∷ Array String }
-    → HTML a
-  renderButton presentation dimensions { action, lines } =
-    HH.li
+  toActionWithLines widthPx action =
+    { action
+    , lines: printActionNameLine <$> (calculateLines widthPx $ actionNameWords action)
+    }
+
+  iconDimensions ∷ Dimensions
+  iconDimensions =
+    { width: buttonDimensions.width * iconSizeRatio
+    , height: buttonDimensions.height * iconSizeRatio
+    }
+
+  metrics ∷ ButtonMetrics
+  metrics =
+    { dimensions: buttonDimensions
+    , iconDimensions: iconDimensions
+    , iconMarginPx: buttonDimensions.height * 0.05
+    , iconOnlyLeftPx: (buttonDimensions.width / 2.0) - (iconDimensions.width / 2.0)
+    , iconOnlyTopPx: (buttonDimensions.height / 2.0) - (iconDimensions.height / 2.0) - 1.0
+    }
+
+  maxNumberOfLines ∷ Int
+  maxNumberOfLines =
+    fromMaybe 0 $ Foldable.maximum $ Array.length ∘ _.lines <$> actionsWithLines
+
+  maxTextHeightPx ∷ Number
+  maxTextHeightPx =
+    Int.toNumber maxNumberOfLines * fontSizePx
+
+  buttonPaddingEstimatePx ∷ Number
+  buttonPaddingEstimatePx =
+    buttonDimensions.height * buttonPaddingHighEstimate
+
+  textDoesNotFitWithIcon ∷ Boolean
+  textDoesNotFitWithIcon =
+    maxTextHeightPx
+      + iconDimensions.height
+      + metrics.iconMarginPx
+      + buttonPaddingEstimatePx
+      > buttonDimensions.height
+
+  textDoesNotFitOnItsOwn ∷ Boolean
+  textDoesNotFitOnItsOwn =
+    maxTextHeightPx > buttonDimensions.height
+      ∨ buttonDimensions.width < 40.0
+
+  -- Allows text which fits vertically but not horizontally.
+  -- Styling truncates overflowing lines with ellipses.
+  --
+  -- E.g. where there is only room for two lines:
+  -- "Show Chart" would be presented without an icon as
+  --
+  -- Sh...
+  -- Ch...
+  --
+  -- But "Build pie chart" would be presented with only an icon.
+  --
+  -- The reasoning behind this is that presentation should be
+  -- unform per action list but that the entire list shouldn't be
+  -- reduced to only icons just because "Troubleshoot" would be
+  -- truncated to "Troublesh...".
+  presentation ∷ Presentation
+  presentation =
+    if textDoesNotFitOnItsOwn ∨ maxNumberOfLines ≡ 0
+      then
+        IconOnly
+      else
+        if textDoesNotFitWithIcon
+          then
+            TextOnly
+          else
+            IconAndText
+
+decimalCrop ∷ Int → Number → Number
+decimalCrop i n =
+  (Math.floor $ n * multiplier) / multiplier
+  where
+  multiplier = Math.pow 10.0 $ Int.toNumber i
+
+firefoxify ∷ Number → Number
+firefoxify n =
+  if Utils.isFirefox
+     then decimalCrop 1 n
+     else n
+
+renderButton
+  ∷ ∀ a
+  . String
+  → Presentation
+  → ButtonMetrics
+  → { action ∷ ActionInternal a, lines ∷ Array String }
+  → HTML a
+renderButton filterString presentation metrics { action, lines } =
+  HH.li
+    [ HCSS.style
+        $ CSS.width (CSS.px $ firefoxify metrics.dimensions.width)
+        *> CSS.height (CSS.px $ firefoxify metrics.dimensions.height)
+    ]
+    [ HH.button
+        attrs
+        $ case presentation of
+            IconOnly →
+              [ renderIcon 0.5 ]
+            TextOnly →
+              [ renderName ]
+            IconAndText →
+              [ renderIcon 0.3, renderName ]
+    ]
+  where
+  renderIcon ∷ Number → HTML a
+  renderIcon sizeRatio =
+    HH.img
+      [ HP.src $ pluckActionIconSrc action
+      , HCSS.style
+          $ CSS.width (CSS.px metrics.iconDimensions.width)
+          *> CSS.height (CSS.px metrics.iconDimensions.height)
+          *> CSS.marginBottom (CSS.px metrics.iconMarginPx)
+          -- Stops icon only presentations from being cut off in short wide
+          -- buttons.
+          *> (if (isIconOnly presentation)
+                then
+                  CSS.position CSS.absolute
+                    *> CSS.left (CSS.px metrics.iconOnlyLeftPx)
+                    *> CSS.top (CSS.px metrics.iconOnlyTopPx)
+                else
+                  CSS.position CSS.relative)
+      ]
+
+  renderName ∷ HTML a
+  renderName =
+    HH.p
       [ HCSS.style
-          $ CSS.width (CSS.px $ firefoxify dimensions.width)
-          *> CSS.height (CSS.px $ firefoxify dimensions.height)
+          $ CSS.fontSize (CSS.px $ fontSizePx)
+          *> CSSUtils.lineHeight (show lineHeightPx <> "px")
       ]
-      [ HH.button
-          attrs
-          $ case presentation of
-              IconOnly →
-                [ renderIcon 0.5 ]
-              TextOnly →
-                [ renderName ]
-              IconAndText →
-                [ renderIcon 0.3, renderName ]
-      ]
-    where
-    renderIcon ∷ Number → HTML a
-    renderIcon sizeRatio =
-      HH.img
-        [ HP.src $ actionIconSrc action
-        , HCSS.style
-            $ CSS.width (CSS.px $ dimensions.width * sizeRatio)
-            *> CSS.height (CSS.px $ dimensions.height * sizeRatio)
-            *> CSS.marginBottom (CSS.px $ dimensions.height * 0.05)
-            -- Stops icon only presentations from being cut off in squat buttons.
-            *> (if (isIconOnly presentation)
-                  then
-                    CSS.position CSS.absolute
-                      *> CSS.left (CSS.px $ iconOnlyLeftPx sizeRatio)
-                      *> CSS.top (CSS.px $ iconOnlyTopPx sizeRatio)
-                  else
-                    CSS.position CSS.relative)
+      $ Array.intercalate
+          [ HH.br_ ]
+          $ Array.singleton ∘ HH.text <$> lines
+
+  enabled ∷ Boolean
+  enabled =
+    case action of
+      GoBackInternal →
+        true
+      _ →
+        Foldable.any
+          (String.contains (String.Pattern filterString) ∘ String.toLower)
+          (searchFilters action)
+
+  attrs =
+    [ HP.title $ pluckActionDescription action
+    , HP.disabled $ not enabled
+    , ARIA.label $ pluckActionDescription action
+    , HP.classes classes
+    , HE.onClick (HE.input_ $ Selected action)
+    , HP.buttonType HP.ButtonButton
+    , HCSS.style $ CSS.position CSS.relative
+    ]
+
+  classes ∷ Array HH.ClassName
+  classes =
+    if isHighlighted action && enabled
+      then
+        [ HH.className "sd-button" ]
+      else
+        [ HH.className "sd-button"
+        , HH.className "sd-button-warning"
         ]
-
-    iconOnlyLeftPx ∷ Number → Number
-    iconOnlyLeftPx sizeRatio =
-      (dimensions.width / 2.0) - ((dimensions.width * sizeRatio) / 2.0)
-
-    iconOnlyTopPx ∷ Number → Number
-    iconOnlyTopPx sizeRatio =
-      (dimensions.height / 2.0) - ((dimensions.height * sizeRatio) / 2.0) - 1.0
-
-    renderName ∷ HTML a
-    renderName =
-      HH.p
-        [ HCSS.style
-            $ CSS.fontSize (CSS.px $ fontSizePx)
-            *> CSSUtils.lineHeight (show lineHeightPx <> "px")
-        ]
-        $ Array.intercalate
-            [ HH.br_ ]
-            $ Array.singleton ∘ HH.text <$> lines
-
-    firefoxify ∷ Number → Number
-    firefoxify n =
-      if Utils.isFirefox
-         then decimalCrop 1 n
-         else n
-
-    enabled ∷ Boolean
-    enabled =
-      case action of
-        GoBackInternal →
-          true
-        _ →
-          Foldable.any
-            (String.contains (String.Pattern filterString) ∘ String.toLower)
-            (searchFilters action)
-
-    attrs =
-      [ HP.title $ actionDescription action
-      , HP.disabled $ not enabled
-      , ARIA.label $ actionDescription action
-      , HP.classes classes
-      , HE.onClick (HE.input_ $ Selected action)
-      , HP.buttonType HP.ButtonButton
-      , HCSS.style $ CSS.position CSS.relative
-      ]
-
-    classes ∷ Array HH.ClassName
-    classes =
-      if isHighlighted action && enabled
-        then
-          [ HH.className "sd-button" ]
-        else
-          [ HH.className "sd-button"
-          , HH.className "sd-button-warning"
-          ]
 
 factors ∷ Int → Array Int
 factors n = do
@@ -537,37 +595,38 @@ floor dimensions =
   , height: Math.floor dimensions.height
 }
 
-lines ∷ Number → Array String → Array String
-lines width words =
+calculateLines ∷ Number → Array ActionNameWord → Array ActionNameLine
+calculateLines width words =
   foldl go [] words
   where
-  go ∷ Array String → String → Array String
-  go acc s =
+  go ∷ Array ActionNameLine → ActionNameWord → Array ActionNameLine
+  go acc (ActionNameWord { word, widthPx: wordWidthPx }) =
     case Array.uncons acc of
       Nothing →
-        [ s ]
-      Just { head, tail } →
-        if (textWidth $ head <> " " <> s) <= width
-          then Array.snoc tail (head <> " " <> s)
-          else Array.snoc acc s
+        [ ActionNameLine { line: word, widthPx: wordWidthPx } ]
+      Just { head: ActionNameLine { line, widthPx: lineWidthPx }, tail } →
+        if (lineWidthPx + spaceWidth + wordWidthPx) <= width
+          then
+            Array.snoc
+              tail
+              $ ActionNameLine
+                  { line: line <> " " <> word
+                  , widthPx: lineWidthPx + spaceWidth + wordWidthPx
+                  }
+          else
+            Array.snoc
+              acc
+              $ ActionNameLine { line: word, widthPx: wordWidthPx }
+
+spaceWidth ∷ Number
+spaceWidth =
+  textWidth " "
 
 textWidth ∷ String → Number
 textWidth =
   flip
     DOMUtils.getTextWidthPure
     $ "normal " <> show fontSizePx <> "px Ubuntu"
-
-fontSizePx ∷ Number
-fontSizePx =
-  12.0
-
-lineHeightPx ∷ Number
-lineHeightPx =
-  13.0
-
-iconSizePercent ∷ Number
-iconSizePercent =
-  30.0
 
 mostSquareFittingRectangle ∷ Int → Dimensions → Maybe Dimensions
 mostSquareFittingRectangle i boundingDimensions =
