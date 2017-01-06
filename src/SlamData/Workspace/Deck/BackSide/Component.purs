@@ -21,28 +21,25 @@ import SlamData.Prelude
 import Data.Array as A
 import Data.Foldable as F
 import Data.List (List(..), (:))
-import Data.String as Str
 
 import Halogen as H
-import Halogen.HTML.Events.Indexed as HE
+import Halogen.Component.ChildPath (cpI)
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 
+import SlamData.ActionList.Component as ActionList
 import SlamData.Monad (Slam)
 import SlamData.Quasar.Auth (getIdToken)
-import SlamData.Render.Common as RC
 import SlamData.Render.CSS as CSS
 import SlamData.Workspace.Card.CardType as CT
-import SlamData.Workspace.Card.Model as CM
 import SlamData.Workspace.Card.Component.CSS as CCSS
+import SlamData.Workspace.Card.Model as CM
 import SlamData.Workspace.Deck.Component.State (CardDef)
 import SlamData.Workspace.Deck.DeckId (DeckId)
 import SlamData.Workspace.Eval.Persistence as P
 
 data Query a
-  = UpdateFilter String a
-  | DoAction BackAction a
+  = DoAction BackAction a
   | UpdateCard (Maybe CardDef) (Array CardDef) a
   | Init a
 
@@ -58,6 +55,47 @@ data BackAction
   | Unwrap
   | Share
   | Unshare
+
+type BackSideOptions =
+  { deckId ∷ DeckId
+  , displayCursor ∷ List DeckId
+  }
+
+type State =
+  { activeCard ∷ Maybe CardDef
+  , cardDefs ∷ Array CardDef
+  , saved ∷ Boolean
+  , isLogged ∷ Boolean
+  , unwrappable ∷ Boolean
+  }
+
+type StateP =
+  H.ParentState
+    State
+    (ActionList.State Unit)
+    Query
+    (ActionList.Query Unit)
+    Slam
+    Unit
+
+type HTML =
+  H.ParentHTML
+    (ActionList.State Unit)
+    Query
+    (ActionList.Query Unit)
+    Slam
+    Unit
+
+type DSL =
+  H.ParentDSL
+    State
+    (ActionList.State Unit)
+    Query
+    (ActionList.Query Unit)
+    Slam
+    Unit
+
+type QueryP = Query ⨁ H.ChildF Unit (ActionList.Query Unit)
 
 allBackActions ∷ State → Array BackAction
 allBackActions state =
@@ -77,24 +115,9 @@ allBackActions state =
     , Unwrap
     ]
 
-type BackSideOptions =
-  { deckId ∷ DeckId
-  , displayCursor ∷ List DeckId
-  }
-
-type State =
-  { filterString ∷ String
-  , activeCard ∷ Maybe CardDef
-  , cardDefs ∷ Array CardDef
-  , saved ∷ Boolean
-  , isLogged ∷ Boolean
-  , unwrappable ∷ Boolean
-  }
-
 initialState ∷ State
 initialState =
-  { filterString: ""
-  , activeCard: Nothing
+  { activeCard: Nothing
   , cardDefs: mempty
   , saved: false
   , isLogged: false
@@ -135,16 +158,14 @@ actionGlyph = case _ of
   Unwrap → HH.img [ HP.src "img/cardAndDeckActions/unwrapDeck.svg" ]
   DeleteDeck → HH.img [ HP.src "img/cardAndDeckActions/deleteDeck.svg" ]
 
-type HTML = H.ComponentHTML Query
-type DSL = H.ComponentDSL State Query Slam
-
-comp ∷ BackSideOptions → H.Component State Query Slam
+comp ∷ BackSideOptions → H.Component StateP QueryP Slam
 comp opts =
-  H.lifecycleComponent
+  H.lifecycleParentComponent
     { render: render opts
     , eval: eval opts
     , finalizer: Nothing
     , initializer: Just (H.action Init)
+    , peek: Nothing
     }
 
 render ∷ BackSideOptions → State → HTML
@@ -155,62 +176,17 @@ render opts state =
         [ HP.class_ CCSS.deckCard ]
         [ HH.div
             [ HP.class_ CSS.deckBackSide ]
-            [ HH.div_
-                [ HH.form_
-                    [ HH.div_
-                        [ HH.div
-                            [ HP.class_ (HH.className "sd-action-filter-icon") ]
-                            [ RC.searchFieldIcon ]
-                        , HH.input
-                            [ HP.value state.filterString
-                            , HE.onValueInput (HE.input UpdateFilter)
-                            , ARIA.label "Filter deck and card actions"
-                            , HP.placeholder "Filter actions"
-                            ]
-                        , HH.button
-                            [ HP.buttonType HP.ButtonButton
-                            , HE.onClick (HE.input_ (UpdateFilter ""))
-                            , HP.enabled (state.filterString /= "")
-                            ]
-                            [ RC.clearFieldIcon "Clear filter" ]
-                        ]
-                    ]
-                , HH.ul_ $ map backsideAction (allBackActions state)
-                ]
+            [ HH.slot' cpI unit \_ →
+                { component: ActionList.comp
+                , initialState: ActionList.initialState []
+                }
             ]
         ]
     ]
-  where
-
-  filterString ∷ Str.Pattern
-  filterString = Str.Pattern (Str.toLower state.filterString)
-
-  backsideAction ∷ BackAction → HTML
-  backsideAction action =
-    HH.li_
-      [ HH.button attrs
-          [ icon
-          , HH.p_ [ HH.text $ labelAction action ]
-          ]
-      ]
-    where
-      attrs =
-        [ HP.title lbl
-        , ARIA.label lbl
-        , HP.disabled (not enabled)
-        , HP.buttonType HP.ButtonButton
-        ] ⊕ if enabled then [ HE.onClick (HE.input_ (DoAction action)) ] else [ ]
-
-      enabled = Str.contains filterString (Str.toLower $ labelAction action) && actionEnabled state action
-      lbl = labelAction action ⊕ if enabled then "" else " disabled"
-      icon = actionGlyph action
 
 eval ∷ BackSideOptions → Query ~> DSL
 eval opts = case _ of
   DoAction _ next →
-    pure next
-  UpdateFilter str next → do
-    H.modify _ { filterString = str }
     pure next
   UpdateCard card defs next → do
     uw ← fromMaybe false <$> traverse (unwrappable opts) card
@@ -221,14 +197,14 @@ eval opts = case _ of
       }
     pure next
   Init next → do
-    isLogged ← isJust <$> H.liftH getIdToken
+    isLogged ← isJust <$> (H.liftH $ H.liftH getIdToken)
     H.modify _ { isLogged = isLogged }
     pure next
 
 unwrappable ∷ BackSideOptions → CardDef → DSL Boolean
 unwrappable { displayCursor, deckId } { cardId } = do
-  deck ← map _.model <$> H.liftH (P.getDeck deckId)
-  card ← map _.model <$> H.liftH (P.getCard cardId)
+  deck ← map _.model <$> (H.liftH $ H.liftH (P.getDeck deckId))
+  card ← map _.model <$> (H.liftH $ H.liftH (P.getCard cardId))
   let
     cardLen = A.length ∘ _.cards <$> deck
     deckIds = CM.childDeckIds <$> card

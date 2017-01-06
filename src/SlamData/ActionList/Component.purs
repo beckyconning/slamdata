@@ -366,11 +366,18 @@ renderButtons filterString actions buttonDimensions =
 
   metrics ∷ ButtonMetrics
   metrics =
-    { dimensions: buttonDimensions.dimensions
-    , iconDimensions: iconDimensions
-    , iconMarginPx: buttonDimensions.dimensions.height * 0.05
-    , iconOnlyLeftPx: (buttonDimensions.dimensions.width / 2.0) - (iconDimensions.width / 2.0)
-    , iconOnlyTopPx: (buttonDimensions.dimensions.height / 2.0) - (iconDimensions.height / 2.0) - 1.0
+    { dimensions:
+        buttonDimensions.dimensions
+    , iconDimensions:
+        iconDimensions
+    , iconMarginPx:
+        buttonDimensions.dimensions.height * 0.05
+    , iconOnlyLeftPx:
+        (buttonDimensions.dimensions.width / 2.0)
+          - (iconDimensions.width / 2.0)
+    , iconOnlyTopPx:
+        (buttonDimensions.dimensions.height / 2.0)
+          - (iconDimensions.height / 2.0) - 1.0
     }
 
   maxNumberOfLines ∷ Int

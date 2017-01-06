@@ -346,5 +346,4 @@ all =
   , CacheCard
   , SetupVariablesCard
   , TroubleshootCard
-  , TroubleshootCard
   ]
