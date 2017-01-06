@@ -441,15 +441,15 @@ renderButton filterString presentation metrics { action, lines } =
         attrs
         $ case presentation of
             IconOnly →
-              [ renderIcon 0.5 ]
+              [ renderIcon ]
             TextOnly →
               [ renderName ]
             IconAndText →
-              [ renderIcon 0.3, renderName ]
+              [ renderIcon, renderName ]
     ]
   where
-  renderIcon ∷ Number → HTML a
-  renderIcon sizeRatio =
+  renderIcon ∷ HTML a
+  renderIcon =
     HH.img
       [ HP.src $ pluckActionIconSrc action
       , HCSS.style
