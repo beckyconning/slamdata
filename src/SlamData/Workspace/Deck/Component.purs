@@ -35,8 +35,7 @@ import Control.Monad.Aff.EventLoop as EventLoop
 import Control.UI.Browser as Browser
 
 import Data.Array as Array
-import Data.Lens ((.~), (%~), (^?), (?~), _Left, _Just, is)
-import Data.Lens.Prism.Coproduct as CoP
+import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
 import Data.List as L
 
 import DOM.HTML.HTMLElement (getBoundingClientRect)
@@ -132,7 +131,6 @@ eval opts = case _ of
     H.fromEff ∘ Browser.newTab $ mkWorkspaceURL deckPath (WA.Load AT.ReadOnly)
     pure next
   FlipDeck next → do
-    updateBackSide opts
     displayMode ← H.gets _.displayMode
     H.modify
       $ DCS.changeDisplayMode
@@ -140,6 +138,12 @@ eval opts = case _ of
           DCS.Normal → DCS.Backside
           _ → DCS.Normal
     presentFlipGuideFirstTime
+    if displayMode ≡ DCS.Normal
+      then do
+         updateBackSide opts
+         queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
+       else
+         queryNextActionList $ H.action ActionList.CalculateBoundingRect
     pure next
   GrabDeck _ next →
     pure next
@@ -230,9 +234,9 @@ eval opts = case _ of
 peek ∷ ∀ a. DeckOptions → H.ChildF ChildSlot ChildQuery a → DeckDSL Unit
 peek opts (H.ChildF s q) =
   (peekCards ⊹ (\_ _ → pure unit) $ s)
-   ⨁ peekBackSide opts
+   ⨁ (peekBackSide opts ⨁ (const $ pure unit))
    ⨁ (peekDialog opts ⨁ (const $ pure unit))
-   ⨁ peekNextAction opts
+   ⨁ (peekNextAction opts ⨁ (const $ pure unit))
    ⨁ (const $ pure unit)
    ⨁ (const $ pure unit)
    $ q
@@ -268,6 +272,8 @@ peekBackSide opts (Back.DoAction action _) = do
           $ (DCS.changeDisplayMode DCS.Normal)
           ∘ (DCS._presentAccessNextActionCardGuide .~ false)
       void $ H.queryAll' cpCard $ left $ H.action UpdateDimensions
+      queryNextActionList $ H.action ActionList.CalculateBoundingRect
+      updateBackSide opts
     Back.Rename → do
       showDialog $ Dialog.Rename st.name
     Back.Share → do
@@ -332,6 +338,12 @@ queryCard cid =
     ∘ H.ChildF unit
     ∘ right
 
+queryBacksideActionList ∷ ∀ a. ActionList.Query Back.BackAction a → DeckDSL (Maybe a)
+queryBacksideActionList =
+  H.query' cpBackSide unit
+    ∘ right
+    ∘ H.ChildF unit
+
 queryNextActionList ∷ ∀ a. ActionList.Query Next.NextAction a → DeckDSL (Maybe a)
 queryNextActionList =
   H.query' cpNext unit
@@ -361,7 +373,7 @@ updateBackSide { cursor } = do
   let
     ty = join (hush <$> DCS.activeCard st)
     tys = Array.mapMaybe hush st.displayCards
-  void $ H.query' cpBackSide unit $ H.action $ Back.UpdateCard ty tys
+  void $ H.query' cpBackSide unit $ left $ H.action $ Back.UpdateCard ty tys
 
 dismissedAccessNextActionCardGuideKey ∷ String
 dismissedAccessNextActionCardGuideKey = "dismissedAccessNextActionCardGuide"
@@ -419,10 +431,17 @@ peekAnyCard ∷ ∀ a. CardId → AnyCardQuery a → DeckDSL Unit
 peekAnyCard cardId _ =
   resetAccessNextActionCardGuideDelay
 
-peekNextAction ∷ ∀ a. DeckOptions → Next.QueryP a → DeckDSL Unit
-peekNextAction opts q = do
-  for_ (q ^? CoP._Left ∘ Next._AddCardType) $ void ∘ liftH' ∘ P.addCard opts.deckId
-  for_ (q ^? CoP._Left ∘ Next._PresentReason) $ uncurry presentReason
+peekNextAction ∷ ∀ a. DeckOptions → Next.Query a → DeckDSL Unit
+peekNextAction opts = case _ of
+  Next.AddCard cardType _ → do
+    void $ liftH' $ P.addCard opts.deckId cardType
+    updateBackSide opts
+    pure unit
+  Next.PresentReason input cardType _ → do
+    presentReason input cardType
+    pure unit
+  _ →
+    pure unit
 
 presentReason ∷ Port.Port → CT.CardType → DeckDSL Unit
 presentReason input cardType =
@@ -533,6 +552,7 @@ updateCardSize ∷ DeckDSL Unit
 updateCardSize = do
   H.queryAll' cpCard $ left $ H.action UpdateDimensions
   queryNextActionList $ H.action ActionList.CalculateBoundingRect
+  queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
   H.gets _.deckElement >>= traverse_ \el → do
     { width } ← H.fromEff $ getBoundingClientRect el
     H.modify $ DCS._responsiveSize .~ breakpoint width

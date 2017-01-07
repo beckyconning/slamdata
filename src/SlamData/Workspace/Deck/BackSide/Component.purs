@@ -26,10 +26,11 @@ import Halogen as H
 import Halogen.Component.ChildPath (cpI)
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
+import Halogen.Component.Utils as HU
 
 import SlamData.ActionList.Component as ActionList
 import SlamData.Monad (Slam)
-import SlamData.Quasar.Auth (getIdToken)
+import SlamData.Quasar as Api
 import SlamData.Render.CSS as CSS
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Component.CSS as CCSS
@@ -41,12 +42,10 @@ import SlamData.Workspace.Eval.Persistence as P
 data Query a
   = DoAction BackAction a
   | UpdateCard (Maybe CardDef) (Array CardDef) a
-  | Init a
 
 data BackAction
   = Trash
   | Rename
-  | Share
   | Embed
   | Publish
   | DeleteDeck
@@ -61,48 +60,44 @@ type BackSideOptions =
   , displayCursor ∷ List DeckId
   }
 
-type State =
-  { activeCard ∷ Maybe CardDef
-  , cardDefs ∷ Array CardDef
-  , saved ∷ Boolean
-  , isLogged ∷ Boolean
-  , unwrappable ∷ Boolean
-  }
+type State = Unit
 
 type StateP =
   H.ParentState
     State
-    (ActionList.State Unit)
+    (ActionList.State BackAction)
     Query
-    (ActionList.Query Unit)
+    (ActionList.Query BackAction)
     Slam
     Unit
 
 type HTML =
   H.ParentHTML
-    (ActionList.State Unit)
+    (ActionList.State BackAction)
     Query
-    (ActionList.Query Unit)
+    (ActionList.Query BackAction)
     Slam
     Unit
 
 type DSL =
   H.ParentDSL
     State
-    (ActionList.State Unit)
+    (ActionList.State BackAction)
     Query
-    (ActionList.Query Unit)
+    (ActionList.Query BackAction)
     Slam
     Unit
 
-type QueryP = Query ⨁ H.ChildF Unit (ActionList.Query Unit)
+type QueryP = Query ⨁ H.ChildF Unit (ActionList.Query BackAction)
 
-allBackActions ∷ State → Array BackAction
-allBackActions state =
+derive instance eqBackAction ∷ Eq BackAction
+
+allBackActions ∷ Boolean → Array BackAction
+allBackActions isAdvanced =
   [ Trash
   , Rename
   ]
-  ⊕ (if state.isLogged
+  ⊕ (if isAdvanced
       then [ Share
            , Unshare
            ]
@@ -116,60 +111,81 @@ allBackActions state =
     ]
 
 initialState ∷ State
-initialState =
-  { activeCard: Nothing
-  , cardDefs: mempty
-  , saved: false
-  , isLogged: false
-  , unwrappable: false
-  }
+initialState = unit
 
-labelAction ∷ BackAction → String
-labelAction = case _ of
-  Trash → "Delete card"
-  Rename → "Rename deck"
-  Share → "Share deck"
-  Embed → "Embed deck"
-  Publish → "Publish deck"
-  DeleteDeck → "Delete deck"
-  Mirror → "Mirror"
-  Wrap → "Wrap"
-  Unwrap → "Collapse"
-  Unshare → "Unshare deck"
+labelAction ∷ BackAction → ActionList.ActionName
+labelAction =
+  ActionList.ActionName
+    ∘ case _ of
+        Trash → "Delete card"
+        Rename → "Rename deck"
+        Share → "Share deck"
+        Embed → "Embed deck"
+        Publish → "Publish deck"
+        DeleteDeck → "Delete deck"
+        Mirror → "Mirror"
+        Wrap → "Wrap"
+        Unwrap → "Collapse"
+        Unshare → "Unshare deck"
 
-actionEnabled ∷ State → BackAction → Boolean
-actionEnabled st a =
-  case st.activeCard, a of
-    Nothing, Trash → false
-    _, Unwrap → st.unwrappable
-    _, Mirror | F.elem CT.Draftboard (_.cardType <$> st.cardDefs) → false
-    _, _ → true
+actionDescripton ∷ BackAction → ActionList.ActionDescription
+actionDescripton =
+  ActionList.ActionDescription
+    ∘ case _ of
+        Trash → "Delete card"
+        Rename → "Rename deck"
+        Share → "Share deck"
+        Embed → "Embed deck"
+        Publish → "Publish deck"
+        DeleteDeck → "Delete deck"
+        Mirror → "Mirror"
+        Wrap → "Wrap"
+        Unwrap → "Collapse"
+        Unshare → "Unshare deck"
 
-actionGlyph ∷ BackAction → HTML
-actionGlyph = case _ of
-  Trash → HH.img [ HP.src "img/cardAndDeckActions/deleteCard.svg" ]
-  Rename → HH.img [ HP.src "img/cardAndDeckActions/renameDeck.svg" ]
-  Share → HH.img [ HP.src "img/cardAndDeckActions/shareDeck.svg" ]
-  Unshare → HH.img [ HP.src "img/cardAndDeckActions/unshareDeck.svg" ]
-  Embed → HH.img [ HP.src "img/cardAndDeckActions/embedDeck.svg" ]
-  Publish → HH.img [ HP.src "img/cardAndDeckActions/publishDeck.svg" ]
-  Mirror → HH.img [ HP.src "img/cardAndDeckActions/mirrorDeck.svg" ]
-  Wrap → HH.img [ HP.src "img/cardAndDeckActions/wrapDeck.svg" ]
-  Unwrap → HH.img [ HP.src "img/cardAndDeckActions/unwrapDeck.svg" ]
-  DeleteDeck → HH.img [ HP.src "img/cardAndDeckActions/deleteDeck.svg" ]
+actionHighlighted ∷ Boolean → Maybe CardDef → Array CardDef → BackAction → ActionList.ActionHighlighted
+actionHighlighted unwrappable activeCard cardDefs a =
+  ActionList.ActionHighlighted
+    $ case activeCard, a of
+      Nothing, Trash → false
+      _, Unwrap → unwrappable
+      _, Mirror | F.elem CT.Draftboard (_.cardType <$> cardDefs) → false
+      _, _ → true
+
+actionIcon ∷ BackAction → ActionList.ActionIconSrc
+actionIcon =
+  ActionList.ActionIconSrc
+    ∘ case _ of
+        Trash → "img/cardAndDeckActions/deleteCard.svg"
+        Rename → "img/cardAndDeckActions/renameDeck.svg"
+        Share → "img/cardAndDeckActions/shareDeck.svg"
+        Unshare → "img/cardAndDeckActions/unshareDeck.svg"
+        Embed → "img/cardAndDeckActions/embedDeck.svg"
+        Publish → "img/cardAndDeckActions/publishDeck.svg"
+        Mirror → "img/cardAndDeckActions/mirrorDeck.svg"
+        Wrap → "img/cardAndDeckActions/wrapDeck.svg"
+        Unwrap → "img/cardAndDeckActions/unwrapDeck.svg"
+        DeleteDeck → "img/cardAndDeckActions/deleteDeck.svg"
+
+toActionListAction ∷ Boolean → Maybe CardDef → Array CardDef → BackAction → ActionList.Action BackAction
+toActionListAction unwrappable activeCard cardDefs backAction =
+   ActionList.Do
+     (labelAction backAction)
+     (actionIcon backAction)
+     (actionDescripton backAction)
+     (actionHighlighted unwrappable activeCard cardDefs backAction)
+     backAction
 
 comp ∷ BackSideOptions → H.Component StateP QueryP Slam
 comp opts =
-  H.lifecycleParentComponent
-    { render: render opts
+  H.parentComponent
+    { render: const render
     , eval: eval opts
-    , finalizer: Nothing
-    , initializer: Just (H.action Init)
-    , peek: Nothing
+    , peek: Just (peek ∘ H.runChildF)
     }
 
-render ∷ BackSideOptions → State → HTML
-render opts state =
+render ∷ HTML
+render =
   -- Extra div for consistent targetting with next action card styles
   HH.div_
     [ HH.div
@@ -189,20 +205,18 @@ eval opts = case _ of
   DoAction _ next →
     pure next
   UpdateCard card defs next → do
-    uw ← fromMaybe false <$> traverse (unwrappable opts) card
-    H.modify _
-      { activeCard = card
-      , cardDefs = defs
-      , unwrappable = uw
-      }
-    pure next
-  Init next → do
-    isLogged ← isJust <$> (H.liftH $ H.liftH getIdToken)
-    H.modify _ { isLogged = isLogged }
+    uw ← fromMaybe false <$> traverse (calculateUnwrappable opts) card
+    isAdvanced ← isRight <$> Api.retrieveAuthProviders
+    void
+      $ H.query' cpI unit
+      $ H.action
+      $ ActionList.UpdateActions
+      $ toActionListAction uw card defs
+      <$> allBackActions isAdvanced
     pure next
 
-unwrappable ∷ BackSideOptions → CardDef → DSL Boolean
-unwrappable { displayCursor, deckId } { cardId } = do
+calculateUnwrappable ∷ BackSideOptions → CardDef → DSL Boolean
+calculateUnwrappable { displayCursor, deckId } { cardId } = do
   deck ← map _.model <$> (H.liftH $ H.liftH (P.getDeck deckId))
   card ← map _.model <$> (H.liftH $ H.liftH (P.getCard cardId))
   let
@@ -212,3 +226,15 @@ unwrappable { displayCursor, deckId } { cardId } = do
     Nil    , Just (CM.Draftboard _), Just 1, Just (_ : Nil) → true
     _ : Nil, Just (CM.Draftboard _), Just 1, _ → true
     _ , _, _, _ → false
+
+peek ∷ ∀ a. ActionList.Query BackAction a → DSL Unit
+peek = case _ of
+  ActionList.Selected action _ →
+    case action of
+      ActionList.GoBackInternal →
+        pure unit
+      ActionList.DrillInternal _ _ _ _ →
+        pure unit
+      ActionList.DoInternal _ _ _ _ backAction →
+        HU.raise' $ H.action $ DoAction backAction
+  _ → pure unit

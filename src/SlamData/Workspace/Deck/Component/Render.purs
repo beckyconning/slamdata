@@ -162,7 +162,7 @@ backside { deckId, displayCursor } st =
     [ HP.classes [ CSS.card ] ]
     [ HH.slot' cpBackSide unit \_ →
         { component: Back.comp { deckId, displayCursor }
-        , initialState: Back.initialState
+        , initialState: H.parentState Back.initialState
         }
     ]
 

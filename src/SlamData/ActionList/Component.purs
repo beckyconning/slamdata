@@ -606,16 +606,20 @@ eval =
             ∘ (_previousActions .~ [ ])
       pure next
     UpdateActions actions next →
-      H.modify (updateActions $ toActionInternal <$> actions) $> next
-    CalculateBoundingRect next →
-      (H.modify
-        ∘ (_boundingDimensions .~ _)
-        ∘ map domRectToDimensions
-        =<< getBoundingDOMRect)
+      H.modify (updateActions $ toActionInternal <$> actions)
         $> next
+    CalculateBoundingRect next →
+      calculateBoundingRect $> next
     SetBoundingElement element next →
       H.modify (_boundingElement .~ element)
         $> next
+
+calculateBoundingRect ∷ ∀ a. DSL a Unit
+calculateBoundingRect =
+  H.modify
+    ∘ (_boundingDimensions .~ _)
+    ∘ map domRectToDimensions
+    =<< getBoundingDOMRect
 
 floor ∷ Dimensions → Dimensions
 floor dimensions =
