@@ -19,8 +19,8 @@ module SlamData.Workspace.Deck.BackSide.Component where
 import SlamData.Prelude
 
 import Data.Array as A
-import Data.Foldable as F
 import Data.List (List(..), (:))
+import Data.Foldable as F
 
 import Halogen as H
 import Halogen.Component.ChildPath (cpI)
