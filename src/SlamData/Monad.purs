@@ -18,6 +18,7 @@ module SlamData.Monad where
 
 import SlamData.Prelude
 
+import Data.Array as Array
 import Control.Applicative.Free (FreeAp, hoistFreeAp, liftFreeAp, retractFreeAp)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.Bus as Bus
@@ -31,11 +32,10 @@ import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (class MonadRec, tailRecM, Step(..))
 import Control.Monad.Throw (class MonadThrow)
 import Control.Parallel (parallel, sequential)
-import Control.UI.Browser (locationObject, locationString)
+import Control.UI.Browser (locationObject)
 
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
-import Data.String as String
 
 import DOM.HTML.Location (setHash)
 
@@ -144,7 +144,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
     Aff aff →
       aff
     GetAuthIdToken k → do
-      idToken ← getIdTokenSilently'
+      idToken ← getIdTokenSilentlyIfNoPermissionTokens
       case idToken of
         Just (Left error) →
           for_ (Auth.toNotificationOptions error) \opts →
@@ -153,7 +153,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
           pure unit
       pure $ k $ maybe Nothing hush idToken
     Quasar qf → do
-      idToken ← getIdTokenSilently'
+      idToken ← getIdTokenSilentlyIfNoPermissionTokens
       case idToken of
         Just (Left error) →
           for_ (Auth.toNotificationOptions error) \opts →
@@ -180,13 +180,12 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
       liftEff $ locationObject >>= setHash hash
       pure a
 
-  getIdTokenSilently' ∷ Aff SlamDataEffects (Maybe Auth.EIdToken)
-  getIdTokenSilently' = do
-    hasPermissionToken ← liftEff $ String.contains (String.Pattern "permissionTokens=") <$> locationString
-    if hasPermissionToken
-       then pure Nothing
-       else hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
-
   goFork ∷ FF.Fork Slam ~> Aff SlamDataEffects
   goFork = FF.unFork \(FF.ForkF fx k) →
     k ∘ map unsafeCoerceAff <$> fork (runSlam wiring fx)
+
+  getIdTokenSilentlyIfNoPermissionTokens ∷ Aff SlamDataEffects (Maybe Auth.EIdToken)
+  getIdTokenSilentlyIfNoPermissionTokens =
+    if eq 0 $ Array.length auth.permissionTokenHashes
+      then hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
+      else pure Nothing
