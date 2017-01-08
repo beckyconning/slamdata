@@ -231,10 +231,8 @@ peek ∷ ∀ a. ActionList.Query BackAction a → DSL Unit
 peek = case _ of
   ActionList.Selected action _ →
     case action of
-      ActionList.GoBackInternal →
-        pure unit
-      ActionList.DrillInternal _ _ _ _ →
-        pure unit
       ActionList.DoInternal _ _ _ _ backAction →
         HU.raise' $ H.action $ DoAction backAction
+      _ →
+        pure unit
   _ → pure unit

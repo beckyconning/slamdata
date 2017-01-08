@@ -51,6 +51,8 @@ data Query a b
   | UpdateFilter String b
   | UpdateActions (Array (Action a)) b
   | CalculateBoundingRect b
+  | GetBoundingRect (Maybe Dimensions → b)
+  | SetBoundingRect Dimensions b
   | SetBoundingElement (Maybe HTMLElement) b
 
 type State a =
@@ -610,9 +612,12 @@ eval =
         $> next
     CalculateBoundingRect next →
       calculateBoundingRect $> next
+    SetBoundingRect dimensions next →
+      H.modify (_boundingDimensions .~ Just dimensions) $> next
+    GetBoundingRect continue →
+      continue <$> H.gets _.boundingDimensions
     SetBoundingElement element next →
-      H.modify (_boundingElement .~ element)
-        $> next
+      H.modify (_boundingElement .~ element) $> next
 
 calculateBoundingRect ∷ ∀ a. DSL a Unit
 calculateBoundingRect =

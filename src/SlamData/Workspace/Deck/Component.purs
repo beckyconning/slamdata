@@ -131,18 +131,9 @@ eval opts = case _ of
     pure next
   FlipDeck next → do
     displayMode ← H.gets _.displayMode
-    H.modify
-      $ DCS.changeDisplayMode
-      $ case displayMode of
-          DCS.Normal → DCS.Backside
-          _ → DCS.Normal
-    presentFlipGuideFirstTime
     if displayMode ≡ DCS.Normal
-      then do
-         updateBackSide opts
-         queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
-       else
-         queryNextActionList $ H.action ActionList.CalculateBoundingRect
+      then switchToFlipside opts
+      else switchToFrontside
     pure next
   GrabDeck _ next →
     pure next
@@ -230,6 +221,28 @@ eval opts = case _ of
   getBoundingClientWidth =
     H.fromEff ∘ map _.width ∘ getBoundingClientRect
 
+switchToFlipside ∷ DeckOptions → DeckDSL Unit
+switchToFlipside opts = do
+  maybe
+    (pure unit)
+    (maybe
+      (pure unit)
+      (void ∘ queryBacksideActionList ∘ H.action ∘ ActionList.SetBoundingRect))
+    =<< (queryNextActionList $ H.request ActionList.GetBoundingRect)
+  updateBackSide opts
+  presentFlipGuideFirstTime
+  H.modify (DCS.changeDisplayMode $ DCS.Backside)
+
+switchToFrontside ∷ DeckDSL Unit
+switchToFrontside = do
+  maybe
+    (pure unit)
+    (maybe
+      (pure unit)
+      (void ∘ queryNextActionList ∘ H.action ∘ ActionList.SetBoundingRect))
+    =<< (queryBacksideActionList $ H.request ActionList.GetBoundingRect)
+  H.modify (DCS.changeDisplayMode $ DCS.Normal)
+
 peek ∷ ∀ a. DeckOptions → H.ChildF ChildSlot ChildQuery a → DeckDSL Unit
 peek opts (H.ChildF s q) =
   (peekCards ⊹ (\_ _ → pure unit) $ s)
@@ -247,12 +260,12 @@ peekDialog opts = case _ of
   Dialog.Dismiss _ → do
     H.modify DCS.undoLastChangeDisplayMode
   Dialog.FlipToFront _ →
-    H.modify (DCS.changeDisplayMode DCS.Normal)
+    switchToFrontside
   Dialog.SetDeckName name _ → do
-    H.modify (DCS.changeDisplayMode DCS.Normal)
     void $ liftH' $ P.renameDeck opts.deckId name
+    switchToFrontside
   Dialog.Confirm d b _ → do
-    H.modify (DCS.changeDisplayMode DCS.Backside)
+    switchToFlipside opts
     case d of
       Dialog.DeleteDeck | b → deleteDeck opts
       _ → pure unit
@@ -268,11 +281,8 @@ peekBackSide opts (Back.DoAction action _) = do
       for_ (join $ hush <$> active) \{ cardId } → do
         liftH' $ P.removeCard opts.deckId cardId
         H.modify
-          $ (DCS.changeDisplayMode DCS.Normal)
-          ∘ (DCS._presentAccessNextActionCardGuide .~ false)
-      void $ H.queryAll' cpCard $ left $ H.action UpdateDimensions
-      queryNextActionList $ H.action ActionList.CalculateBoundingRect
-      updateBackSide opts
+          $ (DCS._presentAccessNextActionCardGuide .~ false)
+      switchToFrontside
     Back.Rename → do
       showDialog $ Dialog.Rename st.name
     Back.Share → do
@@ -301,7 +311,7 @@ peekBackSide opts (Back.DoAction action _) = do
       case deck >>= _.parent, mirrorCard <#> _.cardId of
         Just parentId, Just cardId | not (L.null opts.displayCursor) → do
           liftH' $ P.mirrorDeck parentId cardId opts.deckId
-          H.modify (DCS.changeDisplayMode DCS.Normal)
+          switchToFrontside
         _, Just cardId → do
           parentId ← liftH' $ P.wrapAndMirrorDeck cardId opts.deckId
           navigateToDeck (parentId L.: opts.cursor)
@@ -310,7 +320,7 @@ peekBackSide opts (Back.DoAction action _) = do
       parentId ← liftH' $ P.wrapDeck opts.deckId
       if L.null opts.displayCursor
         then navigateToDeck (parentId L.: opts.cursor)
-        else H.modify $ DCS.changeDisplayMode DCS.Normal
+        else switchToFrontside
     Back.Unwrap → do
       deck ← liftH' $ P.getDeck opts.deckId
       for_ (_.parent <$> deck) case _ of
@@ -537,8 +547,10 @@ getDeckTree deckId = do
 updateCardSize ∷ DeckDSL Unit
 updateCardSize = do
   H.queryAll' cpCard $ left $ H.action UpdateDimensions
-  queryNextActionList $ H.action ActionList.CalculateBoundingRect
-  queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
+  displayMode ← H.gets _.displayMode
+  if displayMode ≡ DCS.Normal
+    then queryNextActionList $ H.action ActionList.CalculateBoundingRect
+    else queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
   H.gets _.deckElement >>= traverse_ \el → do
     { width } ← H.fromEff $ getBoundingClientRect el
     H.modify $ DCS._responsiveSize .~ breakpoint width
@@ -553,15 +565,11 @@ updateCardSize = do
 
 presentFlipGuideFirstTime ∷ DeckDSL Unit
 presentFlipGuideFirstTime = do
-  H.gets _.displayMode >>=
-    case _ of
-      DCS.Backside → do
-        { bus } ← liftH' Wiring.expose
-        shouldPresentFlipGuide >>=
-          if _
-          then H.fromAff $ Bus.write Wiring.FlipGuide bus.stepByStep
-          else pure unit
-      _ → pure unit
+  { bus } ← liftH' Wiring.expose
+  shouldPresentFlipGuide >>=
+    if _
+    then H.fromAff $ Bus.write Wiring.FlipGuide bus.stepByStep
+    else pure unit
 
 shouldPresentFlipGuide ∷ DeckDSL Boolean
 shouldPresentFlipGuide =
