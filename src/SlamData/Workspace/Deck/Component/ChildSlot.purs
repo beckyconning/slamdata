@@ -20,6 +20,7 @@ import SlamData.Prelude
 
 import Halogen.Component.ChildPath (ChildPath, cpL, cpR, (:>))
 
+import SlamData.ActionList.Component as ActionList
 import SlamData.Workspace.Card.Component.Query (CardQueryP)
 import SlamData.Workspace.Card.Component.State (CardStateP)
 import SlamData.Workspace.Card.CardId (CardId)
@@ -41,7 +42,7 @@ type ChildSlot
 
 type ChildQuery
   = CardQueryP
-  ⨁ Back.QueryP
+  ⨁ ActionList.Query Back.BackAction
   ⨁ Dialog.QueryP
   ⨁ Next.QueryP
   ⨁ Error.Query
@@ -49,7 +50,7 @@ type ChildQuery
 
 type ChildState
   = CardStateP
-  ⊹ Back.StateP
+  ⊹ ActionList.State Back.BackAction
   ⊹ Dialog.StateP
   ⊹ Next.StateP
   ⊹ Error.State
@@ -64,8 +65,8 @@ cpCard = cpL
 
 cpBackSide
   ∷ ChildPath
-      Back.StateP ChildState
-      Back.QueryP ChildQuery
+      (ActionList.State Back.BackAction) ChildState
+      (ActionList.Query Back.BackAction) ChildQuery
       Unit ChildSlot
 cpBackSide = cpR :> cpL
 

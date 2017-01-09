@@ -36,6 +36,7 @@ import Control.UI.Browser as Browser
 import Data.Array as Array
 import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
 import Data.List as L
+import Data.List ((:))
 
 import DOM.HTML.HTMLElement (getBoundingClientRect)
 
@@ -50,6 +51,7 @@ import SlamData.Config as Config
 import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
 import SlamData.Guide as Guide
+import SlamData.Quasar as Api
 import SlamData.Wiring (DeckMessage(..))
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
@@ -65,7 +67,7 @@ import SlamData.Workspace.Card.Model as Card
 import SlamData.Workspace.Card.Next.Component as Next
 import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Class (navigate, Routes(..))
-import SlamData.Workspace.Deck.BackSide.Component as Back
+import SlamData.Workspace.Deck.BackSide as Back
 import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
 import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
 import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
@@ -245,7 +247,7 @@ switchToFrontside = do
 peek ∷ ∀ a. DeckOptions → H.ChildF ChildSlot ChildQuery a → DeckDSL Unit
 peek opts (H.ChildF s q) =
   (peekCards ⊹ (\_ _ → pure unit) $ s)
-   ⨁ (peekBackSide opts ⨁ (const $ pure unit))
+   ⨁ (peekBackSide opts)
    ⨁ (peekDialog opts ⨁ (const $ pure unit))
    ⨁ (peekNextAction opts ⨁ (const $ pure unit))
    ⨁ (const $ pure unit)
@@ -269,66 +271,69 @@ peekDialog opts = case _ of
       Dialog.DeleteDeck | b → deleteDeck opts
       _ → pure unit
 
-peekBackSide ∷ ∀ a. DeckOptions → Back.Query a → DeckDSL Unit
-peekBackSide opts (Back.DoAction action _) = do
-  { path } ← liftH' Wiring.expose
-  st ← H.get
+peekBackSide ∷ ∀ a. DeckOptions → ActionList.Query Back.BackAction a → DeckDSL Unit
+peekBackSide opts action =
   case action of
-    Back.Trash → do
-      let
-        active = DCS.activeCard st
-      for_ (join $ hush <$> active) \{ cardId } → do
-        liftH' $ P.removeCard opts.deckId cardId
-        H.modify
-          $ (DCS._presentAccessNextActionCardGuide .~ false)
-      switchToFrontside
-    Back.Rename → do
-      showDialog $ Dialog.Rename st.name
-    Back.Share → do
-      getDeckTree opts.deckId >>= traverse_
-        (showDialog ∘ Dialog.Share ∘ ET.getSharingInput path)
-    Back.Unshare → do
-      getDeckTree opts.deckId >>= traverse_
-        (showDialog ∘ Dialog.Unshare ∘ ET.getSharingInput path)
-    Back.Embed → do
-      getDeckTree opts.deckId >>= traverse_ \tree →
-        showDialog $ Dialog.Embed
-          (ET.getSharingInput path tree)
-          (ET.getVarMaps tree)
-    Back.Publish → do
-      getDeckTree opts.deckId >>= traverse_ \tree →
-        showDialog $ Dialog.Publish
-          (ET.getSharingInput path tree)
-          (ET.getVarMaps tree)
-    Back.DeleteDeck →
-      if Array.length st.displayCards <= 1
-        then deleteDeck opts
-        else showDialog Dialog.DeleteDeck
-    Back.Mirror → do
-      let mirrorCard = (hush =<< DCS.activeCard st) <|> DCS.findLastRealCard st
-      deck ← liftH' $ P.getDeck opts.deckId
-      case deck >>= _.parent, mirrorCard <#> _.cardId of
-        Just parentId, Just cardId | not (L.null opts.displayCursor) → do
-          liftH' $ P.mirrorDeck parentId cardId opts.deckId
+    ActionList.Selected (ActionList.DoInternal _ _ _ _ backAction) _ → do
+      { path } ← liftH' Wiring.expose
+      st ← H.get
+      case backAction of
+        Back.Trash → do
+          let
+            active = DCS.activeCard st
+          for_ (join $ hush <$> active) \{ cardId } → do
+            liftH' $ P.removeCard opts.deckId cardId
+            H.modify
+              $ (DCS._presentAccessNextActionCardGuide .~ false)
           switchToFrontside
-        _, Just cardId → do
-          parentId ← liftH' $ P.wrapAndMirrorDeck cardId opts.deckId
-          navigateToDeck (parentId L.: opts.cursor)
-        _, _ → pure unit
-    Back.Wrap → do
-      parentId ← liftH' $ P.wrapDeck opts.deckId
-      if L.null opts.displayCursor
-        then navigateToDeck (parentId L.: opts.cursor)
-        else switchToFrontside
-    Back.Unwrap → do
-      deck ← liftH' $ P.getDeck opts.deckId
-      for_ (_.parent <$> deck) case _ of
-        Just cardId | not (L.null opts.displayCursor) → do
-          void $ liftH' $ P.collapseDeck opts.deckId cardId
-        _ → do
-          childId ← liftH' $ P.unwrapDeck opts.deckId
-          navigateToDeck (childId L.: opts.cursor)
-peekBackSide _ _ = pure unit
+        Back.Rename → do
+          showDialog $ Dialog.Rename st.name
+        Back.Share → do
+          getDeckTree opts.deckId >>= traverse_
+            (showDialog ∘ Dialog.Share ∘ ET.getSharingInput path)
+        Back.Unshare → do
+          getDeckTree opts.deckId >>= traverse_
+            (showDialog ∘ Dialog.Unshare ∘ ET.getSharingInput path)
+        Back.Embed → do
+          getDeckTree opts.deckId >>= traverse_ \tree →
+            showDialog $ Dialog.Embed
+              (ET.getSharingInput path tree)
+              (ET.getVarMaps tree)
+        Back.Publish → do
+          getDeckTree opts.deckId >>= traverse_ \tree →
+            showDialog $ Dialog.Publish
+              (ET.getSharingInput path tree)
+              (ET.getVarMaps tree)
+        Back.DeleteDeck →
+          if Array.length st.displayCards <= 1
+            then deleteDeck opts
+            else showDialog Dialog.DeleteDeck
+        Back.Mirror → do
+          let mirrorCard = (hush =<< DCS.activeCard st) <|> DCS.findLastRealCard st
+          deck ← liftH' $ P.getDeck opts.deckId
+          case deck >>= _.parent, mirrorCard <#> _.cardId of
+            Just parentId, Just cardId | not (L.null opts.displayCursor) → do
+              liftH' $ P.mirrorDeck parentId cardId opts.deckId
+              switchToFrontside
+            _, Just cardId → do
+              parentId ← liftH' $ P.wrapAndMirrorDeck cardId opts.deckId
+              navigateToDeck (parentId L.: opts.cursor)
+            _, _ → pure unit
+        Back.Wrap → do
+          parentId ← liftH' $ P.wrapDeck opts.deckId
+          if L.null opts.displayCursor
+            then navigateToDeck (parentId L.: opts.cursor)
+            else switchToFrontside
+        Back.Unwrap → do
+          deck ← liftH' $ P.getDeck opts.deckId
+          for_ (_.parent <$> deck) case _ of
+            Just cardId | not (L.null opts.displayCursor) → do
+              void $ liftH' $ P.collapseDeck opts.deckId cardId
+            _ → do
+              childId ← liftH' $ P.unwrapDeck opts.deckId
+              navigateToDeck (childId L.: opts.cursor)
+    _ →
+      pure unit
 
 peekCards ∷ ∀ a. CardId → CardQueryP a → DeckDSL Unit
 peekCards cardId = const (pure unit) ⨁ peekCardInner cardId
@@ -351,8 +356,6 @@ queryCard cid =
 queryBacksideActionList ∷ ∀ a. ActionList.Query Back.BackAction a → DeckDSL (Maybe a)
 queryBacksideActionList =
   H.query' cpBackSide unit
-    ∘ right
-    ∘ H.ChildF unit
 
 queryNextActionList ∷ ∀ a. ActionList.Query Next.NextAction a → DeckDSL (Maybe a)
 queryNextActionList =
@@ -379,12 +382,35 @@ updateActiveState opts = do
     _ → pure unit
 
 updateBackSide ∷ DeckOptions → DeckDSL Unit
-updateBackSide { cursor } = do
+updateBackSide { deckId, displayCursor } = do
   st ← H.get
   let
     ty = join (hush <$> DCS.activeCard st)
     tys = Array.mapMaybe hush st.displayCards
-  void $ H.query' cpBackSide unit $ left $ H.action $ Back.UpdateCard ty tys
+  void ∘ H.query' cpBackSide unit ∘ H.action ∘ ActionList.UpdateActions
+    =<< getUpdatedBackActions { deckId, displayCursor } ty tys
+
+getUpdatedBackActions
+  ∷ Back.BackSideOptions
+  → Maybe DCS.CardDef
+  → Array DCS.CardDef
+  → DeckDSL (Array (ActionList.Action Back.BackAction))
+getUpdatedBackActions opts activeCard cards = do
+  uw ← fromMaybe false <$> traverse (calculateUnwrappable opts) activeCard
+  isAdvanced ← isRight <$> Api.retrieveAuthProviders
+  pure $ Back.toActionListAction uw activeCard cards <$> Back.allBackActions isAdvanced
+
+calculateUnwrappable ∷ Back.BackSideOptions → DCS.CardDef → DeckDSL Boolean
+calculateUnwrappable { displayCursor, deckId } { cardId } = do
+  deck ← map _.model <$> (H.liftH $ H.liftH (P.getDeck deckId))
+  card ← map _.model <$> (H.liftH $ H.liftH (P.getCard cardId))
+  let
+    cardLen = Array.length ∘ _.cards <$> deck
+    deckIds = Card.childDeckIds <$> card
+  pure $ case displayCursor, card, cardLen, deckIds of
+    L.Nil    , Just (Card.Draftboard _), Just 1, Just (_ : L.Nil) → true
+    _ : L.Nil, Just (Card.Draftboard _), Just 1, _ → true
+    _ , _, _, _ → false
 
 dismissedAccessNextActionCardGuideKey ∷ String
 dismissedAccessNextActionCardGuideKey = "dismissedAccessNextActionCardGuide"
