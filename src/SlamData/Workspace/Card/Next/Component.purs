@@ -80,8 +80,12 @@ render state =
           (DismissAddCardGuide)
           (addCardGuideText state.input))
     ⊕ [ HH.slot' cpI unit \_ →
-        { component: ActionList.comp
-        , initialState: ActionList.initialState (NA.fromPort state.input)
+        { component:
+            ActionList.comp
+              (ActionList.FilterInputDescription "Filter next actions")
+        , initialState:
+            ActionList.initialState
+              (NA.fromPort state.input)
         }
       ]
   where

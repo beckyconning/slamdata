@@ -168,8 +168,11 @@ backside =
             [ HH.div
                 [ HP.class_ RCSS.deckBackSide ]
                 [ HH.slot' cpBackSide unit \_ →
-                    { component: ActionList.comp
-                    , initialState: ActionList.initialState []
+                    { component:
+                        ActionList.comp
+                          $ ActionList.FilterInputDescription "Filter deck and card actions"
+                    , initialState:
+                        ActionList.initialState []
                     }
                 ]
             ]

@@ -73,6 +73,7 @@ newtype ActionNameWord = ActionNameWord { word ∷ String, widthPx ∷ Number }
 newtype ActionNameLine = ActionNameLine { line ∷ String, widthPx ∷ Number }
 newtype ActionDescription = ActionDescription String
 newtype ActionHighlighted = ActionHighlighted Boolean
+newtype FilterInputDescription = FilterInputDescription String
 
 data Action a
   = Do ActionName ActionIconSrc ActionDescription ActionHighlighted a
@@ -276,17 +277,17 @@ initialState actions =
   , boundingDimensions: Nothing
   }
 
-comp ∷ ∀ a. Eq a ⇒ H.Component (State a) (Query a) Slam
-comp =
+comp ∷ ∀ a. Eq a ⇒ FilterInputDescription → H.Component (State a) (Query a) Slam
+comp filterInputDescription =
   H.lifecycleComponent
-    { render
+    { render: render filterInputDescription
     , initializer: Just $ H.action CalculateBoundingRect
     , finalizer: Nothing
     , eval
     }
 
-render ∷ ∀ a. State a → HTML a
-render state =
+render ∷ ∀ a. FilterInputDescription → State a → HTML a
+render (FilterInputDescription filterInputDescription) state =
   HH.div
     [ HP.class_ $ HH.className "sd-action-list" ]
     [ HH.form_
@@ -297,8 +298,8 @@ render state =
             , HH.input
                 [ HP.value state.filterString
                 , HE.onValueInput (HE.input (\s → UpdateFilter s))
-                , ARIA.label "Filter next actions"
-                , HP.placeholder "Filter actions"
+                , ARIA.label filterInputDescription
+                , HP.placeholder filterInputDescription
                 ]
             , HH.button
                 [ HP.buttonType HP.ButtonButton
