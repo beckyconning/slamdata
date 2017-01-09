@@ -27,7 +27,7 @@ import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Card.Next.Component as Next
 import SlamData.Workspace.Card.Error.Component as Error
 import SlamData.Workspace.Card.Pending.Component as Pending
-import SlamData.Workspace.Deck.BackSide.Component as Back
+import SlamData.Workspace.Deck.BackSide as Back
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 
 type BackSideSlot = Unit
