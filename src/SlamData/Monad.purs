@@ -186,6 +186,6 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
 
   getIdTokenSilentlyIfNoPermissionTokens ∷ Aff SlamDataEffects (Maybe Auth.EIdToken)
   getIdTokenSilentlyIfNoPermissionTokens =
-    if eq 0 $ Array.length auth.permissionTokenHashes
+    if Array.null auth.permissionTokenHashes
       then hush <$> getIdTokenSilently auth.allowedModes auth.requestToken
       else pure Nothing
