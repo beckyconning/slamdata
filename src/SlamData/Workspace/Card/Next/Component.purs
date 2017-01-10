@@ -23,6 +23,8 @@ module SlamData.Workspace.Card.Next.Component
 
 import SlamData.Prelude
 
+import CSS as CSS
+
 import Data.Lens ((.~))
 
 import Halogen as H
@@ -42,7 +44,6 @@ import SlamData.Workspace.Card.Next.Component.State (StateP, State, initialState
 import SlamData.Workspace.Card.Next.Component.State as State
 import SlamData.Workspace.Card.Port as Port
 
-import Utils.CSS as CSSUtils
 import Utils.LocalStorage as LocalStorage
 
 type NextHTML =
@@ -72,7 +73,7 @@ nextCardComponent = H.parentComponent
 render ∷ State → NextHTML
 render state =
   HH.div
-    [ HCSS.style $ CSSUtils.width "100%" *> CSSUtils.height "100%" ]
+    [ HCSS.style $ CSS.width (CSS.pct 100.0) *> CSS.height (CSS.pct 100.0) ]
     $ (guard state.presentAddCardGuide $>
         Guide.render
           Guide.DownArrow
