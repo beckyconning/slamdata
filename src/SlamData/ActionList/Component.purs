@@ -102,8 +102,8 @@ type ButtonMetrics =
 derive newtype instance eqActionIconSrc :: Eq ActionIconSrc
 derive newtype instance eqActionDescription :: Eq ActionDescription
 derive newtype instance eqActionHighlighted :: Eq ActionHighlighted
-derive newtype instance eqActionNameWord ∷ Eq ActionNameWord
-derive newtype instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a)
+derive instance eqActionNameWord ∷ Eq ActionNameWord
+derive instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a)
 
 fontSizePx ∷ Number
 fontSizePx =
@@ -422,6 +422,9 @@ decimalCrop i n =
   where
   multiplier = Math.pow 10.0 $ Int.toNumber i
 
+-- Firefox doesn't seem to be able to handle pixel metrics with decimal
+-- precisons higher than one. Without applying this function actionlists
+-- of certain widths render with empty spaces and overflowing actions.
 firefoxify ∷ Number → Number
 firefoxify n =
   if Utils.isFirefox

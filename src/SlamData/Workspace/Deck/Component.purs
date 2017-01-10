@@ -224,25 +224,23 @@ eval opts = case _ of
 
 switchToFlipside ∷ DeckOptions → DeckDSL Unit
 switchToFlipside opts = do
-  maybe
-    (pure unit)
-    (maybe
-      (pure unit)
-      (void ∘ queryBacksideActionList ∘ H.action ∘ ActionList.SetBoundingRect))
-    =<< (queryNextActionList $ H.request ActionList.GetBoundingRect)
+  (traverse $ maybe (pure unit) setBacksideBoundingRect)
+     =<< (queryNextActionList $ H.request ActionList.GetBoundingRect)
   updateBackSide opts
   presentFlipGuideFirstTime
   H.modify (DCS.changeDisplayMode $ DCS.Backside)
+  where
+  setBacksideBoundingRect =
+    void ∘ queryBacksideActionList ∘ H.action ∘ ActionList.SetBoundingRect
 
 switchToFrontside ∷ DeckDSL Unit
 switchToFrontside = do
-  maybe
-    (pure unit)
-    (maybe
-      (pure unit)
-      (void ∘ queryNextActionList ∘ H.action ∘ ActionList.SetBoundingRect))
+  (traverse $ maybe (pure unit) setFrontsideBoundingRect)
     =<< (queryBacksideActionList $ H.request ActionList.GetBoundingRect)
   H.modify (DCS.changeDisplayMode $ DCS.Normal)
+  where
+  setFrontsideBoundingRect =
+     void ∘ queryNextActionList ∘ H.action ∘ ActionList.SetBoundingRect
 
 peek ∷ ∀ a. DeckOptions → H.ChildF ChildSlot ChildQuery a → DeckDSL Unit
 peek opts (H.ChildF s q) =
@@ -401,16 +399,17 @@ getUpdatedBackActions opts activeCard cards = do
   pure $ Back.toActionListAction uw activeCard cards <$> Back.allBackActions isAdvanced
 
 calculateUnwrappable ∷ Back.BackSideOptions → DCS.CardDef → DeckDSL Boolean
-calculateUnwrappable { displayCursor, deckId } { cardId } = do
-  deck ← map _.model <$> (H.liftH $ H.liftH (P.getDeck deckId))
-  card ← map _.model <$> (H.liftH $ H.liftH (P.getCard cardId))
-  let
-    cardLen = Array.length ∘ _.cards <$> deck
-    deckIds = Card.childDeckIds <$> card
-  pure $ case displayCursor, card, cardLen, deckIds of
-    L.Nil    , Just (Card.Draftboard _), Just 1, Just (_ : L.Nil) → true
-    _ : L.Nil, Just (Card.Draftboard _), Just 1, _ → true
-    _ , _, _, _ → false
+calculateUnwrappable { displayCursor, deckId } { cardId } =
+  fromMaybe false <$> runMaybeT do
+    deck ← MaybeT $ map _.model <$> (H.liftH $ H.liftH (P.getDeck deckId))
+    card ← MaybeT $ map _.model <$> (H.liftH $ H.liftH (P.getCard cardId))
+    let
+      cardLen = Array.length deck.cards
+      deckIds = Card.childDeckIds card
+    pure $ case displayCursor, card, cardLen, deckIds of
+      L.Nil    , Card.Draftboard _, 1, (_ : L.Nil) → true
+      _ : L.Nil, Card.Draftboard _, 1, _ → true
+      _ , _, _, _ → false
 
 dismissedAccessNextActionCardGuideKey ∷ String
 dismissedAccessNextActionCardGuideKey = "dismissedAccessNextActionCardGuide"
@@ -473,10 +472,8 @@ peekNextAction opts = case _ of
   Next.AddCard cardType _ → do
     void $ liftH' $ P.addCard opts.deckId cardType
     updateBackSide opts
-    pure unit
   Next.PresentReason input cardType _ → do
     presentReason input cardType
-    pure unit
   _ →
     pure unit
 
@@ -590,16 +587,15 @@ updateCardSize = do
 
 presentFlipGuideFirstTime ∷ DeckDSL Unit
 presentFlipGuideFirstTime = do
-  { bus } ← liftH' Wiring.expose
-  shouldPresentFlipGuide >>=
-    if _
-    then H.fromAff $ Bus.write Wiring.FlipGuide bus.stepByStep
-    else pure unit
+  whenM shouldPresentFlipGuide do
+    { bus } ← liftH' Wiring.expose
+    H.fromAff $ Bus.write Wiring.FlipGuide bus.stepByStep
 
 shouldPresentFlipGuide ∷ DeckDSL Boolean
 shouldPresentFlipGuide =
-  liftH' $
-    either (const true) not <$> LocalStorage.getLocalStorage Guide.dismissedFlipGuideKey
+  liftH'
+    $ either (const true) not
+    <$> LocalStorage.getLocalStorage Guide.dismissedFlipGuideKey
 
 navigateToDeck ∷ L.List DeckId → DeckDSL Unit
 navigateToDeck = case _ of
