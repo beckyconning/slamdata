@@ -102,27 +102,8 @@ type ButtonMetrics =
 derive newtype instance eqActionIconSrc :: Eq ActionIconSrc
 derive newtype instance eqActionDescription :: Eq ActionDescription
 derive newtype instance eqActionHighlighted :: Eq ActionHighlighted
-
-instance eqActionNameWord ∷ Eq ActionNameWord where
-  eq (ActionNameWord x) (ActionNameWord y) =
-    x.word ≡ y.word ∧ x.widthPx ≡ y.widthPx
-
-instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a) where
-  eq GoBackInternal GoBackInternal =
-    true
-  eq (DoInternal n1 i1 d1 h1 a1) (DoInternal n2 i2 d2 h2 a2) =
-    n1 ≡ n2
-      ∧ i1 ≡ i2
-      ∧ d1 ≡ d2
-      ∧ h1 ≡ h2
-      ∧ a1 ≡ a2
-  eq (DrillInternal n1 i1 d1 a1) (DrillInternal n2 i2 d2 a2) =
-    n1 ≡ n2
-      ∧ i1 ≡ i2
-      ∧ d1 ≡ d2
-      ∧ a1 ≡ a2
-  eq _ _ =
-    false
+derive newtype instance eqActionNameWord ∷ Eq ActionNameWord
+derive newtype instance eqActionInternal ∷ Eq a ⇒ Eq (ActionInternal a)
 
 fontSizePx ∷ Number
 fontSizePx =
