@@ -21,6 +21,7 @@ import SlamData.Prelude
 import Control.Coroutine (runProcess, await, ($$))
 import Control.Coroutine.Aff (produce)
 import Control.Monad.Aff (Aff, forkAff)
+import Control.Monad.Aff.Free (fromEff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (writeRef)
@@ -75,18 +76,18 @@ main = do
 
 routeSignal ∷ Aff SlamDataEffects Unit
 routeSignal = do
-  permissionTokenHashes ← liftEff $ Permission.retrieveTokenHashes
-  runProcess (routeProducer $$ routeConsumer permissionTokenHashes Nothing)
+  runProcess (routeProducer $$ routeConsumer Nothing)
 
   where
   routeProducer = produce \emit →
     Routing.matches' UP.decodeURIPath routing \_ → emit ∘ Left
 
-  routeConsumer permissionTokenHashes state  = do
+  routeConsumer state  = do
     new ← await
     case new, state of
       -- Initialize the Workspace component
       WorkspaceRoute path deckId action varMaps, Nothing → do
+        permissionTokenHashes ← lift $ fromEff Permission.retrieveTokenHashes
         wiring ← lift $ Wiring.make path (toAccessType action) varMaps permissionTokenHashes
         mount wiring new
 
@@ -100,13 +101,13 @@ routeSignal = do
         case old of
           WorkspaceRoute _ deckId' _ varMaps'
             | deckId ≡ deckId' ∧ varMaps ≡ varMaps' →
-                routeConsumer (Wiring.unWiring wiring).auth.permissionTokenHashes (Just (RouterState new wiring driver))
+                routeConsumer (Just (RouterState new wiring driver))
           WorkspaceRoute _ deckId' _ varMaps' → do
             when (varMaps ≠ varMaps') $ lift do
               liftEff $ writeRef (Wiring.unWiring wiring).varMaps varMaps
               diffVarMaps wiring varMaps' varMaps
             lift $ setup new driver
-            routeConsumer (Wiring.unWiring wiring).auth.permissionTokenHashes (Just (RouterState new wiring driver))
+            routeConsumer (Just (RouterState new wiring driver))
 
   diffVarMaps (Wiring wiring) vm1 vm2 = do
     decks ← Cache.snapshot wiring.eval.decks
@@ -131,7 +132,7 @@ routeSignal = do
     let ui = interpret (runSlam wiring) $ Workspace.comp (toAccessType action)
     driver ← lift $ runUI ui (parentState Workspace.initialState) =<< awaitBody'
     lift $ setup new driver
-    routeConsumer (Wiring.unWiring wiring).auth.permissionTokenHashes (Just (RouterState new wiring driver))
+    routeConsumer (Just (RouterState new wiring driver))
 
   setup new@(WorkspaceRoute _ deckId action varMaps) driver = do
     when (toAccessType action ≡ AT.ReadOnly) do
