@@ -83,7 +83,7 @@ nodeWithAttribute ∷ String → String → String → String
 nodeWithAttribute name xPath value = xPath ⊕ "[contains(@" ⊕ name ⊕ ", '" ⊕ value ⊕ "')]"
 
 nodeWithAttributeWithAnyValue ∷ String → String → String
-nodeWithAttributeWithAnyValue name xPath = name ⊕ "[@" ⊕ name ⊕ "]"
+nodeWithAttributeWithAnyValue name xPath = xPath ⊕ "[@" ⊕ name ⊕ "]"
 
 nodeWithExactAriaLabel ∷ String → String → String
 nodeWithExactAriaLabel = nodeWithExactAttribute "aria-label"
