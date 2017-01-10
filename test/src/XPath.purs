@@ -58,6 +58,9 @@ ariaDisabled s = "@aria-disabled = '" ⊕ s ⊕ "'"
 withoutText ∷ String → String
 withoutText s = "text() != '" ⊕ s ⊕ "'"
 
+attribute ∷ String → String
+attribute name = "@" ⊕ name
+
 withTextContaining ∷ String → String
 withTextContaining s = "contains(text(), '" ⊕ s ⊕ "')"
 
