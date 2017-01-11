@@ -18,9 +18,6 @@ module SlamData.ActionList.Component where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff as Aff
-import Control.Monad.Eff.Class (liftEff)
-
 import CSS as CSS
 
 import Data.Array ((..))
