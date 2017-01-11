@@ -222,6 +222,17 @@ eval opts = case _ of
   getBoundingClientWidth =
     H.fromEff ∘ map _.width ∘ getBoundingClientRect
 
+-- If an ActionList has the style display: none; then calculating its dimensions
+-- will give 0, 0. (This is Mapped to Nothing.)
+--
+-- If we recalculate after flipping then there may be a momentary flash
+-- (observed).
+--
+-- Sending the dimensions of the next action list to the flip side action list
+-- prevents this.
+--
+-- If there is no next action card this can't be done so just flip and
+-- recalculate.
 switchToFlipside ∷ DeckOptions → DeckDSL Unit
 switchToFlipside opts = do
   updateBackSide opts
