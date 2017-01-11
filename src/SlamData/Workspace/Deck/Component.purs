@@ -224,27 +224,29 @@ eval opts = case _ of
 
 switchToFlipside ∷ DeckOptions → DeckDSL Unit
 switchToFlipside opts = do
-  whenM
-    (DCS.isFrontSide <$> H.gets _.displayMode)
-    ((traverse_ $ maybe (pure unit) setBacksideBoundingRect)
-       =<< (queryNextActionList $ H.request ActionList.GetBoundingRect))
   updateBackSide opts
   presentFlipGuideFirstTime
-  H.modify (DCS._displayMode .~ DCS.FlipSide DCS.NoDialog)
-  where
-  setBacksideBoundingRect =
-    void ∘ queryBacksideActionList ∘ H.action ∘ ActionList.SetBoundingRect
+  queryNextActionList $ H.action $ ActionList.CalculateBoundingRect
+  nextBoundingRect ← queryNextActionList $ H.request ActionList.GetBoundingRect
+  case nextBoundingRect of
+    Just (Just dimensions) → do
+      queryBacksideActionList $ H.action $ ActionList.SetBoundingRect dimensions
+      H.modify (DCS._displayMode .~ DCS.FlipSide DCS.NoDialog)
+    _ → do
+      H.modify (DCS._displayMode .~ DCS.FlipSide DCS.NoDialog)
+      void $ queryBacksideActionList $ H.action $ ActionList.CalculateBoundingRect
 
 switchToFrontside ∷ DeckDSL Unit
 switchToFrontside = do
-  whenM
-    (DCS.isFlipSide <$> H.gets _.displayMode)
-    ((traverse_ $ maybe (pure unit) setFrontsideBoundingRect)
-      =<< (queryBacksideActionList $ H.request ActionList.GetBoundingRect))
-  H.modify (DCS._displayMode .~ DCS.FrontSide DCS.NoDialog)
-  where
-  setFrontsideBoundingRect =
-     void ∘ queryNextActionList ∘ H.action ∘ ActionList.SetBoundingRect
+  queryBacksideActionList $ H.action $ ActionList.CalculateBoundingRect
+  flipSideBoundingRect ← queryBacksideActionList $ H.request ActionList.GetBoundingRect
+  case flipSideBoundingRect of
+    Just (Just dimensions) → do
+      queryNextActionList $ H.action $ ActionList.SetBoundingRect dimensions
+      H.modify (DCS._displayMode .~ DCS.FrontSide DCS.NoDialog)
+    _ → do
+      H.modify (DCS._displayMode .~ DCS.FrontSide DCS.NoDialog)
+      void $ queryNextActionList $ H.action $ ActionList.CalculateBoundingRect
 
 peek ∷ ∀ a. DeckOptions → H.ChildF ChildSlot ChildQuery a → DeckDSL Unit
 peek opts (H.ChildF s q) =

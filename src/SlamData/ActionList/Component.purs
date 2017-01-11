@@ -18,6 +18,9 @@ module SlamData.ActionList.Component where
 
 import SlamData.Prelude
 
+import Control.Monad.Aff as Aff
+import Control.Monad.Eff.Class (liftEff)
+
 import CSS as CSS
 
 import Data.Array ((..))
@@ -598,16 +601,23 @@ eval =
     CalculateBoundingRect next →
       calculateBoundingRect $> next
     SetBoundingRect dimensions next →
-      H.modify (_boundingDimensions .~ Just dimensions) $> next
+      H.modify (_boundingDimensions .~ maybeNotZero dimensions) $> next
     GetBoundingRect continue →
       continue <$> H.gets _.boundingDimensions
     SetBoundingElement element next →
       H.modify (_boundingElement .~ element) $> next
 
+maybeNotZero ∷ Dimensions → Maybe Dimensions
+maybeNotZero dimensions =
+  if dimensions.width ≡ 0.0 ∨ dimensions.height ≡ 0.0
+    then Nothing
+    else Just dimensions
+
 calculateBoundingRect ∷ ∀ a. DSL a Unit
 calculateBoundingRect =
   H.modify
     ∘ (_boundingDimensions .~ _)
+    ∘ flip bind maybeNotZero
     ∘ map domRectToDimensions
     =<< getBoundingDOMRect
 
