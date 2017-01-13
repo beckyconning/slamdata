@@ -75,8 +75,8 @@ inputs =
   , ShowFormCard × [ Form ]
   , ShowDownloadCard × [ Download ]
   , ShowMarkdownCard × [ Markdown ]
-  , TableCard × [ Data, Chart ]
-  , TroubleshootCard × [ Variables, Data ]
+  , TableCard × [ Data ]
+  , TroubleshootCard × [ Chart, Form, Data, Download, Markdown, Variables ]
   ]
 
 -- Cards only have one output type, treat this as a Map or turn it into one.
