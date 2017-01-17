@@ -4,7 +4,6 @@ import SlamData.Prelude
 import Data.Map as Map
 import Test.SlamData.Feature.XPaths as XPaths
 import XPath as XPath
-import Ace (NewlineMode(..))
 import Test.Feature (expectPresented, expectNotPresented, expectPresentedWithProperties, expectNotPresentedWithProperties, expectDownloadedTextFileToMatchFile, expectPresentedNotRepeatedly)
 import Test.SlamData.Feature.Monad (SlamFeature)
 
