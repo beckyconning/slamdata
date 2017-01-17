@@ -89,9 +89,8 @@ toNotificationOptions =
       , timeout: Nothing
       , actionOptions:
           Just $ N.ActionOptions
-            { messagePrefix: "File listings and workspaces may appear empty or incomplete. Please "
-            , actionMessage: "sign in"
-            , messageSuffix: " to continue."
+            { message: "File listings and workspaces may appear empty or incomplete. Please sign in to continue."
+            , actionMessage: "Sign in"
             , action: N.ExpandGlobalMenu
             }
       }
@@ -101,9 +100,8 @@ toNotificationOptions =
       , timeout: Nothing
       , actionOptions:
           Just $ N.ActionOptions
-            { messagePrefix: "File listings and workspaces may appear empty or incomplete. Please "
-            , actionMessage: "sign in"
-            , messageSuffix: " as a user with permission to access this resource or contact your administrator."
+            { message: "File listings and workspaces may appear empty or incomplete. Please sign in as a user with permission to access this resource or contact your administrator."
+            , actionMessage: "Sign in"
             , action: N.ExpandGlobalMenu
             }
       }
