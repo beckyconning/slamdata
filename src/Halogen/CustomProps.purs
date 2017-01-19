@@ -33,7 +33,7 @@ nonSubmit = unsafeCoerce unrefined
   unrefined ∷ H.Prop i
   unrefined = H.handler (H.eventName "submit") (\_ → preventDefault $> Nothing)
 
-autoplay :: forall r i. Boolean -> IProp r i
+autoplay :: forall r i. Boolean -> IProp (autoplay ∷ I | r) i
 autoplay = unsafeCoerce unrefined
   where
   unrefined ∷ Boolean → H.Prop i
