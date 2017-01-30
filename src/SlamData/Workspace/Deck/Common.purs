@@ -20,8 +20,10 @@ import Data.List as L
 
 import Halogen as H
 
+import SlamData.Prelude
 import SlamData.Monad (Slam)
 import SlamData.Workspace.AccessType (AccessType)
+import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Deck.Component.ChildSlot (ChildSlot, ChildQuery, ChildState)
 import SlamData.Workspace.Deck.Component.Query (Query)
 import SlamData.Workspace.Deck.Component.State (State)
@@ -37,3 +39,7 @@ type DeckOptions =
   , displayCursor ∷ L.List DeckId -- Relative cursor within the UI
   , deckId ∷ DeckId
   }
+
+willBePresentedWithChildFrameWhenFocused ∷ DeckOptions → State → Boolean
+willBePresentedWithChildFrameWhenFocused opts st =
+  (opts.accessType ≠ AT.ReadOnly) ∧ (L.length opts.displayCursor ≡ 1)

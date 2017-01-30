@@ -77,6 +77,7 @@ import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery)
 import SlamData.Workspace.Class (navigate, Routes(..))
 import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
+import SlamData.Workspace.Deck.Common as Common
 import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
 import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
 import SlamData.Workspace.Deck.Component.Query (Query(..), QueryP)
@@ -191,10 +192,7 @@ eval opts = case _ of
       H.fromAff $ Bus.write (DeckFocused opts.deckId) bus.decks
       presentAccessNextActionCardGuideAfterDelay
     when
-      ((opts.accessType ≠ AT.ReadOnly)
-        ∧ (L.length opts.displayCursor ≡ 1)
-        ∧ (not st.focused)
-        ∧ (not st.focusDeckHintDismissed))
+      (Common.willBePresentedWithChildFrameWhenFocused opts st)
       (raise' $ H.action DismissFocusDeckHint)
     pure next
   Defocus ev next → do
@@ -205,10 +203,7 @@ eval opts = case _ of
         { bus } ← liftH' Wiring.expose
         H.fromAff $ Bus.write (DeckFocused rootId) bus.decks
     when
-      ((opts.accessType ≠ AT.ReadOnly)
-        ∧ (L.length opts.displayCursor ≡ 1)
-        ∧ st.focused
-        ∧ (not st.focusDeckFrameHintDismissed))
+      (Common.willBePresentedWithChildFrameWhenFocused opts st)
       (raise' $ H.action DismissFocusDeckHint)
     H.modify (DCS._presentAccessNextActionCardGuide .~ false)
     pure next

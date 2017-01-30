@@ -71,25 +71,18 @@ module SlamData.Workspace.Deck.Component.State
   ) where
 
 import SlamData.Prelude
-
-import Control.Monad.Aff.EventLoop (Breaker)
-import Control.Monad.Aff (Canceler)
-
-import DOM.HTML.Types (HTMLElement)
-
 import Data.Array as A
+import SlamData.Workspace.Card.Port as Port
+import Control.Monad.Aff (Canceler)
+import Control.Monad.Aff.EventLoop (Breaker)
+import DOM.HTML.Types (HTMLElement)
 import Data.Lens (Lens', lens, Prism', prism')
-
 import Halogen.Component.Opaque.Unsafe (OpaqueState)
-
 import Quasar.Advanced.Types (ProviderR)
-
 import SlamData.Effects (SlamDataEffects)
 import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Card.CardType (CardType)
-import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Deck.Gripper.Def (GripperDef)
-
 import Utils (hush)
 
 type StateP = OpaqueState State

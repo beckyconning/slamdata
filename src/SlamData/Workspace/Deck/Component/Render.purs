@@ -41,6 +41,7 @@ import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Slider as Slider
 import SlamData.Render.Common (glyph)
 import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML)
+import SlamData.Workspace.Deck.Common as Common
 import SlamData.Workspace.Deck.Component.ChildSlot (cpBackSide, cpDialog, cpActionFilter)
 import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
 import SlamData.Workspace.Deck.Component.Query (Query(..))
@@ -88,15 +89,13 @@ renderDeck opts deckComponent st =
   where
   presentFocusDeckHint ∷ Boolean
   presentFocusDeckHint =
-    (opts.accessType ≠ AT.ReadOnly)
-      ∧ (L.length opts.displayCursor ≡ 1)
+    Common.willBePresentedWithChildFrameWhenFocused opts st
       ∧ (not st.focused)
       ∧ (not st.focusDeckHintDismissed)
 
   presentFocusDeckFrameHint ∷ Boolean
   presentFocusDeckFrameHint =
-    (opts.accessType ≠ AT.ReadOnly)
-      ∧ (L.length opts.displayCursor ≡ 1)
+    Common.willBePresentedWithChildFrameWhenFocused opts st
       ∧ st.focused
       ∧ (not st.focusDeckFrameHintDismissed)
 
