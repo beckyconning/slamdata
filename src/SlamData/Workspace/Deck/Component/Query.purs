@@ -20,17 +20,14 @@ module SlamData.Workspace.Deck.Component.Query
   ) where
 
 import SlamData.Prelude
-
 import DOM.HTML.Types (HTMLElement)
-
 import Halogen.Component.Opaque.Unsafe (OpaqueQuery)
 import Halogen.HTML.Events.Types (Event, MouseEvent)
-
 import SlamData.GlobalError (GlobalError)
+import SlamData.Wiring (DeckMessage)
 import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Deck.Gripper.Def (GripperDef)
 import SlamData.Workspace.Eval.Deck (EvalMessage)
-import SlamData.Wiring (DeckMessage)
 
 data Query a
   = Init a
@@ -56,5 +53,7 @@ data Query a
   | DismissedCardGuide a
   | DismissDialog a
   | GetActiveCard (Maybe CardId → a)
+  | DismissFocusDeckHint a
+  | DismissFocusDeckFrameHint a
 
 type QueryP = OpaqueQuery Query

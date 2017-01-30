@@ -26,13 +26,15 @@ import Halogen.HTML.Properties.Indexed as HP
 import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 
 type Step = { imageUri ∷ String, text ∷ String }
-data Arrow = RightArrow | DownArrow
+data Arrow = RightArrow | DownArrow | LeftArrow | UpArrow
 
 arrowClassName ∷ Arrow → HH.ClassName
 arrowClassName =
   case _ of
     RightArrow -> HH.className "sd-guide-right-arrow"
     DownArrow -> HH.className "sd-guide-down-arrow"
+    LeftArrow -> HH.className "sd-guide-left-arrow"
+    UpArrow -> HH.className "sd-guide-up-arrow"
 
 render ∷ ∀ f a. Arrow → HH.ClassName → (Unit → f Unit) → String → HH.HTML a (f Unit)
 render arrow className dismissQuery text =
