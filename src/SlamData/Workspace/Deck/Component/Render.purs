@@ -82,10 +82,21 @@ renderDeck opts deckComponent st =
             , renderDialog $ DCS.hasDialog st.displayMode
             ]
       ]
-      <> (guard (not st.focused) $> renderFocusDeckHint)
-      <> (guard st.focused $> renderFocusDeckFrameHint)
+      <> (guard presentFocusDeckHint $> renderFocusDeckHint)
+      <> (guard presentFocusDeckFrameHint $> renderFocusDeckFrameHint)
 
   where
+  presentFocusDeckHint ∷ Boolean
+  presentFocusDeckHint =
+    (opts.accessType ≠ AT.ReadOnly)
+      ∧ (not $ L.null opts.displayCursor)
+      ∧ (not st.focused)
+
+  presentFocusDeckFrameHint ∷ Boolean
+  presentFocusDeckFrameHint =
+    (opts.accessType ≠ AT.ReadOnly)
+      ∧ (not $ L.null opts.displayCursor)
+      ∧ st.focused
 
   renderFocusDeckHint ∷ DeckHTML
   renderFocusDeckHint =
