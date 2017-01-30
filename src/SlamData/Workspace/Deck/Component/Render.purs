@@ -89,13 +89,13 @@ renderDeck opts deckComponent st =
   presentFocusDeckHint ∷ Boolean
   presentFocusDeckHint =
     (opts.accessType ≠ AT.ReadOnly)
-      ∧ (not $ L.null opts.displayCursor)
+      ∧ (L.length opts.displayCursor ≡ 1)
       ∧ (not st.focused)
 
   presentFocusDeckFrameHint ∷ Boolean
   presentFocusDeckFrameHint =
     (opts.accessType ≠ AT.ReadOnly)
-      ∧ (not $ L.null opts.displayCursor)
+      ∧ (L.length opts.displayCursor ≡ 1)
       ∧ st.focused
 
   renderFocusDeckHint ∷ DeckHTML
