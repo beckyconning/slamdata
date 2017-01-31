@@ -20,7 +20,6 @@ module SlamData.Workspace.Deck.Component.Render
   ) where
 
 import SlamData.Prelude
-import SlamData.Guide as Guide
 import Data.Array as A
 import Data.List as L
 import Halogen as H
@@ -32,20 +31,21 @@ import Halogen.HTML.Properties.Indexed.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 import SlamData.ActionList.Component as ActionList
 import SlamData.ActionList.Filter.Component as ActionFilter
+import SlamData.Guide as Guide
 import SlamData.Render.CSS as RCSS
+import SlamData.Render.Common (glyph)
 import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Card.Component.CSS as CCSS
-import SlamData.Workspace.Deck.Component.CSS as CSS
-import SlamData.Workspace.Deck.Component.State as DCS
-import SlamData.Workspace.Deck.Dialog.Component as Dialog
-import SlamData.Workspace.Deck.Slider as Slider
-import SlamData.Render.Common (glyph)
 import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML)
 import SlamData.Workspace.Deck.Common as Common
+import SlamData.Workspace.Deck.Component.CSS as CSS
 import SlamData.Workspace.Deck.Component.ChildSlot (cpBackSide, cpDialog, cpActionFilter)
 import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
 import SlamData.Workspace.Deck.Component.Query (Query(..))
 import SlamData.Workspace.Deck.Component.Query as DCQ
+import SlamData.Workspace.Deck.Component.State as DCS
+import SlamData.Workspace.Deck.Dialog.Component as Dialog
+import SlamData.Workspace.Deck.Slider as Slider
 import Utils (endSentence)
 
 renderError ∷ ∀ f a. String → HH.HTML a (f Unit)
@@ -113,7 +113,7 @@ renderDeck opts deckComponent st =
       Guide.UpArrow
       (HH.className "sd-focus-deck-frame-hint")
       DCQ.DismissFocusDeckFrameHint
-      "This Deck is focused. To do more with the Deck containing the Dashboard card this Deck is wrapped in focus it by clicking or tapping on the empty space in this Deck Frame."
+      "This Deck is focused. To do more with the containing Deck focus it by clicking or tapping on the empty space in this Deck Frame."
 
   renderDialogBackdrop visible =
     HH.div

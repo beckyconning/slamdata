@@ -29,63 +29,63 @@ import Control.Monad.Aff as Aff
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.EventLoop as EventLoop
 import Control.Monad.Eff.Exception as Exception
+import Control.Monad.Eff.Ref (readRef)
 import Control.UI.Browser as Browser
+import DOM.HTML.HTMLElement (getBoundingClientRect)
 import Data.Array as Array
+import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
+import Data.List ((:))
 import Data.List as L
 import Data.Set as Set
 import Halogen as H
+import Halogen.Component.ChildPath (injSlot)
+import Halogen.Component.Opaque.Unsafe (opaqueState)
+import Halogen.Component.Utils (liftH', raise', sendAfter', subscribeToBus')
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import SlamData.ActionList.Component as ActionList
 import SlamData.ActionList.Filter.Component as ActionFilter
 import SlamData.Config as Config
+import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
 import SlamData.Guide as Guide
 import SlamData.Quasar as Api
+import SlamData.Wiring (DeckMessage(..))
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
 import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Action as WA
+import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Common.EvalQuery as CEQ
+import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery)
 import SlamData.Workspace.Card.Component.Query as CQ
 import SlamData.Workspace.Card.InsertableCardType as ICT
 import SlamData.Workspace.Card.Model as Card
 import SlamData.Workspace.Card.Next.Component as Next
 import SlamData.Workspace.Card.Next.Component.ChildSlot as NextCS
 import SlamData.Workspace.Card.Port as Port
+import SlamData.Workspace.Class (navigate, Routes(..))
 import SlamData.Workspace.Deck.BackSide as Back
+import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
+import SlamData.Workspace.Deck.Common as Common
+import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
+import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
+import SlamData.Workspace.Deck.Component.Query (Query(..), QueryP)
 import SlamData.Workspace.Deck.Component.Render as DCR
 import SlamData.Workspace.Deck.Component.State as DCS
+import SlamData.Workspace.Deck.DeckId (DeckId)
+import SlamData.Workspace.Deck.DeckPath (deckPath')
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Slider as Slider
 import SlamData.Workspace.Eval.Card as EC
 import SlamData.Workspace.Eval.Deck as ED
 import SlamData.Workspace.Eval.Persistence as P
 import SlamData.Workspace.Eval.Traverse as ET
-import Utils.LocalStorage as LocalStorage
-import Control.Monad.Eff.Ref (readRef)
-import DOM.HTML.HTMLElement (getBoundingClientRect)
-import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
-import Data.List ((:))
-import Halogen.Component.ChildPath (injSlot)
-import Halogen.Component.Opaque.Unsafe (opaqueState)
-import Halogen.Component.Utils (liftH', raise', sendAfter', subscribeToBus')
-import SlamData.FileSystem.Routing (parentURL)
-import SlamData.Wiring (DeckMessage(..))
-import SlamData.Workspace.Card.CardId (CardId)
-import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery)
-import SlamData.Workspace.Class (navigate, Routes(..))
-import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
-import SlamData.Workspace.Deck.Common as Common
-import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
-import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
-import SlamData.Workspace.Deck.Component.Query (Query(..), QueryP)
-import SlamData.Workspace.Deck.DeckId (DeckId)
-import SlamData.Workspace.Deck.DeckPath (deckPath, deckPath')
 import SlamData.Workspace.Routing (mkWorkspaceURL)
-import Utils (hush)
+import Utils as Utils
 import Utils.DOM (elementEq)
+import Utils.LocalStorage as LocalStorage
 
 initialState ∷ DCS.StateP
 initialState = opaqueState DCS.initialDeck
@@ -104,9 +104,6 @@ render opts deckComponent st =
         [ DCR.renderError error ]
     _ → DCR.renderDeck opts deckComponent st
 
-f ∷ ∀ a. Either a Boolean → Boolean
-f = either (const false) id
-
 eval ∷ DeckOptions → Query ~> DeckDSL
 eval opts = case _ of
   Init next → do
@@ -118,10 +115,10 @@ eval opts = case _ of
       H.modify $ DCS._breakers %~ (Array.cons eb)
     H.modify
       ∘ (DCS._focusDeckHintDismissed .~ _)
-      =<< (liftH' $ f <$> LocalStorage.getLocalStorage Guide.dismissedFocusDeckHintKey)
+      =<< (liftH' $ Utils.rightBool <$> LocalStorage.getLocalStorage Guide.dismissedFocusDeckHintKey)
     H.modify
       ∘ (DCS._focusDeckFrameHintDismissed .~ _)
-      =<< (liftH' $ f <$> LocalStorage.getLocalStorage Guide.dismissedFocusDeckFrameHintKey)
+      =<< (liftH' $ Utils.rightBool <$> LocalStorage.getLocalStorage Guide.dismissedFocusDeckFrameHintKey)
     updateCardSize
     loadDeck opts
     pure next
@@ -227,19 +224,19 @@ eval opts = case _ of
     pure next
   GetActiveCard k → do
     active ← H.gets DCS.activeCard
-    pure (k (hush ∘ map _.cardId =<< active))
-  DismissDialog next →
+    pure (k (Utils.hush ∘ map _.cardId =<< active))
+  DismissDialog next → do
     queryDialog (H.action Dialog.Dismiss)
-      *> H.modify (DCS._displayMode %~ DCS.noDialog)
-      $> next
-  DismissFocusDeckHint next →
+    H.modify (DCS._displayMode %~ DCS.noDialog)
+    pure next
+  DismissFocusDeckHint next → do
     H.modify (DCS._focusDeckHintDismissed .~ true)
-      *> (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckHintKey true)
-      $> next
-  DismissFocusDeckFrameHint next →
+    (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckHintKey true)
+    pure next
+  DismissFocusDeckFrameHint next → do
     H.modify (DCS._focusDeckFrameHintDismissed .~ true)
-      *> (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckFrameHintKey true)
-      $> next
+    (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckFrameHintKey true)
+    pure next
   where
   getBoundingClientWidth =
     H.fromEff ∘ map _.width ∘ getBoundingClientRect
@@ -319,7 +316,7 @@ peekBackSide opts = case _ of
           let
             active = DCS.activeCard st
             activeIx = DCS.activeCardIndex st
-          for_ (join $ hush <$> active) \{ cardId } → do
+          for_ (join $ Utils.hush <$> active) \{ cardId } → do
             when (activeIx > 0) do
               H.modify _ { activeCardIndex = Just (activeIx - 1) }
               updateActiveState opts
@@ -350,7 +347,7 @@ peekBackSide opts = case _ of
             then deleteDeck opts
             else showDialog Dialog.DeleteDeck
         Back.Mirror → do
-          let mirrorCard = (hush =<< DCS.activeCard st) <|> DCS.findLastRealCard st
+          let mirrorCard = (Utils.hush =<< DCS.activeCard st) <|> DCS.findLastRealCard st
           deck ← liftH' $ P.getDeck opts.deckId
           case deck >>= _.parent, mirrorCard <#> _.cardId of
             Just parentId, Just cardId | not (L.null opts.displayCursor) → do
@@ -434,8 +431,8 @@ updateBackSide ∷ DeckOptions → DeckDSL Unit
 updateBackSide { deckId, displayCursor } = do
   st ← H.get
   let
-    ty = join (hush <$> DCS.activeCard st)
-    tys = Array.mapMaybe hush st.displayCards
+    ty = join (Utils.hush <$> DCS.activeCard st)
+    tys = Array.mapMaybe Utils.hush st.displayCards
   void ∘ H.query' cpBackSide unit ∘ H.action ∘ ActionList.UpdateActions
     =<< getUpdatedBackActions { deckId, displayCursor } ty tys
 
