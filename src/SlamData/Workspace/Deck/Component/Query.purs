@@ -24,7 +24,7 @@ import DOM.HTML.Types (HTMLElement)
 import Halogen.Component.Opaque.Unsafe (OpaqueQuery)
 import Halogen.HTML.Events.Types (Event, MouseEvent)
 import SlamData.GlobalError (GlobalError)
-import SlamData.Wiring (DeckMessage)
+import SlamData.Wiring (DeckMessage, HintDismissalMessage)
 import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Deck.Gripper.Def (GripperDef)
 import SlamData.Workspace.Eval.Deck (EvalMessage)
@@ -49,6 +49,7 @@ data Query a
   | Defocus (Event MouseEvent) a
   | HandleEval EvalMessage a
   | HandleMessage DeckMessage a
+  | HandleHintDismissalMessage HintDismissalMessage a
   | HandleError GlobalError a
   | DismissedCardGuide a
   | DismissDialog a

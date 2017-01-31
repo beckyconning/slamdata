@@ -22,6 +22,7 @@ module SlamData.Wiring
   , CacheWiring
   , BusWiring
   , DeckMessage(..)
+  , HintDismissalMessage(..)
   , StepByStepGuide(..)
   , ActiveState
   , PendingEval
@@ -61,6 +62,10 @@ import Utils.Path (DirPath)
 
 data DeckMessage
   = DeckFocused DeckId
+
+data HintDismissalMessage
+  = DeckFocusHintDismissed
+  | DeckFrameFocusHintDismissed
 
 data StepByStepGuide
   = CardGuide
@@ -109,6 +114,7 @@ type BusWiring =
   , notify ∷ Bus.BusRW N.NotificationOptions
   , globalError ∷ Bus.BusRW GE.GlobalError
   , stepByStep ∷ Bus.BusRW StepByStepGuide
+  , hintDismissals ∷ Bus.BusRW HintDismissalMessage
   }
 
 type WiringR =
@@ -174,4 +180,5 @@ make path accessType vm permissionTokenHashes = fromAff do
     notify ← Bus.make
     globalError ← Bus.make
     stepByStep ← Bus.make
-    pure { decks, notify, globalError, stepByStep }
+    hintDismissals ← Bus.make
+    pure { decks, notify, globalError, stepByStep, hintDismissals }

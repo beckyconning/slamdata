@@ -29,63 +29,63 @@ import Control.Monad.Aff as Aff
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.EventLoop as EventLoop
 import Control.Monad.Eff.Exception as Exception
-import Control.Monad.Eff.Ref (readRef)
 import Control.UI.Browser as Browser
-import DOM.HTML.HTMLElement (getBoundingClientRect)
 import Data.Array as Array
-import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
-import Data.List ((:))
 import Data.List as L
 import Data.Set as Set
 import Halogen as H
-import Halogen.Component.ChildPath (injSlot)
-import Halogen.Component.Opaque.Unsafe (opaqueState)
-import Halogen.Component.Utils (liftH', raise', sendAfter', subscribeToBus')
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
 import SlamData.ActionList.Component as ActionList
 import SlamData.ActionList.Filter.Component as ActionFilter
 import SlamData.Config as Config
-import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
 import SlamData.Guide as Guide
 import SlamData.Quasar as Api
-import SlamData.Wiring (DeckMessage(..))
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
 import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Action as WA
-import SlamData.Workspace.Card.CardId (CardId)
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Common.EvalQuery as CEQ
-import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery)
 import SlamData.Workspace.Card.Component.Query as CQ
 import SlamData.Workspace.Card.InsertableCardType as ICT
 import SlamData.Workspace.Card.Model as Card
 import SlamData.Workspace.Card.Next.Component as Next
 import SlamData.Workspace.Card.Next.Component.ChildSlot as NextCS
 import SlamData.Workspace.Card.Port as Port
-import SlamData.Workspace.Class (navigate, Routes(..))
 import SlamData.Workspace.Deck.BackSide as Back
-import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
 import SlamData.Workspace.Deck.Common as Common
-import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
-import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
-import SlamData.Workspace.Deck.Component.Query (Query(..), QueryP)
 import SlamData.Workspace.Deck.Component.Render as DCR
 import SlamData.Workspace.Deck.Component.State as DCS
-import SlamData.Workspace.Deck.DeckId (DeckId)
-import SlamData.Workspace.Deck.DeckPath (deckPath')
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Slider as Slider
 import SlamData.Workspace.Eval.Card as EC
 import SlamData.Workspace.Eval.Deck as ED
 import SlamData.Workspace.Eval.Persistence as P
 import SlamData.Workspace.Eval.Traverse as ET
-import SlamData.Workspace.Routing (mkWorkspaceURL)
 import Utils as Utils
-import Utils.DOM (elementEq)
 import Utils.LocalStorage as LocalStorage
+import Control.Monad.Eff.Ref (readRef)
+import DOM.HTML.HTMLElement (getBoundingClientRect)
+import Data.Lens ((.~), (%~), (?~), _Left, _Just, is)
+import Data.List ((:))
+import Halogen.Component.ChildPath (injSlot)
+import Halogen.Component.Opaque.Unsafe (opaqueState)
+import Halogen.Component.Utils (liftH', raise', sendAfter', subscribeToBus')
+import SlamData.FileSystem.Routing (parentURL)
+import SlamData.Wiring (DeckMessage(..))
+import SlamData.Workspace.Card.CardId (CardId)
+import SlamData.Workspace.Card.Component (CardQueryP, CardQuery(..), InnerCardQuery, AnyCardQuery)
+import SlamData.Workspace.Class (navigate, Routes(..))
+import SlamData.Workspace.Deck.Common (DeckOptions, DeckHTML, DeckDSL)
+import SlamData.Workspace.Deck.Component.ChildSlot (cpCard, ChildQuery, ChildSlot, cpDialog, cpBackSide, cpNext)
+import SlamData.Workspace.Deck.Component.Cycle (DeckComponent)
+import SlamData.Workspace.Deck.Component.Query (Query(..), QueryP)
+import SlamData.Workspace.Deck.DeckId (DeckId)
+import SlamData.Workspace.Deck.DeckPath (deckPath')
+import SlamData.Workspace.Routing (mkWorkspaceURL)
+import Utils.DOM (elementEq)
 
 initialState ∷ DCS.StateP
 initialState = opaqueState DCS.initialDeck
@@ -109,7 +109,8 @@ eval opts = case _ of
   Init next → do
     { bus } ← liftH' Wiring.expose
     mb ← subscribeToBus' (H.action ∘ HandleMessage) bus.decks
-    H.modify $ DCS._breakers .~ [mb]
+    nb ← subscribeToBus' (H.action ∘ HandleHintDismissalMessage) bus.hintDismissals
+    H.modify $ DCS._breakers .~ [mb, nb]
     when (L.null opts.displayCursor) do
       eb ← subscribeToBus' (H.action ∘ HandleError) bus.globalError
       H.modify $ DCS._breakers %~ (Array.cons eb)
@@ -215,6 +216,13 @@ eval opts = case _ of
         when (opts.deckId ≠ focusedDeckId && st.focused) $
           H.modify (DCS._focused .~ false)
     pure next
+  HandleHintDismissalMessage msg next → do
+    case msg of
+      Wiring.DeckFrameFocusHintDismissed →
+        H.modify (DCS._focusDeckFrameHintDismissed .~ true)
+      Wiring.DeckFocusHintDismissed →
+        H.modify (DCS._focusDeckHintDismissed .~ true)
+    pure next
   HandleError ge next → do
     showDialog $ Dialog.Error $ GE.print ge
     pure next
@@ -230,10 +238,14 @@ eval opts = case _ of
     H.modify (DCS._displayMode %~ DCS.noDialog)
     pure next
   DismissFocusDeckHint next → do
+    wiring ← liftH' Wiring.expose
+    H.fromAff $ Bus.write Wiring.DeckFocusHintDismissed wiring.bus.hintDismissals
     H.modify (DCS._focusDeckHintDismissed .~ true)
     (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckHintKey true)
     pure next
   DismissFocusDeckFrameHint next → do
+    wiring ← liftH' Wiring.expose
+    H.fromAff $ Bus.write Wiring.DeckFrameFocusHintDismissed wiring.bus.hintDismissals
     H.modify (DCS._focusDeckFrameHintDismissed .~ true)
     (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckFrameHintKey true)
     pure next
@@ -513,7 +525,7 @@ peekCardEvalQuery cardId = case _ of
   _ → pure unit
 
 peekAnyCard ∷ ∀ a. CardId → AnyCardQuery a → DeckDSL Unit
-peekAnyCard cardId _ =
+peekAnyCard cardId _ = do
   resetAccessNextActionCardGuideDelay
 
 peekNextAction ∷ ∀ a. DeckOptions → Next.Query a → DeckDSL Unit
