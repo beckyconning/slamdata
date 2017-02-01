@@ -29,6 +29,7 @@ import Control.UI.Browser as Browser
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Eff as Eff
+import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Eff.Exception as Exception
 
 import Halogen as H
@@ -45,6 +46,7 @@ import OIDC.Crypt as Crypt
 import Quasar.Advanced.Types (ProviderR)
 
 import SlamData.AuthenticationMode as AuthenticationMode
+import SlamData.Workspace.Eval.Card as EvalCard
 import SlamData.GlobalError (GlobalError)
 import SlamData.GlobalError as GlobalError
 import SlamData.GlobalMenu.Bus (SignInMessage(..))
@@ -57,6 +59,7 @@ import SlamData.Quasar.Auth as Auth
 import SlamData.Quasar.Auth.Authentication (AuthenticationError, toNotificationOptions)
 import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.Wiring as Wiring
+import SlamData.Workspace.Eval.Persistence as Persistence
 
 
 data Query a
@@ -260,9 +263,13 @@ authenticate =
 
   signInSuccess ∷ GlobalMenuDSL Unit
   signInSuccess = do
-    { auth } ← H.liftH $ H.liftH $ Wiring.expose
-    (H.fromAff $ Bus.write SignInSuccess auth.signIn)
+    wiring ← H.liftH $ H.liftH $ Wiring.expose
+    (H.fromAff $ Bus.write SignInSuccess wiring.auth.signIn)
     update
+    traverse_ (H.liftH ∘ H.liftH ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
+      =<< (H.fromEff $ Ref.readRef wiring.eval.retryEval)
+    flip when (H.liftH $ H.liftH $ void $ Persistence.saveWorkspace)
+      =<< (H.fromEff $ Ref.readRef wiring.eval.retrySave)
 
   signInFailure ∷ AuthenticationError → GlobalMenuDSL Unit
   signInFailure error = do

@@ -21,7 +21,9 @@ import SlamData.Prelude
 import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception as Exn
+import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Fork (class MonadFork, fork)
 import Control.Monad.Throw (class MonadThrow, throw, note, noteError)
 
@@ -110,7 +112,9 @@ saveWorkspace = runExceptT do
   let
     json = WM.encode { rootId, decks, cards }
     file = path </> Pathy.file "index"
-  ExceptT $ Quasar.save file json
+  result ← Quasar.save file json
+  liftEff $ Ref.writeRef eval.retrySave (isLeft result)
+  ExceptT $ pure result
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do
@@ -213,7 +217,7 @@ queueSave ∷ ∀ f m. Persist f m (Int → m Unit)
 queueSave ms = do
   { eval, path, accessType } ← Wiring.expose
   when (isEditable accessType) do
-    debounce ms path { avar: _ } eval.pendingSaves (pure unit) do
+    debounce ms path { avar: _ } eval.debounceSaves (pure unit) do
       void saveWorkspace
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (m Unit)
@@ -231,7 +235,7 @@ queueEval' ms source@(_ × cardId) graph =
       let pending = { source, graph, avar: _ }
       Cache.merge graph.decks eval.decks
       Cache.merge graph.cards eval.cards
-      debounce ms cardId pending eval.pendingEvals
+      debounce ms cardId pending eval.debounceEvals
         (for_ graph.decks \deck →
           for_ (deck.status ^? Deck._PendingEval) (Eval.publish deck ∘ Deck.Pending))
         (Eval.evalGraph (pure source))
