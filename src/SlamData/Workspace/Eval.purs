@@ -40,6 +40,7 @@ import SlamData.Effects (SlamDataEffects)
 import SlamData.GlobalError as GE
 import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Wiring (Wiring)
+import SlamData.GlobalError as GlobalError
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache (Cache)
 import SlamData.Wiring.Cache as Cache
@@ -133,12 +134,15 @@ runEvalLoop path decks cards tick urlVarMaps source = goInit
       for_ result.state (publish card ∘ Card.StateChange source)
       publish card (Card.Complete source cardOutput)
       goNext history' cardOutput card.next
-      { eval } ← Wiring.expose
-      liftEff $ case result.output of
-        Left _ →
-          Ref.writeRef eval.retryEval (Just cardId)
+      { eval, bus } ← Wiring.expose
+      case result.output of
+        Left error → do
+          liftEff $ Ref.writeRef eval.retryEval (Just cardId)
+          traverse_
+            (liftAff ∘ flip Bus.write bus.notify ∘ GlobalError.toNotificationOptions)
+            (GlobalError.fromQError error)
         Right _ →
-          Ref.writeRef eval.retryEval Nothing
+          liftEff $ Ref.writeRef eval.retryEval Nothing
 
     goNext ∷ Array Card.Id → Card.Out → Set (Either Deck.Id Card.Id) -> m Unit
     goNext history cardInput next = do
