@@ -249,7 +249,7 @@ authenticate =
       AuthStore.clearIdToken keySuffix
       AuthStore.clearUnhashedNonce keySuffix
       AuthStore.clearProvider keySuffix
-      Browser.reload
+    update
 
   logIn ∷ ProviderR → GlobalMenuDSL Unit
   logIn providerR = do
@@ -258,13 +258,11 @@ authenticate =
     H.fromAff $ Bus.write { providerR, idToken, prompt: true, keySuffix } auth.requestToken
     either signInFailure (const $ signInSuccess) =<< (H.fromAff $ AVar.takeVar idToken)
 
-  -- TODO: Reattempt failed actions without loosing state, remove reload.
   signInSuccess ∷ GlobalMenuDSL Unit
   signInSuccess = do
     { auth } ← H.liftH $ H.liftH $ Wiring.expose
     (H.fromAff $ Bus.write SignInSuccess auth.signIn)
-      *> update
-      *> H.fromEff Browser.reload
+    update
 
   signInFailure ∷ AuthenticationError → GlobalMenuDSL Unit
   signInFailure error = do
