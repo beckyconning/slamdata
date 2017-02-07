@@ -105,7 +105,7 @@ loadWorkspace = runExceptT do
 
 saveWorkspace ∷ ∀ f m. Persist f m (m (Either QE.QError Unit))
 saveWorkspace = runExceptT do
-  { path, eval } ← Wiring.expose
+  { path, eval, auth } ← Wiring.expose
   decks ← map _.model <$> Cache.snapshot eval.decks
   cards ← map _.model <$> Cache.snapshot eval.cards
   rootId ← liftAff $ peekVar eval.root
@@ -113,7 +113,7 @@ saveWorkspace = runExceptT do
     json = WM.encode { rootId, decks, cards }
     file = path </> Pathy.file "index"
   result ← Quasar.save file json
-  liftEff $ Ref.writeRef eval.retrySave (isLeft result)
+  liftEff $ Ref.writeRef auth.retrySave (isLeft result)
   ExceptT $ pure result
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)

@@ -134,15 +134,15 @@ runEvalLoop path decks cards tick urlVarMaps source = goInit
       for_ result.state (publish card ∘ Card.StateChange source)
       publish card (Card.Complete source cardOutput)
       goNext history' cardOutput card.next
-      { eval, bus } ← Wiring.expose
+      { auth, bus } ← Wiring.expose
       case result.output of
         Left error → do
-          liftEff $ Ref.writeRef eval.retryEval (Just cardId)
+          liftEff $ Ref.writeRef auth.retryEval (Just cardId)
           traverse_
             (liftAff ∘ flip Bus.write bus.notify ∘ GlobalError.toNotificationOptions)
             (GlobalError.fromQError error)
         Right _ →
-          liftEff $ Ref.writeRef eval.retryEval Nothing
+          liftEff $ Ref.writeRef auth.retryEval Nothing
 
     goNext ∷ Array Card.Id → Card.Out → Set (Either Deck.Id Card.Id) -> m Unit
     goNext history cardInput next = do

@@ -32,33 +32,29 @@ module SlamData.Wiring
   ) where
 
 import SlamData.Prelude
-
-import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Aff.Free (class Affable, fromAff, fromEff)
-import Control.Monad.Eff.Ref (Ref)
 import Control.Monad.Eff.Ref as Ref
-
-import Data.StrMap (StrMap)
-
-import SlamData.Effects (SlamDataEffects)
 import SlamData.GlobalError as GE
 import SlamData.Notification as N
 import SlamData.Quasar.Auth.Authentication as Auth
-import SlamData.AuthenticationMode (AllowedAuthenticationModes, allowedAuthenticationModesForAccessType)
-import SlamData.GlobalMenu.Bus (SignInBus)
-import SlamData.Workspace.AccessType (AccessType)
+import SlamData.Wiring.Cache as Cache
 import SlamData.Workspace.Card.Port.VarMap as Port
-import SlamData.Workspace.Deck.DeckId (DeckId)
 import SlamData.Workspace.Eval.Card as Card
 import SlamData.Workspace.Eval.Deck as Deck
-import SlamData.Workspace.Eval.Graph (EvalGraph)
-import SlamData.Wiring.Cache (Cache)
-import SlamData.Wiring.Cache as Cache
-
+import Color (ColorSpace(..))
+import Control.Monad.Aff.AVar (AVar)
+import Control.Monad.Aff.Free (class Affable, fromAff, fromEff)
+import Control.Monad.Eff.Ref (Ref)
+import Data.StrMap (StrMap)
 import Quasar.Advanced.Types (TokenHash)
-
+import SlamData.AuthenticationMode (AllowedAuthenticationModes, allowedAuthenticationModesForAccessType)
+import SlamData.Effects (SlamDataEffects)
+import SlamData.GlobalMenu.Bus (SignInBus)
+import SlamData.Wiring.Cache (Cache)
+import SlamData.Workspace.AccessType (AccessType)
+import SlamData.Workspace.Deck.DeckId (DeckId)
+import SlamData.Workspace.Eval.Graph (EvalGraph)
 import Utils.Path (DirPath)
 
 data DeckMessage
@@ -92,8 +88,6 @@ type EvalWiring =
   -- circular dependency.
   , debounceEvals ∷ Cache Card.Id DebounceEval
   , debounceSaves ∷ Cache DirPath DebounceSave
-  , retryEval ∷ Ref (Maybe Card.CardId)
-  , retrySave ∷ Ref Boolean
   }
 
 type AuthWiring =
@@ -102,6 +96,9 @@ type AuthWiring =
   , signIn ∷ SignInBus
   , allowedModes ∷ AllowedAuthenticationModes
   , permissionTokenHashes ∷ Array TokenHash
+  , retryEval ∷ Ref (Maybe Card.CardId)
+  , retrySave ∷ Ref Boolean
+  , retryCardUI ∷ Ref (Array Card.CardId)
   }
 
 type CacheWiring =
@@ -160,8 +157,6 @@ make path accessType vm permissionTokenHashes = fromAff do
     decks ← Cache.make
     debounceEvals ← Cache.make
     debounceSaves ← Cache.make
-    retryEval ← fromEff $ Ref.newRef Nothing
-    retrySave ← fromEff $ Ref.newRef false
     pure
       { tick
       , root
@@ -169,16 +164,26 @@ make path accessType vm permissionTokenHashes = fromAff do
       , decks
       , debounceEvals
       , debounceSaves
-      , retryEval
-      , retrySave
       }
 
   makeAuth = do
     hasIdentified ← fromEff (Ref.newRef false)
     requestToken ← Auth.authentication
     signIn ← Bus.make
+    retryEval ← fromEff $ Ref.newRef Nothing
+    retrySave ← fromEff $ Ref.newRef false
+    retryCardUI ← fromEff $ Ref.newRef []
     let allowedModes = allowedAuthenticationModesForAccessType accessType
-    pure { hasIdentified, requestToken, signIn, allowedModes, permissionTokenHashes }
+    pure
+      { hasIdentified
+      , requestToken
+      , signIn
+      , allowedModes
+      , permissionTokenHashes
+      , retryEval
+      , retrySave
+      , retryCardUI
+      }
 
   makeCache = do
     activeState ← Cache.make

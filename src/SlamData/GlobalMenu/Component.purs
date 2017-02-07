@@ -267,9 +267,9 @@ authenticate =
     (H.fromAff $ Bus.write SignInSuccess wiring.auth.signIn)
     update
     traverse_ (H.liftH ∘ H.liftH ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
-      =<< (H.fromEff $ Ref.readRef wiring.eval.retryEval)
+      =<< (H.fromEff $ Ref.readRef wiring.auth.retryEval)
     flip when (H.liftH $ H.liftH $ void $ Persistence.saveWorkspace)
-      =<< (H.fromEff $ Ref.readRef wiring.eval.retrySave)
+      =<< (H.fromEff $ Ref.readRef wiring.auth.retrySave)
 
   signInFailure ∷ AuthenticationError → GlobalMenuDSL Unit
   signInFailure error = do
