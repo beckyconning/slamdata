@@ -342,11 +342,10 @@ peekBackSide opts = case _ of
               parentId ← liftH' $ P.wrapAndMirrorDeck cardId opts.deckId
               navigateToDeck (parentId L.: opts.cursor)
             _, _ → pure unit
-        Back.Wrap → do
-          parentId ← liftH' $ P.wrapDeck opts.deckId
-          if L.null opts.displayCursor
-            then navigateToDeck (parentId L.: opts.cursor)
-            else switchToFrontside
+        Back.WrapChoice CT.Draftboard → wrapDeck Card.singletonDraftboard
+        Back.WrapChoice CT.Tabs → wrapDeck Card.singletonTabs
+        Back.WrapChoice _ → pure unit
+        Back.Wrap → pure unit
         Back.Unwrap → do
           deck ← liftH' $ P.getDeck opts.deckId
           for_ (_.parent <$> deck) case _ of
@@ -357,6 +356,13 @@ peekBackSide opts = case _ of
               navigateToDeck (childId L.: opts.cursor)
     _ →
       pure unit
+  where
+  wrapDeck ∷ (DeckId → Card.AnyCardModel) → DeckDSL Unit
+  wrapDeck wrapper = do
+    parentId ← liftH' $ P.wrapDeck opts.deckId (wrapper opts.deckId)
+    if L.null opts.displayCursor
+      then navigateToDeck (parentId L.: opts.cursor)
+      else switchToFrontside
 
 peekBackSideFilter ∷ ∀ a. ActionFilter.Query a → DeckDSL Unit
 peekBackSideFilter = case _ of
@@ -366,7 +372,7 @@ peekBackSideFilter = case _ of
   _ → pure unit
 
 peekCards ∷ ∀ a. CardId → CardQueryP a → DeckDSL Unit
-peekCards cardId = const (pure unit) ⨁ peekCardInner cardId
+peekCards cardId = (const (pure unit) ⨁ peekCardInner cardId)
 
 showDialog ∷ Dialog.Dialog → DeckDSL Unit
 showDialog dlg = do
@@ -533,14 +539,14 @@ loadDeck opts = mbLoadError =<< runMaybeT do
   deck ← MaybeT $ liftH' $ P.getDeck opts.deckId
   cardDefs ← MaybeT $ getCardDefs deck.model.cards
   breaker ← lift $ subscribeToBus' (H.action ∘ HandleEval) deck.bus
-  case deck.status of
-    ED.NeedsEval cardId → lift do
+  lift case deck.status of
+    ED.NeedsEval cardId → do
       let displayCards = [ Left DCS.PendingCard ]
       H.modify
         $ DCS.fromModel { name: deck.model.name, displayCards }
         ∘ DCS.addBreaker breaker
       liftH' $ P.queueEval 13 (opts.deckId L.: opts.cursor × cardId)
-    ED.PendingEval cardId → lift do
+    ED.PendingEval cardId → do
       st ← H.get
       active ← activeCardIndex
       let displayCards = map Right cardDefs <> [ Left DCS.PendingCard ]
@@ -550,11 +556,12 @@ loadDeck opts = mbLoadError =<< runMaybeT do
         ∘ DCS.fromModel { name: deck.model.name, displayCards }
         ∘ DCS.addBreaker breaker
       updateActiveState opts
-    ED.Completed (port × _) → lift do
+    ED.Completed (port × _) → do
       active ← activeCardIndex
       H.modify
         $ (DCS.updateCompletedCards cardDefs port)
         ∘ (DCS._activeCardIndex .~ active)
+        ∘ (DCS._pendingCardIndex .~ Nothing)
         ∘ DCS.fromModel { name: deck.model.name, displayCards: [] }
         ∘ DCS.addBreaker breaker
       updateActiveState opts
@@ -583,6 +590,19 @@ handleEval opts = case _ of
         H.modify (DCS.updateCompletedCards cardDefs port)
         updateActiveState opts
   ED.NameChange name → H.modify _ { name = name }
+  ED.CardComplete cardId → do
+    H.modify \st →
+      let
+        ix = DCS.cardIndexFromId cardId st
+        lastIx = DCS.findLastCardIndex st
+        pendingCardIndex = case ix, lastIx of
+          Nothing, _ → st.pendingCardIndex
+          _, Nothing → st.pendingCardIndex
+          Just ix', Just lastIx'
+            | lastIx' > ix' → Just $ ix' + one
+            | otherwise → Nothing
+      in st # DCS._pendingCardIndex .~ pendingCardIndex
+
   _ → pure unit
 
 getCardDefs ∷ Array CardId → DeckDSL (Maybe (Array DCS.CardDef))
