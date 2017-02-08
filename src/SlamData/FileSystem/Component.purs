@@ -29,6 +29,7 @@ import Data.Array as Array
 import Data.Foldable as F
 import Data.String as S
 import Data.String.Regex as RX
+import Control.UI.Browser as Browser
 import Data.String.Regex.Flags as RXF
 import Halogen as H
 import Halogen.HTML.Core as HC
@@ -192,11 +193,12 @@ renderIntroVideo =
 
 eval ∷ Query ~> DSL
 eval (Init next) = do
-  { bus } ← H.liftH $ H.liftH Wiring.expose
+  { bus, auth } ← H.liftH $ H.liftH Wiring.expose
   whenM
     (not <$> dismissedIntroVideoBefore)
     (H.modify $ State._presentIntroVideo .~ true)
   subscribeToBus' (H.action ∘ HandleError) bus.globalError
+  subscribeToBus' (H.action ∘ HandleSignInMessage) auth.signIn
   pure next
 eval (Resort next) = do
   { sort, salt, path } ← H.get
@@ -301,7 +303,9 @@ eval (DismissIntroVideo next) = dismissIntroVideo $> next
 eval (HandleError ge next) = do
   showDialog $ Dialog.Error $ GE.print ge
   pure next
-
+eval (HandleSignInMessage message next) =
+  when (message ≡ GlobalMenu.SignInSuccess) (H.fromEff Browser.reload)
+    $> next
 
 dismissMountGuide ∷ DSL Unit
 dismissMountGuide = do

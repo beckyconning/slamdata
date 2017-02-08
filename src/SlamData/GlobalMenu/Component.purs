@@ -21,6 +21,7 @@ module SlamData.GlobalMenu.Component
   , ChildSlot
   , ChildState
   , module SlamData.GlobalMenu.Component.State
+  , module SlamData.GlobalMenu.Bus
   ) where
 
 import SlamData.Prelude

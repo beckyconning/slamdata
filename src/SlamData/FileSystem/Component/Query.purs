@@ -17,11 +17,10 @@ limitations under the License.
 module SlamData.FileSystem.Component.Query where
 
 import DOM.HTML.Types (HTMLElement)
-
 import SlamData.Common.Sort (Sort)
 import SlamData.FileSystem.Routing.Salt (Salt)
 import SlamData.GlobalError (GlobalError)
-
+import SlamData.GlobalMenu.Bus (SignInMessage)
 import Utils.Path (DirPath)
 
 data Query a
@@ -45,3 +44,4 @@ data Query a
   | DismissIntroVideo a
   | Init a
   | HandleError GlobalError a
+  | HandleSignInMessage SignInMessage a
