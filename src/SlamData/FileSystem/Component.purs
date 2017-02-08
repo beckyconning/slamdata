@@ -391,8 +391,11 @@ peekNotification ∷ ∀ a. NC.Query a → DSL Unit
 peekNotification =
   case _ of
     NC.Action N.ExpandGlobalMenu _ → do
-      queryHeaderGripper $ Gripper.StartDragging 0.0 unit
-      queryHeaderGripper $ Gripper.StopDragging unit
+      gripperState ← queryHeaderGripper $ H.request Gripper.GetState
+      when (gripperState ≠ Just Gripper.Opened) do
+        queryHeaderGripper $ H.action $ Gripper.StartDragging 0.0
+        queryHeaderGripper $ H.action Gripper.StopDragging
+        pure unit
     _ → pure unit
 
 presentMountGuide ∷ ∀ a. Array a → DirPath → DSL Unit
@@ -648,10 +651,9 @@ queryDialog
 queryDialog cp =
   H.query' Install.cpDialog unit ∘ right ∘ H.ChildF (injSlot cp unit) ∘ injQuery cp
 
-queryHeaderGripper ∷ ∀ a. Gripper.Query a → DSL Unit
+queryHeaderGripper ∷ ∀ a. Gripper.Query a → DSL (Maybe a)
 queryHeaderGripper =
-  void
-    ∘ H.query' Install.cpHeader unit
+  H.query' Install.cpHeader unit
     ∘ right
     ∘ H.ChildF (injSlot Header.cpGripper unit)
     ∘ injQuery Header.cpGripper
