@@ -21,62 +21,65 @@ module SlamData.Workspace.Card.Open.Component
   ) where
 
 import SlamData.Prelude
-
 import Data.Array as A
-import Data.Lens ((.~), (?~), view)
 import Data.List as L
 import Data.Path.Pathy as Path
-import Data.Unfoldable (unfoldr)
-
 import Halogen as H
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
+import Halogen.Component.Utils as HCU
 import Halogen.Themes.Bootstrap3 as B
-
 import SlamData.FileSystem.Resource as R
 import SlamData.GlobalError as GE
-import SlamData.Monad (Slam)
+import SlamData.GlobalMenu.Bus as GMB
 import SlamData.Notification as N
 import SlamData.Quasar.Error as QE
 import SlamData.Quasar.FS as Quasar
-import SlamData.Render.Common (glyph)
+import SlamData.Wiring as Wiring
 import SlamData.Workspace.Card.CardType as CT
-import SlamData.Workspace.Card.Common.Render (renderLowLOD)
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Model as Card
-import SlamData.Workspace.Card.Open.Component.Query (QueryP)
-import SlamData.Workspace.Card.Open.Component.State (State, StateP, _levelOfDetails, _selected, _loading, initialState)
-import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
 import SlamData.Workspace.MillerColumns.Column.BasicFilter as MCF
 import SlamData.Workspace.MillerColumns.Column.Component as MCC
 import SlamData.Workspace.MillerColumns.Component as MC
-
+import Data.Lens ((.~), (?~), view)
+import Data.Unfoldable (unfoldr)
+import Halogen.Component.Utils (subscribeToBus')
+import SlamData.Monad (Slam)
+import SlamData.Render.Common (glyph)
+import SlamData.Workspace.Card.Common.Render (renderLowLOD)
+import SlamData.Workspace.Card.Open.Component.Query (Query, QueryC, QueryP)
+import SlamData.Workspace.Card.Open.Component.Query as Q
+import SlamData.Workspace.Card.Open.Component.State (State, StateP, _levelOfDetails, _selected, _loading, initialState)
+import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 import Utils.Path (AnyPath)
 
-type DSL = H.ParentDSL State (MCI.BasicColumnsState R.Resource AnyPath) CC.CardEvalQuery (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
-type HTML = H.ParentHTML (MCI.BasicColumnsState R.Resource AnyPath) CC.CardEvalQuery (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
+type DSL = H.ParentDSL State (MCI.BasicColumnsState R.Resource AnyPath) QueryC (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
+type HTML = H.ParentHTML (MCI.BasicColumnsState R.Resource AnyPath) QueryC (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
 
-openComponent ∷ CC.CardOptions → H.Component CC.CardStateP CC.CardQueryP Slam
+openComponent ∷ CC.CardOptions → CC.CardComponent
 openComponent options =
   CC.makeCardComponent
     { options
     , cardType: CT.Open
-    , component: H.parentComponent
+    , component: H.lifecycleParentComponent
         { render
         , eval
         , peek: Just (peek ∘ H.runChildF)
+        , initializer: Just $ right $ H.action Q.Init
+        , finalizer: Nothing
         }
     , initialState: H.parentState initialState
     , _State: CC._OpenState
-    , _Query: CC.makeQueryPrism CC._OpenQuery
+    , _Query: CC.makeQueryPrism' CC._OpenQuery
     }
 
 render ∷ State → HTML
 render state =
   HH.div_
     [ renderHighLOD state
-    , renderLowLOD (CT.cardIconLightImg CT.Open) id state.levelOfDetails
+    , renderLowLOD (CT.cardIconLightImg CT.Open) left state.levelOfDetails
     ]
 
 renderHighLOD ∷ State → HTML
@@ -117,43 +120,62 @@ glyphForResource = case _ of
   R.Mount (R.Database _) → glyph B.glyphiconHdd
   R.Mount (R.View _) → glyph B.glyphiconFile
 
-eval ∷ CC.CardEvalQuery ~> DSL
-eval = case _ of
-  CC.Activate next →
+eval ∷ QueryC ~> DSL
+eval =
+  coproduct evalCard evalOpen
+
+evalOpen ∷ Query ~> DSL
+evalOpen = case _ of
+  Q.Init next → do
+    { auth } ← H.liftH $ H.liftH Wiring.expose
+    subscribeToBus' (right ∘ H.action ∘ Q.HandleSignInMessage) auth.signIn
     pure next
-  CC.Deactivate next →
+  Q.HandleSignInMessage message next → do
+    when (message ≡ GMB.SignInSuccess) do
+      res ← fromMaybe R.root <$> H.gets _.selected
+      void $ H.query unit $ left $ H.action $ MC.Populate L.Nil
+      HCU.raise' $ left $ H.action $ CC.Load $ Card.Open res
     pure next
-  CC.Save k → do
-    mbRes ← H.gets _.selected
-    pure $ k $ Card.Open (fromMaybe R.root mbRes)
-  CC.Load (Card.Open res) next → do
-    let selectedResources = toResourceList res
-    void $ H.query unit $ left $ H.action $ MC.Populate $ R.getPath <$> selectedResources
-    for_ selectedResources \sel → do
-      for_ (getColPath sel) \colPath →
-        H.query unit $ right $
-          H.ChildF colPath $ left $ H.action $ MCC.SetSelection (Just sel)
-    H.modify (_selected ?~ res)
-    pure next
-  CC.Load _ next →
-    pure next
-  CC.ReceiveInput _ _ next →
-    pure next
-  CC.ReceiveOutput _ _ next →
-    pure next
-  CC.ReceiveState _ next →
-    pure next
-  CC.ReceiveDimensions dims next → do
-    H.modify $
-      _levelOfDetails .~
-        if dims.width < 250.0 ∨ dims.height < 50.0
-        then Low
-        else High
-    pure next
-  CC.ModelUpdated _ next →
-    pure next
-  CC.ZoomIn next →
-    pure next
+
+evalCard ∷ CC.CardEvalQuery ~> DSL
+evalCard =
+  case _ of
+    CC.Activate next →
+      pure next
+    CC.Deactivate next →
+      pure next
+    CC.Save k → do
+      mbRes ← H.gets _.selected
+      pure $ k $ Card.Open (fromMaybe R.root mbRes)
+    CC.Load (Card.Open res) next → do
+      traceAnyA res
+      let selectedResources = toResourceList res
+      void $ H.query unit $ left $ H.action $ MC.Populate $ R.getPath <$> selectedResources
+      for_ selectedResources \sel → do
+        for_ (getColPath sel) \colPath → do
+          H.query unit $ right $
+            H.ChildF colPath $ left $ H.action $ MCC.SetSelection (Just sel)
+      H.modify (_selected ?~ res)
+      pure next
+    CC.Load _ next →
+      pure next
+    CC.ReceiveInput _ _ next →
+      pure next
+    CC.ReceiveOutput _ _ next →
+      pure next
+    CC.ReceiveState _ next →
+      pure next
+    CC.ReceiveDimensions dims next → do
+      H.modify $
+        _levelOfDetails .~
+          if dims.width < 250.0 ∨ dims.height < 50.0
+          then Low
+          else High
+      pure next
+    CC.ModelUpdated _ next →
+      pure next
+    CC.ZoomIn next →
+      pure next
 
 peek ∷ ∀ x. MCI.BasicColumnsQuery R.Resource AnyPath x → DSL Unit
 peek = coproduct (peekColumns) (const (pure unit))
@@ -162,7 +184,7 @@ peek = coproduct (peekColumns) (const (pure unit))
   peekColumns = case _ of
     MC.RaiseSelected _ selected _ → do
       H.modify (_selected .~ selected)
-      CC.raiseUpdatedP CC.EvalModelUpdate
+      CC.raiseUpdatedP' CC.EvalModelUpdate
     _ → pure unit
 
 itemSpec ∷ MCI.BasicColumnOptions R.Resource AnyPath

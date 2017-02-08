@@ -30,7 +30,7 @@ import Data.Lens (Lens', lens)
 import Halogen (ParentState)
 
 import SlamData.FileSystem.Resource as R
-import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery)
+import SlamData.Workspace.Card.Open.Component.Query (QueryC)
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 import SlamData.Monad (Slam)
 
@@ -64,7 +64,7 @@ type StateP =
   ParentState
     State
     (MCI.BasicColumnsState R.Resource AnyPath)
-    CardEvalQuery
+    (QueryC)
     (MCI.BasicColumnsQuery R.Resource AnyPath)
     Slam
     Unit

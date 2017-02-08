@@ -264,12 +264,12 @@ authenticate =
   signInSuccess ∷ GlobalMenuDSL Unit
   signInSuccess = do
     wiring ← H.liftH $ H.liftH $ Wiring.expose
-    (H.fromAff $ Bus.write SignInSuccess wiring.auth.signIn)
     update
     traverse_ (H.liftH ∘ H.liftH ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
       =<< (H.fromEff $ Ref.readRef wiring.auth.retryEval)
     flip when (H.liftH $ H.liftH $ void $ Persistence.saveWorkspace)
       =<< (H.fromEff $ Ref.readRef wiring.auth.retrySave)
+    (H.fromAff $ Bus.write SignInSuccess wiring.auth.signIn)
 
   signInFailure ∷ AuthenticationError → GlobalMenuDSL Unit
   signInFailure error = do

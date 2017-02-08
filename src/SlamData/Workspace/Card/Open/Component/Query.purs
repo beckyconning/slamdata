@@ -23,7 +23,14 @@ import Halogen (ChildF)
 import SlamData.FileSystem.Resource as R
 import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery)
 import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
+import SlamData.GlobalMenu.Bus as GMB
 
 import Utils.Path (AnyPath)
 
-type QueryP = Coproduct CardEvalQuery (ChildF Unit (MCI.BasicColumnsQuery R.Resource AnyPath))
+data Query a
+  = Init a
+  | HandleSignInMessage GMB.SignInMessage a
+
+type QueryC = Coproduct CardEvalQuery Query
+
+type QueryP = Coproduct QueryC (ChildF Unit (MCI.BasicColumnsQuery R.Resource AnyPath))
