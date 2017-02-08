@@ -21,34 +21,21 @@ module SlamData.Workspace.Component
   ) where
 
 import SlamData.Prelude
-
 import Control.Monad.Aff as Aff
-import Control.Monad.Aff.AVar (makeVar, takeVar, putVar, peekVar)
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Eff.Ref (readRef)
 import Control.UI.Browser as Browser
-
-import Data.Lens ((.~))
 import Data.List as List
-import Data.Time.Duration (Milliseconds(..))
-
 import Halogen as H
-import Halogen.Component.ChildPath (injSlot, injQuery)
-import Halogen.Component.Utils (liftH', subscribeToBus')
-import Halogen.Component.Utils.Throttled (throttledEventSource_)
 import Halogen.HTML.Events.Indexed as HE
 import Halogen.HTML.Indexed as HH
 import Halogen.HTML.Properties.Indexed as HP
-
 import SlamData.AuthenticationMode as AuthenticationMode
 import SlamData.FileSystem.Resource as R
 import SlamData.GlobalError as GE
-import SlamData.GlobalMenu.Bus (SignInMessage(..))
 import SlamData.GlobalMenu.Component as GlobalMenu
 import SlamData.Guide as Guide
 import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
-import SlamData.Monad (Slam)
 import SlamData.Notification as N
 import SlamData.Notification.Component as NC
 import SlamData.Quasar as Quasar
@@ -60,21 +47,29 @@ import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Action as WA
 import SlamData.Workspace.Card.Model as CM
 import SlamData.Workspace.Card.Table.Model as JT
-import SlamData.Workspace.Class (navigate, Routes(..))
-import SlamData.Workspace.Component.ChildSlot (ChildQuery, ChildSlot, ChildState, cpDeck, cpHeader, cpNotify)
-import SlamData.Workspace.Component.Query (QueryP, Query(..), fromWorkspace, toWorkspace)
-import SlamData.Workspace.Component.State (State, _stateMode, _flipGuideStep, _cardGuideStep, initialState)
 import SlamData.Workspace.Component.State as State
 import SlamData.Workspace.Deck.Component as Deck
 import SlamData.Workspace.Deck.Component.Nested as DN
 import SlamData.Workspace.Eval.Deck as ED
 import SlamData.Workspace.Eval.Persistence as P
 import SlamData.Workspace.Eval.Traverse as ET
+import Utils.LocalStorage as LocalStorage
+import Control.Monad.Aff.AVar (makeVar, takeVar, putVar, peekVar)
+import Control.Monad.Eff.Ref (readRef)
+import Data.Lens ((.~))
+import Data.Time.Duration (Milliseconds(..))
+import Halogen.Component.ChildPath (injSlot, injQuery)
+import Halogen.Component.Utils (liftH', subscribeToBus')
+import Halogen.Component.Utils.Throttled (throttledEventSource_)
+import SlamData.GlobalMenu.Bus (SignInMessage(..))
+import SlamData.Monad (Slam)
+import SlamData.Workspace.Class (navigate, Routes(..))
+import SlamData.Workspace.Component.ChildSlot (ChildQuery, ChildSlot, ChildState, cpDeck, cpHeader, cpNotify)
+import SlamData.Workspace.Component.Query (QueryP, Query(..), fromWorkspace, toWorkspace)
+import SlamData.Workspace.Component.State (State, _stateMode, _flipGuideStep, _cardGuideStep, initialState)
 import SlamData.Workspace.StateMode (StateMode(..))
-
 import Utils (endSentence)
 import Utils.DOM (onResize, elementEq)
-import Utils.LocalStorage as LocalStorage
 
 type StateP = H.ParentState State ChildState Query ChildQuery Slam ChildSlot
 type WorkspaceHTML = H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
@@ -314,8 +309,11 @@ peek = (const (pure unit)) ⨁ const (pure unit) ⨁ peekNotification
   peekNotification ∷ NC.Query a → WorkspaceDSL Unit
   peekNotification = case _ of
     NC.Action N.ExpandGlobalMenu _ → do
-      queryHeaderGripper $ Gripper.StartDragging 0.0 unit
-      queryHeaderGripper $ Gripper.StopDragging unit
+      gripperState ← queryHeaderGripper $ H.request Gripper.GetState
+      when (gripperState ≠ Just Gripper.Opened) do
+        queryHeaderGripper $ H.action $ Gripper.StartDragging 0.0
+        queryHeaderGripper $ H.action Gripper.StopDragging
+        pure unit
     NC.Action (N.Fulfill var) _ →
       void $ H.fromAff $ Aff.attempt $ putVar var unit
     _ → pure unit
@@ -325,10 +323,9 @@ queryDeck q = do
   deckId ← H.gets (List.head ∘ _.cursor)
   join <$> for deckId \d → H.query' cpDeck d (right q)
 
-queryHeaderGripper ∷ ∀ a. Gripper.Query a → WorkspaceDSL Unit
+queryHeaderGripper ∷ ∀ a. Gripper.Query a → WorkspaceDSL (Maybe a)
 queryHeaderGripper =
-  void
-    ∘ H.query' cpHeader unit
+  H.query' cpHeader unit
     ∘ right
     ∘ H.ChildF (injSlot Header.cpGripper unit)
     ∘ injQuery Header.cpGripper
