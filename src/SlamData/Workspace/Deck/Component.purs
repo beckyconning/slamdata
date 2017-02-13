@@ -241,13 +241,13 @@ eval opts = case _ of
     wiring ← liftH' Wiring.expose
     H.fromAff $ Bus.write Wiring.DeckFocusHintDismissed wiring.bus.hintDismissals
     H.modify (DCS._focusDeckHintDismissed .~ true)
-    (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckHintKey true)
+    liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckHintKey true
     pure next
   DismissFocusDeckFrameHint next → do
     wiring ← liftH' Wiring.expose
     H.fromAff $ Bus.write Wiring.DeckFrameFocusHintDismissed wiring.bus.hintDismissals
     H.modify (DCS._focusDeckFrameHintDismissed .~ true)
-    (liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckFrameHintKey true)
+    liftH' $ LocalStorage.setLocalStorage Guide.dismissedFocusDeckFrameHintKey true
     pure next
   where
   getBoundingClientWidth =
