@@ -73,4 +73,3 @@ data Query a
   | SetIsSearching Boolean a
   | AddListings (Array Item) a
   | ShowError String a
-
