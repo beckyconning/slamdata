@@ -35,7 +35,6 @@ import SlamData.Prelude
 import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Aff as Aff
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (Ref)
