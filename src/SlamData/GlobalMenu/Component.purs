@@ -231,9 +231,9 @@ authenticate = maybe logOut logIn
     update
     traverse_ (lift ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
       =<< (H.liftEff $ Ref.readRef wiring.auth.retryEval)
-    pure unit
-    flip when (void $ lift $ Persistence.saveWorkspace)
-      =<< (H.liftEff $ Ref.readRef wiring.auth.retrySave)
+    whenM
+      (H.liftEff $ Ref.readRef wiring.auth.retrySave)
+      (void $ lift $ Persistence.saveWorkspace)
     H.liftAff $ Bus.write SignInSuccess wiring.auth.signIn
 
   signInFailure ∷ AuthenticationError → DSL Unit
