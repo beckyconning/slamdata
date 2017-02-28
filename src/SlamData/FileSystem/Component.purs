@@ -390,7 +390,6 @@ eval = case _ of
     H.query' CS.cpDialog unit $ H.action $ Dialog.Show $ Dialog.Error message
     pure next
   HandleSignInMessage message next → do
-    traceAnyA "YE"
     when (message ≡ GlobalMenu.SignInSuccess) (H.liftEff Browser.reload)
     pure next
 

@@ -21,7 +21,6 @@ module SlamData.Workspace.Card.Open.Component
 
 import SlamData.Prelude
 import Data.Array as A
-import Data.Lens (view)
 import Data.List as L
 import Data.Path.Pathy as Path
 import Halogen as H
@@ -38,16 +37,17 @@ import SlamData.Wiring as Wiring
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Model as Card
+import SlamData.Workspace.Card.Open.Component.Query as Q
 import SlamData.Workspace.LevelOfDetails as LOD
 import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
 import SlamData.Workspace.MillerColumns.Column.BasicFilter as MCF
 import SlamData.Workspace.MillerColumns.Component as MC
+import Data.Lens (view)
 import Data.Unfoldable (unfoldr)
 import Halogen.Component.Utils (busEventSource)
 import SlamData.Monad (Slam)
 import SlamData.Render.Common (glyph)
 import SlamData.Workspace.Card.Open.Component.Query (Query(..))
-import SlamData.Workspace.Card.Open.Component.Query as Q
 import SlamData.Workspace.Card.Open.Component.State (State, initialState)
 import Utils.Path (AnyPath)
 
@@ -111,7 +111,7 @@ evalOpen = case _ of
   Q.HandleSignInMessage message next → do
     when (message ≡ GMB.SignInSuccess) do
       res ← fromMaybe R.root <$> H.get
-      void $ H.query unit $ H.action $ MC.Populate L.Nil
+      void $ H.query unit $ H.action $ MC.Populate (Tuple (Left Path.rootDir) L.Nil)
       load res
     pure next
   Q.UpdateSelection selected next → do
@@ -148,8 +148,7 @@ evalCard =
 
 load ∷ R.Resource → DSL Unit
 load res = do
-  let selectedResources = toResourceList res
-  void $ H.query unit $ H.action $ MC.Populate $ R.getPath <$> selectedResources
+  void $ H.query unit $ H.action $ MC.Populate $ pathToColumnData $ R.getPath res
   H.put (Just res)
 
 itemSpec ∷ MCI.BasicColumnOptions R.Resource AnyPath
