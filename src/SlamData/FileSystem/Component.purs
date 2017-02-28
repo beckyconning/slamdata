@@ -393,10 +393,6 @@ eval = case _ of
     when (message ≡ GlobalMenu.SignInSuccess) (H.liftEff Browser.reload)
     pure next
 
---queryHeaderGripper ∷ ∀ a. Gripper.Query a → DSL _
---queryHeaderGripper =
---  void ∘ H.query' CS.cpHeader unit ∘ Header.QueryGripper
-
 handleItemMessage ∷ Item.Message → DSL Unit
 handleItemMessage = case _ of
   Item.Selected →
