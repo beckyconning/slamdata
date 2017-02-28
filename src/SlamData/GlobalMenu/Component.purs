@@ -12,16 +12,11 @@ limitations under the License.
 -}
 
 module SlamData.GlobalMenu.Component
-  ( comp
-  , MenuSlot
-  , QueryP
-  , StateP
-  , ChildQuery
+  ( component
   , Query(..)
-  , ChildSlot
-  , ChildState
-  , module SlamData.GlobalMenu.Component.State
   , module SlamData.GlobalMenu.Bus
+  , AuthenticateOrPresentHelp(..)
+  , State
   ) where
 
 import SlamData.Prelude
@@ -34,13 +29,12 @@ import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Eff.Exception as Exception
 
 import Halogen as H
-import Halogen.Component.Utils (subscribeToBus')
-import Halogen.HTML.Core (className)
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.Menu.Component (MenuQuery(..), menuComponent) as HalogenMenu
-import Halogen.Menu.Component.State (MenuItem, makeMenu)
-import Halogen.Menu.Submenu.Component (SubmenuQuery(..)) as HalogenMenu
+import Halogen.Component.Utils (busEventSource)
+import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
+import Halogen.Menu.Component as Menu
+import Halogen.Query.EventSource as ES
+import Halogen.HTML.Events as HE
 
 import OIDC.Crypt as Crypt
 
@@ -51,9 +45,6 @@ import SlamData.Workspace.Eval.Card as EvalCard
 import SlamData.GlobalError (GlobalError)
 import SlamData.GlobalError as GlobalError
 import SlamData.GlobalMenu.Bus (SignInMessage(..))
-import SlamData.GlobalMenu.Component.State (State, initialState)
-import SlamData.GlobalMenu.Menu.Component.Query (QueryP) as MenuQuery
-import SlamData.GlobalMenu.Menu.Component.State as MenuState
 import SlamData.Monad (Slam)
 import SlamData.Quasar as Api
 import SlamData.Quasar.Auth as Auth
@@ -62,221 +53,195 @@ import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.Wiring as Wiring
 import SlamData.Workspace.Eval.Persistence as Persistence
 
+data AuthenticateOrPresentHelp
+  = Authenticate (Maybe ProviderR)
+  | PresentHelp String
 
 data Query a
   = DismissSubmenu a
   | HandleGlobalError GlobalError a
+  | HandleMenuMessage (Menu.Message AuthenticateOrPresentHelp) a
   | Init a
 
-type QueryP = Coproduct Query (H.ChildF MenuSlot ChildQuery)
+type State =
+  { loggedIn ∷ Boolean
+  }
 
-data MenuSlot = MenuSlot
 
-derive instance genericMenuSlot ∷ Generic MenuSlot
-derive instance eqMenuSlot ∷ Eq MenuSlot
-derive instance ordMenuSlot ∷ Ord MenuSlot
+type HTML = H.ParentHTML Query (Menu.Query AuthenticateOrPresentHelp) Unit Slam
+type DSL = H.ParentDSL State Query (Menu.Query AuthenticateOrPresentHelp) Unit Void Slam
 
-type ChildSlot = MenuSlot
-
-type ChildQuery = MenuQuery.QueryP
-
-type ChildState g = MenuState.StateP g
-
-type StateP = H.ParentState State (ChildState Slam) Query ChildQuery Slam ChildSlot
-type GlobalMenuHTML = H.ParentHTML (ChildState Slam) Query ChildQuery Slam ChildSlot
-type GlobalMenuDSL = H.ParentDSL State (ChildState Slam) Query ChildQuery Slam ChildSlot
-
-comp ∷ H.Component StateP QueryP Slam
-comp =
+component ∷ H.Component HH.HTML Query Unit Void Slam
+component =
   H.lifecycleParentComponent
-    { render
+    { initialState: \_ → { loggedIn: false }
+    , render
     , eval
-    , peek: Just (menuPeek ∘ H.runChildF)
     , initializer: Just (H.action Init)
     , finalizer: Nothing
+    , receiver: const Nothing
     }
 
-render ∷ State → GlobalMenuHTML
+render ∷ State → HTML
 render state =
   HH.div
-    [ HP.classes $ [ className "sd-global-menu" ] ]
-    [ HH.slot MenuSlot \_ →
-        { component: HalogenMenu.menuComponent
-        , initialState: H.parentState $ makeMenu helpMenu
-        }
+    [ HP.classes $ [ HH.ClassName "sd-global-menu" ] ]
+    [ HH.slot unit Menu.component helpMenu $ HE.input HandleMenuMessage
     ]
 
-eval ∷ Query ~> GlobalMenuDSL
-eval (DismissSubmenu next) = dismissAll $> next
-eval (HandleGlobalError error next) =
-  case error of
-    GlobalError.Unauthorized _ → update $> next
-    _ -> pure next
+eval ∷ Query ~> DSL
 eval (Init next) = do
-  { bus } ← H.liftH $ H.liftH Wiring.expose
-  subscribeToBus' (H.action ∘ HandleGlobalError) bus.globalError
+  { bus } ← H.lift Wiring.expose
+  H.subscribe $ busEventSource (flip HandleGlobalError ES.Listening) bus.globalError
   update
   pure next
+eval (DismissSubmenu next) = do
+  H.query unit $ H.action $ Menu.DismissSubmenu
+  pure next
+eval (HandleGlobalError error next) = case error of
+  GlobalError.Unauthorized _ → update $> next
+  _ → pure next
+eval (HandleMenuMessage (Menu.Selected a) next) = do
+  case a of
+    Authenticate providerR → authenticate providerR
+    PresentHelp uri → presentHelp uri
+  pure next
 
-update ∷ GlobalMenuDSL Unit
+update ∷ DSL Unit
 update = do
-  maybeIdToken ← H.liftH $ H.liftH $ Auth.getIdToken
+  maybeIdToken ← H.lift Auth.getIdToken
   case maybeIdToken of
     Just idToken → do
       either
         (const retrieveProvidersAndUpdateMenu)
         putEmailToMenu
         (Eff.runPure $ Exception.try $ Crypt.readPayload idToken)
-    Nothing → retrieveProvidersAndUpdateMenu
+    Nothing →
+      retrieveProvidersAndUpdateMenu
   where
-  putEmailToMenu ∷ Crypt.Payload → GlobalMenuDSL Unit
+  putEmailToMenu ∷ Crypt.Payload → DSL Unit
   putEmailToMenu payload = do
-    queryMenu
+    H.query unit
       $ H.action
-      $ HalogenMenu.SetMenu
-      $ makeMenu
-      $ [ { label:
-              fromMaybe "unknown user"
-              $ map Crypt.runEmail
-              $ Crypt.pluckEmail
-              $ payload
-          , submenu:
-              [ { label: "🔒 Sign out"
-                , shortcutLabel: Nothing
-                , value: MenuState.Authenticate Nothing
-                }
-              ]
-          }
-        ] <> helpMenu
-    H.modify (_{loggedIn = true})
-
-  retrieveProvidersAndUpdateMenu ∷ GlobalMenuDSL Unit
-  retrieveProvidersAndUpdateMenu = do
-    eProviders ← Api.retrieveAuthProviders
-    queryMenu
-      $ H.action
-      $ HalogenMenu.SetMenu
-      $ makeMenu
-      $ case eProviders of
-          Right (Just providers) →
-            [ { label: "🔓 Sign in"
-              , submenu: MenuState.makeAuthenticateSubmenuItem <$> providers
+      $ Menu.Set
+        { chosen: Nothing
+        , submenus:
+            [ { label:
+                fromMaybe "unknown user"
+                $ map Crypt.runEmail
+                $ Crypt.pluckEmail
+                $ payload
+              , submenu:
+                [ { label: "🔒 Sign out"
+                  , shortcutLabel: Nothing
+                  , value: Authenticate Nothing
+                  }
+                ]
               }
-            ] <> helpMenu
-          _ → helpMenu
+            ]
+            ⊕ helpMenu
+        }
+    H.modify _{ loggedIn = true }
 
-helpMenu ∷ Array (MenuItem MenuState.AuthenticateOrPresentHelp)
+  retrieveProvidersAndUpdateMenu ∷ DSL Unit
+  retrieveProvidersAndUpdateMenu = void do
+    eProviders ← Api.retrieveAuthProviders
+    H.query unit
+      $ H.action
+      $ Menu.Set
+          { chosen: Nothing
+          , submenus: case eProviders of
+              Right (Just providers) →
+                let
+                  makeSubmenuItem provider =
+                    { label: "Sign in with " ⊕ provider.displayName
+                    , shortcutLabel: Nothing
+                    , value: Authenticate $ Just provider
+                    }
+                in
+                  [ { label: "🔓 Sign in"
+                    , submenu: makeSubmenuItem <$> providers
+                    }
+                  ]
+                ⊕ helpMenu
+              _ → helpMenu
+          }
+
+helpMenu ∷ Array (Menu.MenuItem AuthenticateOrPresentHelp)
 helpMenu =
   [ { label: "Help"
     , submenu:
       [ { label: "User guide"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/users-guide.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/users-guide.html"
         }
       , { label: "Administrator guide"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/administration-guide.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/administration-guide.html"
         }
       , { label: "Developer guide"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/developers-guide.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/developers-guide.html"
         }
       , { label: "Helpful tips"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/helpful-tips.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/helpful-tips.html"
         }
       , { label: "SQL² reference"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/sql-squared-reference.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/sql-squared-reference.html"
         }
       , { label: "SlamDown reference"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/slamdown-reference.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/slamdown-reference.html"
         }
       , { label: "Troubleshooting FAQ"
         , shortcutLabel: Nothing
-        , value:
-            MenuState.PresentHelp
-              "http://docs.slamdata.com/en/v3.0/troubleshooting-faq.html"
+        , value: PresentHelp "http://docs.slamdata.com/en/v3.0/troubleshooting-faq.html"
         }
       ]
     }
   ]
 
-dismissAll ∷ GlobalMenuDSL Unit
-dismissAll =
-  queryMenu $
-    H.action HalogenMenu.DismissSubmenu
-
-menuPeek ∷ ∀ a. MenuQuery.QueryP a → GlobalMenuDSL Unit
-menuPeek =
-  coproduct
-    (const (pure unit))
-    (submenuPeek ∘ H.runChildF)
-
-submenuPeek
-  ∷ ∀ a
-  . HalogenMenu.SubmenuQuery MenuState.AuthenticateOrPresentHelp a
-  → GlobalMenuDSL Unit
-submenuPeek (HalogenMenu.SelectSubmenuItem authenticateOrPresentHelp _) = do
-   case authenticateOrPresentHelp of
-     MenuState.Authenticate providerR → authenticate providerR
-     MenuState.PresentHelp uri → presentHelp uri
-
-queryMenu
-  ∷ HalogenMenu.MenuQuery MenuState.AuthenticateOrPresentHelp Unit
-  → GlobalMenuDSL Unit
-queryMenu q = void $ H.query MenuSlot (left q)
-
-authenticate ∷ Maybe ProviderR → GlobalMenuDSL Unit
-authenticate =
-  maybe logOut logIn
+authenticate ∷ Maybe ProviderR → DSL Unit
+authenticate = maybe logOut logIn
   where
   keySuffix ∷ String
-  keySuffix = AuthenticationMode.toKeySuffix AuthenticationMode.ChosenProvider
+  keySuffix =
+    AuthenticationMode.toKeySuffix AuthenticationMode.ChosenProvider
 
-  logOut ∷ GlobalMenuDSL Unit
+  logOut ∷ DSL Unit
   logOut = do
-    H.fromEff do
+    H.liftEff do
       AuthStore.clearIdToken keySuffix
       AuthStore.clearUnhashedNonce keySuffix
       AuthStore.clearProvider keySuffix
     update
 
-  logIn ∷ ProviderR → GlobalMenuDSL Unit
+  logIn ∷ ProviderR → DSL Unit
   logIn providerR = do
-    { auth } ← H.liftH $ H.liftH $ Wiring.expose
-    idToken ← H.fromAff AVar.makeVar
-    H.fromAff $ Bus.write { providerR, idToken, prompt: true, keySuffix } auth.requestToken
-    either signInFailure (const $ signInSuccess) =<< (H.fromAff $ AVar.takeVar idToken)
+    { auth } ← H.lift Wiring.expose
+    idToken ← H.liftAff AVar.makeVar
+    H.liftAff $ Bus.write { providerR, idToken, prompt: true, keySuffix } auth.requestToken
+    either signInFailure (const $ signInSuccess) =<< (H.liftAff $ AVar.takeVar idToken)
 
-  signInSuccess ∷ GlobalMenuDSL Unit
+  signInSuccess ∷ DSL Unit
   signInSuccess = do
-    wiring ← H.liftH $ H.liftH $ Wiring.expose
+    wiring ← Wiring.expose
     update
-    traverse_ (H.liftH ∘ H.liftH ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
-      =<< (H.fromEff $ Ref.readRef wiring.auth.retryEval)
-    flip when (H.liftH $ H.liftH $ void $ Persistence.saveWorkspace)
-      =<< (H.fromEff $ Ref.readRef wiring.auth.retrySave)
-    (H.fromAff $ Bus.write SignInSuccess wiring.auth.signIn)
+    traverse_ (lift ∘ Persistence.queueEvalImmediate ∘ EvalCard.toAll)
+      =<< (H.liftEff $ Ref.readRef wiring.auth.retryEval)
+    pure unit
+    flip when (void $ lift $ Persistence.saveWorkspace)
+      =<< (H.liftEff $ Ref.readRef wiring.auth.retrySave)
+    H.liftAff $ Bus.write SignInSuccess wiring.auth.signIn
 
-  signInFailure ∷ AuthenticationError → GlobalMenuDSL Unit
+  signInFailure ∷ AuthenticationError → DSL Unit
   signInFailure error = do
-    { auth, bus } ← H.liftH $ H.liftH $ Wiring.expose
-    H.fromAff $ maybe (pure unit) (flip Bus.write bus.notify) (toNotificationOptions error)
-    H.fromAff $ (Bus.write SignInFailure auth.signIn)
+    { auth, bus } ← H.lift Wiring.expose
+    H.liftAff do
+      maybe (pure unit) (flip Bus.write bus.notify) (toNotificationOptions error)
+      Bus.write SignInFailure auth.signIn
 
-presentHelp ∷ String → GlobalMenuDSL Unit
-presentHelp = H.fromEff ∘ Browser.newTab
+presentHelp ∷ String → DSL Unit
+presentHelp = H.liftEff ∘ Browser.newTab

@@ -16,83 +16,60 @@ limitations under the License.
 
 module SlamData.Header.Component where
 
+import Data.Coyoneda (Coyoneda)
+import Data.Coyoneda as Coyoneda
+
 import SlamData.Prelude
-
 import Halogen as H
-import Halogen.Component.ChildPath (ChildPath, cpL, cpR)
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
-
+import Halogen.Query.HalogenM as HQ
+import Halogen.Component.ChildPath as CP
+import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.Properties.ARIA as ARIA
 import SlamData.Config as Config
 import SlamData.Config.Version as CV
 import SlamData.GlobalMenu.Component as GlobalMenu
 import SlamData.Header.Gripper.Component as Gripper
-import SlamData.Monad (Slam)
 import SlamData.Render.CSS as Rc
+import SlamData.Monad (Slam)
 
-type State = Boolean
-initialState ∷ State
-initialState = false
+type State
+  = Boolean
 
-type Query = Const Void
+data Query a
+  = HandleGripper Gripper.Message a
+  | QueryGripper (Coyoneda Gripper.Query a)
+  | QueryGlobalMenu (Coyoneda GlobalMenu.Query a)
+  | Dismiss a
 
-type ChildState =
-  Either
-    Gripper.State
-    GlobalMenu.StateP
+type ChildQuery = Gripper.Query ⨁ GlobalMenu.Query ⨁ Const Void
 
-type ChildQuery =
-  Coproduct
-    Gripper.Query
-    GlobalMenu.QueryP
+type ChildSlot = Unit ⊹ Unit ⊹ Void
 
-type ChildSlot =
-  Either
-    Unit
-    Unit
+type HTML = H.ParentHTML Query ChildQuery ChildSlot Slam
 
-cpGripper
-  ∷ ChildPath
-      Gripper.State ChildState
-      Gripper.Query ChildQuery
-      Unit ChildSlot
-cpGripper = cpL
-
-cpGlobalMenu
-  ∷ ChildPath
-      GlobalMenu.StateP ChildState
-      GlobalMenu.QueryP ChildQuery
-      Unit ChildSlot
-cpGlobalMenu = cpR
-
-type StateP = H.ParentState State ChildState Query ChildQuery Slam ChildSlot
-type QueryP = Coproduct Query (H.ChildF ChildSlot ChildQuery)
-type DSL = H.ParentDSL State ChildState Query ChildQuery Slam ChildSlot
-type HTML = H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
-
-comp ∷ H.Component StateP QueryP Slam
-comp = H.parentComponent { render, eval, peek: Just peek }
+component ∷ H.Component HH.HTML Query Unit Void Slam
+component = H.parentComponent
+  { initialState: const false
+  , render
+  , eval
+  , receiver: const Nothing
+  }
 
 render ∷ State → HTML
 render open =
   HH.nav
     [ HP.classes
-        [ HH.className "sd-nav"
-        , HH.className if open then "open" else "closed" ]
+        [ HH.ClassName "sd-nav"
+        , HH.ClassName if open then "open" else "closed" ]
         ]
     [ HH.div_
         [ HH.div_
             [ HH.div [ HP.classes [ Rc.header ] ]
                 [ logo CV.shortVersion
-                , HH.slot' cpGlobalMenu unit \_ →
-                     { component: GlobalMenu.comp
-                     , initialState: H.parentState GlobalMenu.initialState
-                     }
-                , HH.slot' cpGripper unit \_ →
-                      { component: Gripper.comp "nav"
-                      , initialState: Gripper.initialState
-                      }
+                , HH.slot' CP.cp2 unit GlobalMenu.component unit absurd
+                , HH.slot' CP.cp1 unit (Gripper.component "nav") unit $ HE.input HandleGripper
                 ]
             ]
         ]
@@ -111,18 +88,25 @@ logo mbVersion =
       ]
     ⊕ foldMap (pure ∘ HH.div_ ∘ pure ∘ HH.text) mbVersion
 
-eval ∷ Query ~> DSL
-eval = absurd ∘ unwrap
-
-peek ∷ ∀ a. H.ChildF ChildSlot ChildQuery a → DSL Unit
-peek (H.ChildF s q) =
-  peekGripper ⨁ (const $ pure unit) $ q
-
-  where
-  peekGripper (Gripper.Notify st _) = do
-    H.set
-      case st of
-        Gripper.Closed → false
-        _ → true
-  peekGripper _ =
-    pure unit
+eval ∷ Query ~> H.ParentDSL State Query ChildQuery ChildSlot Void Slam
+eval = case _ of
+  HandleGripper (Gripper.Notify st) next → do
+    H.put case st of
+      Gripper.Closed → false
+      _ → true
+    pure next
+  QueryGripper iq → do
+    iq # Coyoneda.unCoyoneda \k q -> do
+      result <- H.query' CP.cp1 unit q
+      case result of
+        Nothing -> HQ.halt "Inner component query failed (this should be impossible)"
+        Just a -> pure (k a)
+  QueryGlobalMenu iq → do
+    iq # Coyoneda.unCoyoneda \k q -> do
+      result <- H.query' CP.cp2 unit q
+      case result of
+        Nothing -> HQ.halt "Inner component query failed (this should be impossible)"
+        Just a -> pure (k a)
+  Dismiss next → do
+    H.query' CP.cp2 unit $ H.action GlobalMenu.DismissSubmenu
+    pure next

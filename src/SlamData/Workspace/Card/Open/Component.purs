@@ -17,17 +17,16 @@ limitations under the License.
 module SlamData.Workspace.Card.Open.Component
   ( openComponent
   , module SlamData.Workspace.Card.Open.Component.Query
-  , module SlamData.Workspace.Card.Open.Component.State
   ) where
 
 import SlamData.Prelude
 import Data.Array as A
+import Data.Lens (view)
 import Data.List as L
 import Data.Path.Pathy as Path
 import Halogen as H
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.Component.Utils as HCU
+import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap3 as B
 import SlamData.FileSystem.Resource as R
 import SlamData.GlobalError as GE
@@ -39,70 +38,52 @@ import SlamData.Wiring as Wiring
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Model as Card
+import SlamData.Workspace.LevelOfDetails as LOD
 import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
 import SlamData.Workspace.MillerColumns.Column.BasicFilter as MCF
-import SlamData.Workspace.MillerColumns.Column.Component as MCC
 import SlamData.Workspace.MillerColumns.Component as MC
-import Data.Lens ((.~), (?~), view)
 import Data.Unfoldable (unfoldr)
-import Halogen.Component.Utils (subscribeToBus')
+import Halogen.Component.Utils (busEventSource)
 import SlamData.Monad (Slam)
 import SlamData.Render.Common (glyph)
-import SlamData.Workspace.Card.Common.Render (renderLowLOD)
-import SlamData.Workspace.Card.Open.Component.Query (Query, QueryC, QueryP)
+import SlamData.Workspace.Card.Open.Component.Query (Query(..))
 import SlamData.Workspace.Card.Open.Component.Query as Q
-import SlamData.Workspace.Card.Open.Component.State (State, StateP, _levelOfDetails, _selected, _loading, initialState)
-import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
+import SlamData.Workspace.Card.Open.Component.State (State, initialState)
 import Utils.Path (AnyPath)
 
-type DSL = H.ParentDSL State (MCI.BasicColumnsState R.Resource AnyPath) QueryC (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
-type HTML = H.ParentHTML (MCI.BasicColumnsState R.Resource AnyPath) QueryC (MCI.BasicColumnsQuery R.Resource AnyPath) Slam Unit
+type ColumnsQuery = MC.Query R.Resource AnyPath Void
+type DSL = CC.InnerCardParentDSL State Query ColumnsQuery Unit
+type HTML =  CC.InnerCardParentHTML Query ColumnsQuery Unit
 
 openComponent ∷ CC.CardOptions → CC.CardComponent
-openComponent options =
-  CC.makeCardComponent
-    { options
-    , cardType: CT.Open
-    , component: H.lifecycleParentComponent
-        { render
-        , eval
-        , peek: Just (peek ∘ H.runChildF)
-        , initializer: Just $ right $ H.action Q.Init
-        , finalizer: Nothing
-        }
-    , initialState: H.parentState initialState
-    , _State: CC._OpenState
-    , _Query: CC.makeQueryPrism' CC._OpenQuery
+openComponent =
+  CC.makeCardComponent CT.Open $ H.lifecycleParentComponent
+    { render: render
+    , eval: evalCard ⨁ evalOpen
+    , initialState: const initialState
+    , receiver: const Nothing
+    , initializer: Just $ right $ H.action Init
+    , finalizer: Nothing
     }
 
 render ∷ State → HTML
 render state =
-  HH.div_
-    [ renderHighLOD state
-    , renderLowLOD (CT.cardIconLightImg CT.Open) left state.levelOfDetails
-    ]
+  HH.slot unit (MC.component itemSpec) (pure (Left Path.rootDir)) handleMessage
 
-renderHighLOD ∷ State → HTML
-renderHighLOD state =
-  HH.div
-    [ HP.classes
-        $ (guard (state.loading) $> HH.className "loading")
-        <> (guard (state.levelOfDetails ≠ High) $> B.hidden)
-    ]
-    [ HH.slot unit \_ →
-        { component: MC.component itemSpec
-        , initialState: H.parentState MC.initialState
-        }
-    ]
+handleMessage ∷ MC.Message' R.Resource AnyPath Void → Maybe (CC.InnerCardQuery Query Unit)
+handleMessage =
+  either
+    (\(MC.SelectionChanged _ sel) → Just $ H.action $ right ∘ UpdateSelection sel)
+    absurd
 
-renderItem ∷ R.Resource → MC.ItemHTML
+renderItem ∷ R.Resource → MCI.BasicItemHTML
 renderItem r =
   HH.div
     [ HP.classes
-        [ HH.className "sd-miller-column-item-inner"
+        [ HH.ClassName "sd-miller-column-item-inner"
         , either
-            (const $ HH.className "sd-miller-column-item-node")
-            (const $ HH.className "sd-miller-column-item-leaf")
+            (const $ HH.ClassName "sd-miller-column-item-node")
+            (const $ HH.ClassName "sd-miller-column-item-leaf")
             (R.getPath r)
         ]
     ]
@@ -112,7 +93,7 @@ renderItem r =
         ]
     ]
 
-glyphForResource ∷ R.Resource → MC.ItemHTML
+glyphForResource ∷ R.Resource → MCI.BasicItemHTML
 glyphForResource = case _ of
   R.File _ → glyph B.glyphiconFile
   R.Workspace _ → glyph B.glyphiconBook
@@ -120,21 +101,22 @@ glyphForResource = case _ of
   R.Mount (R.Database _) → glyph B.glyphiconHdd
   R.Mount (R.View _) → glyph B.glyphiconFile
 
-eval ∷ QueryC ~> DSL
-eval =
-  coproduct evalCard evalOpen
-
 evalOpen ∷ Query ~> DSL
 evalOpen = case _ of
   Q.Init next → do
-    { auth } ← H.liftH $ H.liftH Wiring.expose
-    subscribeToBus' (right ∘ H.action ∘ Q.HandleSignInMessage) auth.signIn
+    { auth } ← Wiring.expose
+    H.subscribe
+      $ busEventSource (\msg -> right (Q.HandleSignInMessage msg H.Listening)) auth.signIn
     pure next
   Q.HandleSignInMessage message next → do
     when (message ≡ GMB.SignInSuccess) do
-      res ← fromMaybe R.root <$> H.gets _.selected
-      void $ H.query unit $ left $ H.action $ MC.Populate L.Nil
-      HCU.raise' $ left $ H.action $ CC.Load $ Card.Open res
+      res ← fromMaybe R.root <$> H.get
+      void $ H.query unit $ H.action $ MC.Populate L.Nil
+      load res
+    pure next
+  Q.UpdateSelection selected next → do
+    H.put selected
+    H.raise CC.modelUpdate
     pure next
 
 evalCard ∷ CC.CardEvalQuery ~> DSL
@@ -145,17 +127,10 @@ evalCard =
     CC.Deactivate next →
       pure next
     CC.Save k → do
-      mbRes ← H.gets _.selected
+      mbRes ← H.get
       pure $ k $ Card.Open (fromMaybe R.root mbRes)
     CC.Load (Card.Open res) next → do
-      traceAnyA res
-      let selectedResources = toResourceList res
-      void $ H.query unit $ left $ H.action $ MC.Populate $ R.getPath <$> selectedResources
-      for_ selectedResources \sel → do
-        for_ (getColPath sel) \colPath → do
-          H.query unit $ right $
-            H.ChildF colPath $ left $ H.action $ MCC.SetSelection (Just sel)
-      H.modify (_selected ?~ res)
+      load res
       pure next
     CC.Load _ next →
       pure next
@@ -165,27 +140,17 @@ evalCard =
       pure next
     CC.ReceiveState _ next →
       pure next
-    CC.ReceiveDimensions dims next → do
-      H.modify $
-        _levelOfDetails .~
-          if dims.width < 250.0 ∨ dims.height < 50.0
-          then Low
-          else High
-      pure next
-    CC.ModelUpdated _ next →
-      pure next
-    CC.ZoomIn next →
-      pure next
+    CC.ReceiveDimensions dims reply → do
+      pure $ reply
+        if dims.width < 250.0 ∨ dims.height < 50.0
+        then LOD.Low
+        else LOD.High
 
-peek ∷ ∀ x. MCI.BasicColumnsQuery R.Resource AnyPath x → DSL Unit
-peek = coproduct (peekColumns) (const (pure unit))
-  where
-  peekColumns ∷ MC.Query R.Resource AnyPath x → DSL Unit
-  peekColumns = case _ of
-    MC.RaiseSelected _ selected _ → do
-      H.modify (_selected .~ selected)
-      CC.raiseUpdatedP' CC.EvalModelUpdate
-    _ → pure unit
+load ∷ R.Resource → DSL Unit
+load res = do
+  let selectedResources = toResourceList res
+  void $ H.query unit $ H.action $ MC.Populate $ R.getPath <$> selectedResources
+  H.put (Just res)
 
 itemSpec ∷ MCI.BasicColumnOptions R.Resource AnyPath
 itemSpec =
@@ -194,16 +159,16 @@ itemSpec =
       , render: renderItem
       }
   , label: R.resourceName
-  , load
+  , load: itemLoad
   , isLeaf: maybe true isRight ∘ L.head
   , id: R.getPath
   }
 
-load
+itemLoad
   ∷ ∀ r
   . { path ∷ L.List AnyPath, filter ∷ String | r }
   → Slam { items ∷ L.List R.Resource, nextOffset ∷ Maybe Int }
-load { path, filter } =
+itemLoad { path, filter } =
   case L.head path of
     Just (Left p) →
       Quasar.children p >>= case _ of
