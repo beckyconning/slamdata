@@ -110,9 +110,7 @@ evalOpen = case _ of
     pure next
   Q.HandleSignInMessage message next → do
     when (message ≡ GMB.SignInSuccess) do
-      res ← fromMaybe R.root <$> H.get
-      void $ H.query unit $ H.action $ MC.Populate (Tuple (Left Path.rootDir) L.Nil)
-      load res
+      void $ H.query unit $ H.action $ MC.Reload
     pure next
   Q.UpdateSelection selected next → do
     H.put selected
