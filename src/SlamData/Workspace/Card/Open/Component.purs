@@ -20,35 +20,39 @@ module SlamData.Workspace.Card.Open.Component
   ) where
 
 import SlamData.Prelude
+
 import Data.Array as A
+import Data.Lens (view)
 import Data.List as L
 import Data.Path.Pathy as Path
+import Data.Unfoldable (unfoldr)
+
 import Halogen as H
+import Halogen.Component.Utils (busEventSource)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap3 as B
+
 import SlamData.FileSystem.Resource as R
 import SlamData.GlobalError as GE
 import SlamData.GlobalMenu.Bus as GMB
+import SlamData.Monad (Slam)
 import SlamData.Notification as N
 import SlamData.Quasar.Error as QE
 import SlamData.Quasar.FS as Quasar
+import SlamData.Render.Common (glyph)
 import SlamData.Wiring as Wiring
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Model as Card
+import SlamData.Workspace.Card.Open.Component.Query (Query(..))
 import SlamData.Workspace.Card.Open.Component.Query as Q
+import SlamData.Workspace.Card.Open.Component.State (State, initialState)
 import SlamData.Workspace.LevelOfDetails as LOD
 import SlamData.Workspace.MillerColumns.BasicItem.Component as MCI
 import SlamData.Workspace.MillerColumns.Column.BasicFilter as MCF
 import SlamData.Workspace.MillerColumns.Component as MC
-import Data.Lens (view)
-import Data.Unfoldable (unfoldr)
-import Halogen.Component.Utils (busEventSource)
-import SlamData.Monad (Slam)
-import SlamData.Render.Common (glyph)
-import SlamData.Workspace.Card.Open.Component.Query (Query(..))
-import SlamData.Workspace.Card.Open.Component.State (State, initialState)
+
 import Utils.Path (AnyPath)
 
 type ColumnsQuery = MC.Query R.Resource AnyPath Void
