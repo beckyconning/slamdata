@@ -122,31 +122,30 @@ evalOpen = case _ of
     pure next
 
 evalCard ∷ CC.CardEvalQuery ~> DSL
-evalCard =
-  case _ of
-    CC.Activate next →
-      pure next
-    CC.Deactivate next →
-      pure next
-    CC.Save k → do
-      mbRes ← H.get
-      pure $ k $ Card.Open (fromMaybe R.root mbRes)
-    CC.Load (Card.Open res) next → do
-      load res
-      pure next
-    CC.Load _ next →
-      pure next
-    CC.ReceiveInput _ _ next →
-      pure next
-    CC.ReceiveOutput _ _ next →
-      pure next
-    CC.ReceiveState _ next →
-      pure next
-    CC.ReceiveDimensions dims reply → do
-      pure $ reply
-        if dims.width < 250.0 ∨ dims.height < 50.0
-        then LOD.Low
-        else LOD.High
+evalCard = case _ of
+  CC.Activate next →
+    pure next
+  CC.Deactivate next →
+    pure next
+  CC.Save k → do
+    mbRes ← H.get
+    pure $ k $ Card.Open (fromMaybe R.root mbRes)
+  CC.Load (Card.Open res) next → do
+    load res
+    pure next
+  CC.Load _ next →
+    pure next
+  CC.ReceiveInput _ _ next →
+    pure next
+  CC.ReceiveOutput _ _ next →
+    pure next
+  CC.ReceiveState _ next →
+    pure next
+  CC.ReceiveDimensions dims reply → do
+    pure $ reply
+      if dims.width < 250.0 ∨ dims.height < 50.0
+      then LOD.Low
+      else LOD.High
 
 load ∷ R.Resource → DSL Unit
 load res = do
