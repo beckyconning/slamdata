@@ -131,7 +131,8 @@ evalCard = case _ of
     mbRes ← H.get
     pure $ k $ Card.Open (fromMaybe R.root mbRes)
   CC.Load (Card.Open res) next → do
-    load res
+    void $ H.query unit $ H.action $ MC.Populate $ pathToColumnData $ R.getPath res
+    H.put (Just res)
     pure next
   CC.Load _ next →
     pure next
@@ -147,11 +148,6 @@ evalCard = case _ of
       then LOD.Low
       else LOD.High
 
-load ∷ R.Resource → DSL Unit
-load res = do
-  void $ H.query unit $ H.action $ MC.Populate $ pathToColumnData $ R.getPath res
-  H.put (Just res)
-
 itemSpec ∷ MCI.BasicColumnOptions R.Resource AnyPath
 itemSpec =
   { render: MCI.component
@@ -159,16 +155,16 @@ itemSpec =
       , render: renderItem
       }
   , label: R.resourceName
-  , load: itemLoad
+  , load
   , isLeaf: isRight
   , id: R.getPath
   }
 
-itemLoad
+load
   ∷ ∀ r
   . { path ∷ AnyPath, filter ∷ String | r }
   → Slam { items ∷ L.List R.Resource, nextOffset ∷ Maybe Int }
-itemLoad { path, filter } =
+load { path, filter } =
   case path of
     Left p →
       Quasar.children p >>= case _ of
