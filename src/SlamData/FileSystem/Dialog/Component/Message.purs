@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.GlobalMenu.Menu.Component.Query where
+module SlamData.FileSystem.Dialog.Component.Message where
 
-import Halogen.Menu.Component as HalogenMenu
+import Utils.Path as UP
 
-import SlamData.GlobalMenu.Menu.Component.State (AuthenticateOrPresentHelp)
-
-type QueryP = HalogenMenu.MenuQueryP AuthenticateOrPresentHelp
+data Message
+  = Dismiss
+  | MountSave
+  | ExploreFile UP.FilePath String

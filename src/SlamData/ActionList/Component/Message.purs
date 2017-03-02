@@ -14,12 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Halogen.CustomEvents where
+module SlamData.ActionList.Component.Message where
 
-import DOM.Event.Types (Event) as DOM
-import Halogen.HTML.Events.Types (Event, MouseEvent)
-
-import Unsafe.Coerce (unsafeCoerce)
-
-domEventToMouseEvent ∷ DOM.Event → Event MouseEvent
-domEventToMouseEvent = unsafeCoerce
+data Message a = Selected a

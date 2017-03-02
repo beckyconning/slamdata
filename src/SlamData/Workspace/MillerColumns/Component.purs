@@ -17,7 +17,6 @@ limitations under the License.
 module SlamData.Workspace.MillerColumns.Component
   ( component
   , module SlamData.Workspace.MillerColumns.Component.Query
-  , module SlamData.Workspace.MillerColumns.Component.State
   , module Exports
   ) where
 
@@ -25,122 +24,104 @@ import SlamData.Prelude
 
 import Control.Monad.Eff (Eff)
 
+import Data.Array as A
 import Data.List ((:))
 import Data.List as L
+import Data.Profunctor.Strong (second)
 
 import DOM (DOM)
-import DOM.HTML.HTMLElement (offsetWidth) as DOM
-import DOM.HTML.Types (HTMLElement, htmlElementToElement)
-import DOM.Node.Element (scrollWidth, setScrollLeft) as DOM
+import DOM.Classy.HTMLElement as DOM
+import DOM.HTML.Types (HTMLElement)
 
 import Halogen as H
-import Halogen.Component.Utils (raise')
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
+import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.Properties.ARIA as ARIA
 
 import SlamData.Monad (Slam)
 import SlamData.Workspace.MillerColumns.Column.Component as Column
-import SlamData.Workspace.MillerColumns.Component.Query (Query(..), Query')
-import SlamData.Workspace.MillerColumns.Component.State (State, State', columnPaths, initialState)
+import SlamData.Workspace.MillerColumns.Component.Query (Query(..), Message(..), Message')
+import SlamData.Workspace.MillerColumns.Component.State (State, ColumnsData, modifyColumns, columnPaths)
 
-import SlamData.Workspace.MillerColumns.Column.Component (ColumnOptions, InitialItemState(..), ItemQuery(..), ItemQuery', ItemHTML) as Exports
+import SlamData.Workspace.MillerColumns.Column.Component (ColumnOptions) as Exports
 
-type HTML a i s f = H.ParentHTML (Column.State' a i s f) (Query a i) (Column.Query' a i f) Slam (L.List i)
-type DSL a i s f = H.ParentDSL (State a i) (Column.State' a i s f) (Query a i) (Column.Query' a i f) Slam (L.List i)
-
-type RenderRec a i s f = { path ∷ L.List i, html ∷ Array (HTML a i s f) }
+type HTML a i o = H.ParentHTML (Query a i o) (Column.Query a i o) (Int × i) Slam
+type DSL a i o = H.ParentDSL (State a i) (Query a i o) (Column.Query a i o) (Int × i) (Message' a i o) Slam
 
 component
-  ∷ ∀ a i s f
+  ∷ ∀ a i f o
   . Ord i
-  ⇒ Column.ColumnOptions a i s f
-  → H.Component (State' a i s f) (Query' a i f) Slam
-component colSpec = H.parentComponent { render, eval, peek: Just peek }
+  ⇒ Column.ColumnOptions a i f o
+  → H.Component HH.HTML (Query a i o) (ColumnsData a i) (Message' a i o) Slam
+component colSpec =
+  H.parentComponent
+    { initialState: { cycle: 0, columns: _ }
+    , render
+    , eval
+    , receiver: HE.input ChangeRoot
+    }
   where
 
-  render ∷ State a i → HTML a i s f
+  render ∷ State a i → HTML a i o
   render state =
     HH.div
-      [ HP.class_ (HH.className "sd-miller-columns")
-      , HP.ref (H.action ∘ Ref)
+      [ HP.class_ (HH.ClassName "sd-miller-columns")
+      , HP.ref containerRef
       ]
-      $ _.html
-      $ foldr goColumn { path: L.Nil, html: [] } (columnPaths colSpec state)
+      $ A.fromFoldable
+      $ map (renderColumn state.cycle) (columnPaths colSpec state.columns)
 
-  goColumn ∷ L.List i → RenderRec a i s f → RenderRec a i s f
-  goColumn path acc = { path, html: acc.html <> [renderColumn path] }
-
-  renderColumn ∷ L.List i → HTML a i s f
-  renderColumn colPath =
+  renderColumn ∷ Int → Int × Maybe a × i → HTML a i o
+  renderColumn cycle (i × sel × colPath) =
     HH.div
-      [ HP.class_ (HH.className "sd-miller-column")
+      [ HP.class_ (HH.ClassName "sd-miller-column")
       , ARIA.label "Column"
-      , HP.ref (\_ → H.action Extended)
       ]
-      [ HH.slot colPath \_ →
-          { component: Column.component colSpec colPath
-          , initialState: H.parentState Column.initialState
-          }
+      [ HH.slot
+          (cycle × colPath)
+          (Column.component colSpec colPath)
+          sel
+          (HE.input (HandleMessage i colPath))
       ]
 
-  eval ∷ Query a i ~> DSL a i s f
+  eval ∷ Query a i o ~> DSL a i o
   eval = case _ of
-    Ref mel next → do
-      H.modify (_ { element = mel })
+    Populate cols next → do
+      H.modify (_ { columns = cols })
       pure next
-    Extended next → do
-      traverse_ (H.fromEff ∘ scrollToRight) =<< H.gets _.element
+    ChangeRoot cols@(newRoot × newSelections) next → do
+      (root × selections) ← H.gets _.columns
+      let
+        prefix = L.drop (L.length selections - L.length newSelections) selections
+        oldIds = colSpec.id <$> prefix
+        newIds = colSpec.id <$> newSelections
+      when (root /= newRoot || oldIds /= newIds) $ H.modify (_ { columns = cols })
       pure next
-    Populate path next → do
-      H.modify (_ { path = path })
+    HandleMessage colIndex colPath msg next → do
+      case msg of
+        Left Column.Initialized →
+          traverse_ (H.liftEff ∘ scrollToRight) =<< H.getHTMLElementRef containerRef
+        Left Column.Deselected → do
+          H.modify $ modifyColumns $ second \sels →
+            L.drop (L.length sels - colIndex) sels
+          root × sel ← second L.head <$> H.gets _.columns
+          H.raise $ Left (SelectionChanged (maybe root colSpec.id sel) sel)
+        Left (Column.Selected itemPath item) → do
+          H.modify $ modifyColumns $ second \sels →
+            item : L.drop (L.length sels - colIndex) sels
+          H.raise $ Left (SelectionChanged itemPath (Just item))
+        Right o →
+          H.raise (Right o)
       pure next
-    RaiseSelected _ _ next → do
+    Reload next → do
+      H.modify \st → st { cycle = st.cycle + 1 }
       pure next
-
-  peek ∷ ∀ x. H.ChildF (L.List i) (Column.Query' a i f) x → DSL a i s f Unit
-  peek (H.ChildF colPath q) =
-    coproduct (peekColumn colPath) (peekColumnItem colPath) q
-
-  peekColumn
-    ∷ ∀ x
-    . L.List i
-    → Column.Query a x
-    → DSL a i s f Unit
-  peekColumn colPath = case _ of
-    Column.Deselect _ → do
-      raise' $ H.action $ Populate colPath
-      void $ H.query colPath $ left $ H.action $ Column.SetSelection Nothing
-      let prevCol = L.drop 1 colPath
-      selection ← join <$> H.query prevCol (left (H.request Column.GetSelection))
-      let selPath = maybe prevCol (\s → colSpec.id s : prevCol) selection
-      raise' $ H.action $ RaiseSelected selPath selection
-    _ → pure unit
-
-  peekColumnItem
-    ∷ ∀ x
-    . L.List i
-    → H.ChildF i (Column.ItemQuery' a f) x
-    → DSL a i s f Unit
-  peekColumnItem colPath (H.ChildF itemId q) =
-    coproduct (peekColumnItemCommon itemId colPath) (const (pure unit)) q
-
-  peekColumnItemCommon
-    ∷ ∀ x
-    . i
-    → L.List i
-    → Column.ItemQuery a x
-    → DSL a i s f Unit
-  peekColumnItemCommon itemId colPath = case _ of
-    Column.RaisePopulate selection _ → do
-      let itemPath = itemId : colPath
-      raise' $ H.action $ Populate itemPath
-      raise' $ H.action $ RaiseSelected itemPath (Just selection)
-      void $ H.query colPath $ left $ H.action $ Column.SetSelection (Just selection)
-    _ → pure unit
 
 scrollToRight ∷ ∀ eff. HTMLElement → Eff (dom ∷ DOM | eff) Unit
-scrollToRight hel = do
-  let el = htmlElementToElement hel
-  maxScroll ← (-) <$> DOM.scrollWidth el <*> DOM.offsetWidth hel
+scrollToRight el = do
+  maxScroll ← (-) <$> DOM.scrollWidth el <*> DOM.offsetWidth el
   DOM.setScrollLeft maxScroll el
+
+containerRef ∷ H.RefLabel
+containerRef = H.RefLabel "container"

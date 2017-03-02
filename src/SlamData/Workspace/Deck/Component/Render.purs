@@ -22,16 +22,14 @@ module SlamData.Workspace.Deck.Component.Render
 import SlamData.Prelude
 import Data.Array as A
 import Data.List as L
-import Halogen as H
-import Halogen.HTML.Events.Handler as HEH
-import Halogen.HTML.Events.Indexed as HE
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
+
+import Halogen.HTML.Events as HE
+import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.Properties.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 import SlamData.ActionList.Component as ActionList
 import SlamData.ActionList.Filter.Component as ActionFilter
-import SlamData.Guide as Guide
 import SlamData.Render.CSS as RCSS
 import SlamData.Render.Common (glyph)
 import SlamData.Workspace.AccessType as AT
@@ -46,12 +44,14 @@ import SlamData.Workspace.Deck.Component.Query as DCQ
 import SlamData.Workspace.Deck.Component.State as DCS
 import SlamData.Workspace.Deck.Dialog.Component as Dialog
 import SlamData.Workspace.Deck.Slider as Slider
+import SlamData.Guide.Notification as Guide
 import Utils (endSentence)
+import Utils.DOM as DOM
 
 renderError ∷ ∀ f a. String → HH.HTML a (f Unit)
 renderError err =
   HH.div
-    [ HP.classes [ HH.className "sd-workspace-error" ] ]
+    [ HP.classes [ HH.ClassName "sd-workspace-error" ] ]
     [ HH.h1_
         [ HH.text "Couldn't load this SlamData deck." ]
     , HH.p_
@@ -61,30 +61,34 @@ renderError err =
 renderDeck ∷ DeckOptions → (DeckOptions → DeckComponent) → DCS.State → DeckHTML
 renderDeck opts deckComponent st =
   HH.div
-    (deckClasses st
-     ⊕ deckProperties opts
-     ⊕ Slider.containerProperties st)
+    [ HP.classes
+        [ HH.ClassName "sd-deck-nested"
+        , HH.ClassName ("sd-deck-level-" <> show (L.length opts.displayCursor + 1))
+        ]
+    ]
     $ [ HH.div
-          [ HP.class_ CSS.deckFrame
-          , HE.onMouseDown \ev →
-              if st.focused && not (L.null opts.displayCursor)
-                then HEH.stopPropagation *> pure (Just (Defocus ev unit))
-                else pure Nothing
+          (deckClasses st
+          ⊕ deckProperties opts
+          ⊕ Slider.containerProperties st)
+          [ HH.div
+              [ HP.class_ CSS.deckFrame
+              , HE.onMouseDown $ HE.input Defocus
+              ]
+              $ frameElements opts st ⊕ [ renderName st.name ]
+          , HH.div
+              [ HP.class_ CSS.deck
+              ]
+              [ Slider.render opts deckComponent st $ DCS.isFrontSide st.displayMode
+              , renderBackside
+                  $ DCS.isFlipSide st.displayMode
+              , renderDialogBackdrop $ DCS.hasDialog st.displayMode
+              , renderDialog $ DCS.hasDialog st.displayMode
+              ]
           ]
-          $ frameElements opts st ⊕ [ renderName st.name ]
-      , HH.div
-          [ HP.class_ CSS.deck
-          , HP.key "deck"
-          ]
-          [ Slider.render opts deckComponent st $ DCS.isFrontSide st.displayMode
-            , renderBackside
-                $ DCS.isFlipSide st.displayMode
-            , renderDialogBackdrop $ DCS.hasDialog st.displayMode
-            , renderDialog $ DCS.hasDialog st.displayMode
-            ]
       ]
       <> (guard presentFocusDeckHint $> renderFocusDeckHint)
       <> (guard presentFocusDeckFrameHint $> renderFocusDeckFrameHint)
+
 
   where
   presentFocusDeckHint ∷ Boolean
@@ -103,7 +107,7 @@ renderDeck opts deckComponent st =
   renderFocusDeckHint =
     Guide.render
       Guide.DownArrow
-      (HH.className "sd-focus-deck-hint")
+      (HH.ClassName "sd-focus-deck-hint")
       DCQ.DismissFocusDeckHint
       "This Deck is wrapped in a Dashboard Card and unfocused. To do more with this Deck focus it by clicking or tapping on it."
 
@@ -111,7 +115,7 @@ renderDeck opts deckComponent st =
   renderFocusDeckFrameHint =
     Guide.render
       Guide.UpArrow
-      (HH.className "sd-focus-deck-frame-hint")
+      (HH.ClassName "sd-focus-deck-frame-hint")
       DCQ.DismissFocusDeckFrameHint
       "This Deck is focused. To do more with the containing Deck focus it by clicking or tapping on the empty space in this Deck Frame."
 
@@ -137,20 +141,18 @@ renderDeck opts deckComponent st =
       ]
       [ backside ]
 
-deckClasses ∷ ∀ r. DCS.State → Array (HP.IProp (HP.InteractiveEvents (HP.GlobalProperties r)) (Query Unit))
+deckClasses ∷ ∀ r. DCS.State → Array (HP.IProp (class ∷ String | r) (Query Unit))
 deckClasses st =
   pure $ HP.classes $
     [ CSS.deckContainer
-    , HH.className (responsiveSize st.responsiveSize)
+    , HH.ClassName (responsiveSize st.responsiveSize)
     , if st.focused then CSS.focused else CSS.unfocused
     ]
 
-deckProperties ∷ ∀ r. DeckOptions → Array (HP.IProp (HP.InteractiveEvents (HP.GlobalProperties r)) (Query Unit))
+deckProperties ∷ ∀ r. DeckOptions → Array (HP.IProp (onMouseDown ∷ DOM.MouseEvent | r) (Query Unit))
 deckProperties opts =
-  [ HP.key "deck-container"
-  , HP.ref (H.action ∘ SetCardElement)
-  ] ⊕ (guard (L.length opts.displayCursor <= 1) $>
-        HE.onMouseDown \_ → HEH.stopPropagation $> Just (H.action Focus))
+  [ HP.ref Common.sizerRef ]
+  <> (guard (L.length opts.displayCursor <= 1) $> HE.onMouseDown (HE.input Focus))
 
 renderName ∷ String → DeckHTML
 renderName name =
@@ -181,10 +183,7 @@ childFrameElements st =
 
 dialogSlot ∷ DeckHTML
 dialogSlot =
-  HH.slot' cpDialog unit \_ →
-    { component: Dialog.comp
-    , initialState: H.parentState Dialog.initialState
-    }
+  HH.slot' cpDialog unit Dialog.component unit (HE.input HandleDialog)
 
 backside ∷ DeckHTML
 backside =
@@ -195,14 +194,12 @@ backside =
             [ HP.class_ CCSS.deckCard ]
             [ HH.div
                 [ HP.class_ RCSS.deckBackSide ]
-                [ HH.slot' cpActionFilter unit \_ →
-                    { component: ActionFilter.comp "Filter deck and card actions"
-                    , initialState: ActionFilter.initialState
-                    }
-                , HH.slot' cpBackSide unit \_ →
-                    { component: ActionList.comp
-                    , initialState: ActionList.initialState []
-                    }
+                [ HH.slot' cpActionFilter unit ActionFilter.component
+                    "Filter deck and card actions"
+                    (HE.input HandleBackFilter)
+                , HH.slot' cpBackSide unit ActionList.component
+                    unit
+                    (HE.input HandleBackAction)
                 ]
             ]
         ]
@@ -210,24 +207,25 @@ backside =
 
 deckIndicator ∷ DCS.State → DeckHTML
 deckIndicator st =
-  HH.div [ HP.classes [ HH.className "indicator" ] ] $
+  HH.div [ HP.classes [ HH.ClassName "indicator" ] ] $
     A.mapWithIndex renderCircle st.displayCards
 
   where
   activeCard =
     DCS.activeCardIndex st
 
+  classes ix card =
+    map HH.ClassName
+    $ (guard (st.pendingCardIndex ≡ Just ix) $> "running")
+    ⊕ (A.singleton case card of
+          Right _ → "available"
+          Left DCS.PendingCard → "pending"
+          Left (DCS.ErrorCard _) → "errored"
+          Left (DCS.NextActionCard _) → "placeholder")
+    ⊕ (guard (activeCard ≡ ix) $> "focused")
+
   renderCircle ix card =
-    HH.i
-      [ HP.classes $
-          pure case card of
-            Right _ → HH.className "available"
-            Left DCS.PendingCard → HH.className "pending"
-            Left (DCS.ErrorCard _) → HH.className "errored"
-            Left (DCS.NextActionCard _) → HH.className "placeholder"
-        ⊕ (guard (activeCard ≡ ix) $> HH.className "focused")
-      ]
-      [ HH.text "" ]
+    HH.i [ HP.classes $ classes ix card ] [ HH.text "" ]
 
 flipButton ∷ DeckHTML
 flipButton =
@@ -243,7 +241,7 @@ moveGripper ∷ DeckHTML
 moveGripper =
   HH.button
     [ HP.classes [ CSS.grabDeck ]
-    , HE.onMouseDown (HE.input GrabDeck)
+    , HE.onMouseDown (HE.input HandleGrab)
     , ARIA.label "Grab deck"
     , HP.title "Grab deck"
     ]

@@ -14,15 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.Workspace.Card.Variables.Component.Query
-  ( QueryP
-  ) where
-
-import SlamData.Prelude
+module SlamData.Workspace.Card.Tabs.Component.Query where
 
 import Halogen as H
+import Halogen.Component.Utils.Drag (DragEvent)
 
-import SlamData.Workspace.Card.Common.EvalQuery (CardEvalQuery)
-import SlamData.Workspace.FormBuilder.Component as FB
+import SlamData.Workspace.Eval.Deck as Deck
 
-type QueryP = Coproduct CardEvalQuery (H.ChildF Unit FB.QueryP)
+import Utils.DOM as DOM
+
+data Query a
+  = AddTab a
+  | HandleMessage Deck.Id Deck.EvalMessage (H.SubscribeStatus → a)
+  | OrderStart Int DOM.MouseEvent a
+  | Ordering Int DragEvent a
+  | OrderOver Int a
+  | OrderOut Int a

@@ -18,43 +18,63 @@ module SlamData.Workspace.MillerColumns.Component.State where
 
 import SlamData.Prelude
 
-import Data.List (List(..), (:))
+import Data.List ((:))
 import Data.List as L
-import Data.Traversable (scanr)
 
-import DOM.HTML.Types (HTMLElement)
-
-import Halogen as H
-
-import SlamData.Monad (Slam)
-import SlamData.Workspace.MillerColumns.Component.Query (Query)
 import SlamData.Workspace.MillerColumns.Column.Component as Column
 
 type State a i =
-  { element ∷ Maybe HTMLElement
-  , path ∷ List i
+  { cycle ∷ Int
+  , columns ∷ ColumnsData a i
   }
 
-type State' a i s f =
-  H.ParentState
-    (State a i)
-    (Column.State' a i s f)
-    (Query a i)
-    (Column.Query' a i f)
-    Slam
-    (List i)
-
-initialState ∷ ∀ a i. State a i
-initialState =
-  { element: Nothing
-  , path: Nil
-  }
-
--- | Get a list of paths for the columns.
-columnPaths
-  ∷ ∀ a i s f
-  . Column.ColumnOptions a i s f
+modifyColumns
+  ∷ ∀ a i
+  . (ColumnsData a i → ColumnsData a i)
   → State a i
-  → List (List i)
-columnPaths { isLeaf } { path } =
-  L.dropWhile isLeaf (scanr (:) L.Nil path)
+  → State a i
+modifyColumns f st = { cycle: st.cycle, columns: f st.columns }
+
+-- | The current state of the columns component - the `i` value is the root
+-- | path id, the list of `a`s is the items selected in each column. The list
+-- | is in "reverse" order, where the head item corresponds to the last
+-- | selection in the view, and the last item is the selection in the first
+-- | column.
+type ColumnsData a i = i × L.List a
+
+-- | Mash the values in the state into a list where each item corresponds to an
+-- | index for the column, the selected item within that column, and the path
+-- | id for the column.
+-- |
+-- | For example, if the input state is `A × [D, C, B]` the result will be:
+-- | ```
+-- | [ 0 × Just B × A
+-- | , 1 × Just C × B
+-- | , 2 × Just D × C
+-- | , 3 × Nothing × D
+-- | ]
+-- | ```
+-- |
+-- | The exception to this is if the last selection is a leaf according to the
+-- | provided `ColumnOptions`, in which case the last entry will be omitted:
+-- | ```
+-- | [ 0 × Just B × A
+-- | , 1 × Just C × B
+-- | , 2 × Just D × C
+-- | ]
+-- | ```
+columnPaths
+  ∷ ∀ a i f o
+  . Column.ColumnOptions a i f o
+  → ColumnsData a i
+  → L.List (Int × Maybe a × i)
+columnPaths colSpec (root × selection) =
+  let
+    paths = (colSpec.id <$> selection) `L.snoc` root
+    sels = Nothing : (Just <$> selection)
+    cols = L.zip sels paths
+  in
+    L.mapWithIndex (flip Tuple) $ L.reverse $
+      case L.head paths of
+        Just selPath | colSpec.isLeaf selPath → L.drop 1 cols
+        _ → cols

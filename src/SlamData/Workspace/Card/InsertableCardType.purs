@@ -23,8 +23,6 @@ import Data.String as String
 import SlamData.Workspace.Card.CardType as CardType
 import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Card.CardType (CardType)
-import SlamData.Workspace.Card.CardType.ChartType (ChartType(..))
-import SlamData.Workspace.Card.CardType.FormInputType (FormInputType(..))
 import SlamData.Workspace.Card.Port (Port)
 import Utils as Utils
 
@@ -45,6 +43,7 @@ data InsertableCardType
   | ShowMarkdownCard
   | TableCard
   | TroubleshootCard
+  | TabsCard
 
 data InsertableCardIOType
   = Chart
@@ -53,6 +52,7 @@ data InsertableCardIOType
   | Download
   | Markdown
   | Variables
+  | Terminal
   | None
 
 derive instance eqInsertableCardType ∷ Eq InsertableCardType
@@ -63,7 +63,7 @@ inputs ∷ Array (InsertableCardType × (Array InsertableCardIOType))
 inputs =
   [ CacheCard × [ Data ]
   , DraftboardCard × [ None ]
-  , OpenCard × [ None ]
+  , OpenCard × [ None, Variables ]
   , QueryCard × [ None, Data, Variables ]
   , SearchCard × [ Data ]
   , SetupChartCard × [ Data ]
@@ -77,6 +77,7 @@ inputs =
   , ShowMarkdownCard × [ Markdown ]
   , TableCard × [ Data ]
   , TroubleshootCard × [ Chart, Form, Data, Download, Markdown, Variables ]
+  , TabsCard × [ None ]
   ]
 
 -- Cards only have one output type, treat this as a Map or turn it into one.
@@ -106,6 +107,7 @@ cardsToExcludeFromPaths =
   , TableCard
   , DraftboardCard
   , CacheCard
+  , TabsCard
   ]
 
 contains ∷ ∀ a. (Eq a) ⇒ a → Array a → Boolean
@@ -219,6 +221,7 @@ printIOType = case _ of
   Markdown → "markdown"
   None → "to be the first card in a deck"
   Variables → "variables"
+  Terminal → "nothing"
 
 
 printIOType' ∷ InsertableCardIOType → Maybe String
@@ -253,32 +256,34 @@ fromPort = case _ of
   Port.Variables → Variables
   Port.ValueMetric _ → Chart
   Port.CategoricalMetric _ → Form
+  Port.Terminal → Terminal
   _ → None
 
-toCardType ∷ InsertableCardType → CardType
+toCardType ∷ InsertableCardType → Maybe CardType
 toCardType = case _ of
-  CacheCard → CardType.Cache
-  DraftboardCard → CardType.Draftboard
-  OpenCard → CardType.Open
-  QueryCard → CardType.Ace CardType.SQLMode
-  SearchCard → CardType.Search
-  SetupChartCard → CardType.ChartOptions Pie
-  SetupFormCard → CardType.SetupFormInput Dropdown
-  SetupDownloadCard → CardType.DownloadOptions
-  SetupMarkdownCard → CardType.Ace CardType.MarkdownMode
-  SetupVariablesCard → CardType.Variables
-  ShowChartCard → CardType.Chart
-  ShowFormCard → CardType.FormInput
-  ShowDownloadCard → CardType.Download
-  ShowMarkdownCard → CardType.Markdown
-  TableCard → CardType.Table
-  TroubleshootCard → CardType.Troubleshoot
+  CacheCard → Just CardType.Cache
+  DraftboardCard → Just CardType.Draftboard
+  OpenCard → Just CardType.Open
+  QueryCard → Just $ CardType.Ace CardType.SQLMode
+  SearchCard → Just CardType.Search
+  SetupChartCard → Nothing
+  SetupFormCard → Nothing
+  SetupDownloadCard → Just CardType.DownloadOptions
+  SetupMarkdownCard → Just $ CardType.Ace CardType.MarkdownMode
+  SetupVariablesCard → Just $ CardType.Variables
+  ShowChartCard → Just CardType.Chart
+  ShowFormCard → Just CardType.FormInput
+  ShowDownloadCard → Just CardType.Download
+  ShowMarkdownCard → Just CardType.Markdown
+  TableCard → Just CardType.Table
+  TroubleshootCard → Just CardType.Troubleshoot
+  TabsCard → Just CardType.Tabs
 
 print ∷ InsertableCardType → String
 print = case _ of
   SetupChartCard → "Setup Chart"
   SetupFormCard → "Setup Form"
-  a → CardType.cardName $ toCardType a
+  a → foldMap CardType.cardName $ toCardType a
 
 aAn ∷ String → String
 aAn s =
@@ -331,6 +336,7 @@ printAction = case _ of
   ShowMarkdownCard → Just "show"
   TableCard → Just "tabulate"
   TroubleshootCard → Just "troubleshoot"
+  TabsCard → Nothing
 
 fromCardType ∷ CardType → InsertableCardType
 fromCardType =
@@ -351,6 +357,7 @@ fromCardType =
     CardType.Troubleshoot → TroubleshootCard
     CardType.SetupFormInput _ → SetupFormCard
     CardType.FormInput → ShowFormCard
+    CardType.Tabs → TabsCard
 
 all ∷ Array InsertableCardType
 all =
@@ -365,6 +372,7 @@ all =
   , SetupMarkdownCard
   , ShowMarkdownCard
   , DraftboardCard
+  , TabsCard
   , SetupDownloadCard
   , ShowDownloadCard
   , CacheCard

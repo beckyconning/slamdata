@@ -17,16 +17,21 @@ limitations under the License.
 module SlamData.Workspace.Card.Setups.Inputs where
 
 import SlamData.Prelude
+
+import Data.Argonaut as J
 import Data.Array as Array
+import Data.List as List
 
 import Halogen as H
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Events.Indexed as HE
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
+import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.Properties.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Form.Select (Select(..), stringVal, class OptionVal)
+import SlamData.Workspace.Card.Setups.DimensionPicker.Component as DPC
+import SlamData.Workspace.Card.Setups.DimensionPicker.JCursor (groupJCursors, showJCursor)
 
 type Select' a = Boolean × Select a
 
@@ -59,26 +64,24 @@ type SelectConfig r =
   }
 
 primary
-  ∷ ∀ a i
-  . Show a
-  ⇒ Maybe String
-  → (SelectAction a → H.Action i)
-  → PickerConfig a i
+  ∷ ∀ i
+  . Maybe String
+  → (SelectAction J.JCursor → H.Action i)
+  → PickerConfig J.JCursor i
 primary lbl =
   { disableWhen: (_ < 2)
   , defaultWhen: (_ < 1)
   , ariaLabel: lbl
   , defaultOption: "Choose " ⊕ fromMaybe "source" lbl
-  , showValue: show
+  , showValue: showJCursor
   , query: _
   }
 
 secondary
-  ∷ ∀ a i
-  . Show a
-  ⇒ Maybe String
-  → (SelectAction a → H.Action i)
-  → PickerConfig a i
+  ∷ ∀ i
+  . Maybe String
+  → (SelectAction J.JCursor → H.Action i)
+  → PickerConfig J.JCursor i
 secondary lbl =
   { disableWhen: (_ < 1)
   , defaultWhen: const true
@@ -124,11 +127,11 @@ pickerInput conf (Select { options, value }) =
     isDefault = isNothing value
     isDisabled = conf.disableWhen len
   in
-   HH.div [ HP.classes [ HH.className "sd-picker-input" ] ]
+   HH.div [ HP.classes [ HH.ClassName "sd-picker-input" ] ]
      [ HH.button
          ([ HP.classes
-            $ [ B.formControl, HH.className "sd-picker-main-button" ]
-            ⊕ ( HH.className "default" <$ guard isDefault )
+            $ [ B.formControl, HH.ClassName "sd-picker-main-button" ]
+            ⊕ ( HH.ClassName "default" <$ guard isDefault )
           , HP.disabled isDisabled
           , ARIA.label (fromMaybe "" conf.ariaLabel)
           ]
@@ -139,7 +142,7 @@ pickerInput conf (Select { options, value }) =
      , if conf.defaultWhen len && not isDefault
           then
             HH.button
-              [ HP.classes [ HH.className "sd-dismiss-button" ]
+              [ HP.classes [ HH.ClassName "sd-dismiss-button" ]
               , HE.onClick (HE.input_ (conf.query (Choose Nothing)))
               , HP.disabled isDisabled
               ]
@@ -167,9 +170,9 @@ selectInput conf (Select { options, value }) =
       , HP.disabled isDisabled
       , HE.onSelectedIndexChange \ix →
           case defaultWhen, ix of
-            true, 0 → pure (Just (conf.query (Choose Nothing) unit))
-            true, _ → pure (Array.index options (ix - 1) <#> \val → conf.query (Choose (Just val)) unit)
-            _   , _ → pure (Array.index options ix <#> \val → conf.query (Choose (Just val)) unit)
+            true, 0 → Just (conf.query (Choose Nothing) unit)
+            true, _ → Array.index options (ix - 1) <#> \val → conf.query (Choose (Just val)) unit
+            _   , _ → Array.index options ix <#> \val → conf.query (Choose (Just val)) unit
       ]
       if defaultWhen
         then
@@ -198,9 +201,18 @@ pickerWithSelect conf1 sel1@(Select { options, value }) conf2 sel2 =
   let
     isDisabled = conf1.disableWhen (Array.length options)
   in
-    HH.div [ HP.classes [ HH.className "sd-picker-with-select" ] ]
+    HH.div [ HP.classes [ HH.ClassName "sd-picker-with-select" ] ]
       [ pickerInput conf1 sel1
       , if isDisabled
           then selectInput (conf2 { disableWhen = const true }) sel2
           else selectInput conf2 sel2
       ]
+
+dimensionPicker ∷ ∀ f. Foldable f ⇒ f (J.JCursor) → String → DPC.PickerOptions (Either J.JCursor J.JCursor)
+dimensionPicker options title =
+  { title
+  , label: DPC.labelNode showJCursor
+  , render: DPC.renderNode showJCursor
+  , values: groupJCursors (List.fromFoldable options)
+  , isSelectable: DPC.isLeafPath
+  }

@@ -20,107 +20,89 @@ module SlamData.Workspace.Card.Setups.Chart.PivotTable.Component
 
 import SlamData.Prelude
 
-import Control.Comonad.Cofree (Cofree)
-
-import Data.Argonaut as J
 import Data.Array as Array
 import Data.Int (toNumber)
 import Data.Lens ((^?))
-import Data.List (List, (:))
-import Data.List as List
 
 import CSS as C
 import Halogen as H
 import Halogen.Component.Utils.Drag as Drag
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Events.Indexed as HE
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.HTML.Properties.Indexed.ARIA as ARIA
-import Halogen.HTML.CSS.Indexed as HC
+import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.Properties.ARIA as ARIA
+import Halogen.HTML.CSS as HC
 
 import SlamData.Form.Select as S
-import SlamData.Monad (Slam)
 import SlamData.Workspace.Card.Setups.Chart.Aggregation as Ag
 import SlamData.Workspace.Card.Setups.DimensionPicker.Component as DPC
-import SlamData.Workspace.Card.Setups.DimensionPicker.Column (groupColumns, flattenColumns)
-import SlamData.Workspace.Card.Setups.DimensionPicker.JCursor (groupJCursors, flattenJCursors)
+import SlamData.Workspace.Card.Setups.DimensionPicker.Column (flattenColumns, showColumn)
+import SlamData.Workspace.Card.Setups.DimensionPicker.JCursor (flattenJCursors, showJCursor)
 import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.ChildSlot as PCS
-import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.Query (Query(..), QueryC)
-import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.State (State, Selecting(..), modelFromState, stateFromModel, initialState, reorder, setColumnAggregation)
+import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.Query (Query(..))
+import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.State as PS
 import SlamData.Workspace.Card.Setups.Chart.PivotTable.Model (Column(..))
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.CardType.ChartType as CHT
-import SlamData.Workspace.Card.Common.Render (renderLowLOD)
 import SlamData.Workspace.Card.Component as CC
 import SlamData.Workspace.Card.Eval.State (_Axes)
 import SlamData.Workspace.Card.Model as Card
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 
-type DSL = H.ParentDSL State PCS.ChildState QueryC PCS.ChildQuery Slam PCS.ChildSlot
+type DSL = CC.InnerCardParentDSL PS.State Query PCS.ChildQuery PCS.ChildSlot
 
-type HTML = H.ParentHTML PCS.ChildState QueryC PCS.ChildQuery Slam PCS.ChildSlot
+type HTML = CC.InnerCardParentHTML Query PCS.ChildQuery PCS.ChildSlot
 
 pivotTableBuilderComponent ∷ CC.CardOptions → CC.CardComponent
-pivotTableBuilderComponent options = CC.makeCardComponent
-  { options
-  , cardType: CT.ChartOptions CHT.PivotTable
-  , component: H.parentComponent
-      { render
-      , eval: coproduct evalCard evalOptions
-      , peek: Just peek
-      }
-  , initialState: H.parentState initialState
-  , _State: CC._BuildPivotTableState
-  , _Query: CC.makeQueryPrism' CC._BuildPivotTableQuery
-  }
+pivotTableBuilderComponent =
+  CC.makeCardComponent (CT.ChartOptions CHT.PivotTable) $ H.parentComponent
+    { render
+    , eval: coproduct evalCard evalOptions
+    , initialState: const PS.initialState
+    , receiver: const Nothing
+    }
 
-render ∷ State → HTML
+render ∷ PS.State → HTML
 render st =
-  if st.levelOfDetails ≡ High
-    then renderHighLOD st
-    else renderLowLOD (CT.cardIconDarkImg (CT.ChartOptions CHT.PivotTable)) left st.levelOfDetails
-
-renderHighLOD ∷ State → HTML
-renderHighLOD st =
   HH.div
-    [ HP.classes [ HH.className "sd-pivot-options" ] ]
+    [ HP.classes [ HH.ClassName "sd-pivot-options" ] ]
     [ HH.div
-        [ HP.classes [ HH.className "sd-pivot-options-corner" ] ]
+        [ HP.classes [ HH.ClassName "sd-pivot-options-corner" ] ]
         [ HH.span_ [ HH.text "Dimensions" ]
         , HH.span_ [ HH.text "Columns" ]
         ]
     , HH.div
-        [ HP.classes [ HH.className "sd-pivot-options-dims" ] ]
+        [ HP.classes [ HH.ClassName "sd-pivot-options-dims" ] ]
         renderedDimensions
     , HH.div
-        [ HP.classes [ HH.className "sd-pivot-options-cols" ] ]
+        [ HP.classes [ HH.ClassName "sd-pivot-options-cols" ] ]
         renderedColumns
     , maybe (HH.text "") renderSelect st.selecting
     ]
   where
   renderSelect = case _ of
-    Col →
-      HH.slot' PCS.cpCol unit \_ →
-        { component: DPC.picker
-            { title: "Choose column"
-            , label: DPC.labelNode showColumn
-            , render: DPC.renderNode showColumn
-            , values: selectColumnValues st
-            , isSelectable: DPC.isLeafPath
-            }
-        , initialState: H.parentState DPC.initialState
-        }
-    Dim →
-      HH.slot' PCS.cpDim unit \_ →
-        { component: DPC.picker
-            { title: "Choose dimension"
-            , label: DPC.labelNode showJCursor
-            , render: DPC.renderNode showJCursor
-            , values: selectDimensionValues st
-            , isSelectable: DPC.isLeafPath
-            }
-        , initialState: H.parentState DPC.initialState
-        }
+    PS.Col values →
+      HH.slot' PCS.cpCol unit
+        (DPC.picker
+          { title: "Choose column"
+          , label: DPC.labelNode showColumn
+          , render: DPC.renderNode showColumn
+          , values
+          , isSelectable: DPC.isLeafPath
+          })
+        unit
+        (Just ∘ right ∘ H.action ∘ HandleColPicker)
+    PS.Dim values →
+      HH.slot' PCS.cpDim unit
+        (DPC.picker
+          { title: "Choose dimension"
+          , label: DPC.labelNode showJCursor
+          , render: DPC.renderNode showJCursor
+          , values
+          , isSelectable: DPC.isLeafPath
+          })
+        unit
+        (Just ∘ right ∘ H.action ∘ HandleDimPicker)
 
   renderedDimensions =
     let
@@ -129,13 +111,13 @@ renderHighLOD st =
     in
       map (renderDimension size) st.dimensions <>
       [ HH.div
-          [ HP.classes [ HH.className "sd-pivot-options-dim" ]
+          [ HP.classes [ HH.ClassName "sd-pivot-options-dim" ]
           , HC.style (C.height (C.pct size))
           ]
           [ HH.div
-              [ HP.classes [ HH.className "sd-pivot-options-dim-inner"] ]
+              [ HP.classes [ HH.ClassName "sd-pivot-options-dim-inner"] ]
               [ HH.button
-                  [ HP.classes [ HH.className "sd-pivot-options-plus" ]
+                  [ HP.classes [ HH.ClassName "sd-pivot-options-plus" ]
                   , HE.onClick (HE.input_ (right ∘ AddDimension))
                   , ARIA.label "Add dimension"
                   , HP.title "Add dimension"
@@ -151,16 +133,16 @@ renderHighLOD st =
        , HC.style (C.height (C.pct size))
        ] <> dimensionEvents slot)
       [ HH.div
-          [ HP.classes [ HH.className "sd-pivot-options-dim-inner"]
+          [ HP.classes [ HH.ClassName "sd-pivot-options-dim-inner"]
           , HC.style (dimensionStyles slot size)
           ]
           [ HH.button
-              [ HP.classes [ HH.className "sd-pivot-options-label" ]
+              [ HP.classes [ HH.ClassName "sd-pivot-options-label" ]
               , HE.onMouseDown (HE.input (\e → right ∘ OrderDimensionStart slot e))
               ]
               [ HH.text (showJCursor dim) ]
           , HH.button
-              [ HP.classes [ HH.className "sd-dismiss-button" ]
+              [ HP.classes [ HH.ClassName "sd-dismiss-button" ]
               , HP.title "Delete dimension"
               , ARIA.label "Delete dimension"
               , HE.onClick (HE.input_ (right ∘ RemoveDimension slot))
@@ -170,10 +152,10 @@ renderHighLOD st =
       ]
 
   dimensionClasses slot =
-    [ HH.className "sd-pivot-options-dim" ] <>
+    [ HH.ClassName "sd-pivot-options-dim" ] <>
       case st.orderingDimension of
-        Just opts | opts.source == slot → [ HH.className "ordering" ]
-        Just opts | opts.over == Just slot → [ HH.className "ordering-over" ]
+        Just opts | opts.source == slot → [ HH.ClassName "ordering" ]
+        Just opts | opts.over == Just slot → [ HH.ClassName "ordering-over" ]
         _ → []
 
   dimensionStyles slot size = do
@@ -197,15 +179,15 @@ renderHighLOD st =
     in
       map (renderColumn size) st.columns <>
       [ HH.div
-          [ HP.classes [ HH.className "sd-pivot-options-col" ]
+          [ HP.classes [ HH.ClassName "sd-pivot-options-col" ]
           , HC.style (C.width (C.pct size))
           ]
           [ HH.div
-              [ HP.classes [ HH.className "sd-pivot-options-col-inner"] ]
+              [ HP.classes [ HH.ClassName "sd-pivot-options-col-inner"] ]
               [ HH.div
-                  [ HP.classes [ HH.className "sd-pivot-options-col-value" ] ]
+                  [ HP.classes [ HH.ClassName "sd-pivot-options-col-value" ] ]
                   [ HH.button
-                      [ HP.classes [ HH.className "sd-pivot-options-plus" ]
+                      [ HP.classes [ HH.ClassName "sd-pivot-options-plus" ]
                       , HE.onClick (HE.input_ (right ∘ AddColumn))
                       , ARIA.label "Add column"
                       , HP.title "Add column"
@@ -213,7 +195,7 @@ renderHighLOD st =
                       []
                   ]
               , HH.div
-                  [ HP.classes [ HH.className "sd-pivot-options-col-aggregation" ] ]
+                  [ HP.classes [ HH.ClassName "sd-pivot-options-col-aggregation" ] ]
                   []
               ]
           ]
@@ -225,19 +207,19 @@ renderHighLOD st =
        , HC.style (C.width (C.pct size))
        ] <> columnEvents slot)
       [ HH.div
-          [ HP.classes [ HH.className "sd-pivot-options-col-inner"]
+          [ HP.classes [ HH.ClassName "sd-pivot-options-col-inner"]
           , HC.style (columnStyles slot size)
           ]
           [ HH.div
-              [ HP.classes [ HH.className "sd-pivot-options-col-value" ] ]
+              [ HP.classes [ HH.ClassName "sd-pivot-options-col-value" ] ]
               [ HH.button
-                  [ HP.classes [ HH.className "sd-pivot-options-label" ]
+                  [ HP.classes [ HH.ClassName "sd-pivot-options-label" ]
                   , HE.onMouseDown (HE.input (\e → right ∘ OrderColumnStart slot e))
                   ]
                   [ HH.text (showColumn col)
                   ]
               , HH.button
-                  [ HP.classes [ HH.className "sd-dismiss-button" ]
+                  [ HP.classes [ HH.ClassName "sd-dismiss-button" ]
                   , HP.title "Delete column"
                   , ARIA.label "Delete column"
                   , HE.onClick (HE.input_ (right ∘ RemoveColumn slot))
@@ -245,7 +227,7 @@ renderHighLOD st =
                   [ HH.text "×"]
               ]
           , HH.div
-              [ HP.classes [ HH.className "sd-pivot-options-col-aggregation" ] ]
+              [ HP.classes [ HH.ClassName "sd-pivot-options-col-aggregation" ] ]
               case col of
                 Column { valueAggregation } → [ columnSelect slot valueAggregation ]
                 _ → []
@@ -253,10 +235,10 @@ renderHighLOD st =
       ]
 
   columnClasses slot =
-    [ HH.className "sd-pivot-options-col" ] <>
+    [ HH.ClassName "sd-pivot-options-col" ] <>
       case st.orderingColumn of
-        Just opts | opts.source == slot → [ HH.className "ordering" ]
-        Just opts | opts.over == Just slot → [ HH.className "ordering-over" ]
+        Just opts | opts.source == slot → [ HH.ClassName "ordering" ]
+        Just opts | opts.over == Just slot → [ HH.ClassName "ordering-over" ]
         _ → []
 
   columnStyles slot size = do
@@ -275,7 +257,7 @@ renderHighLOD st =
 
   columnSelect slot ag =
     HH.div
-      [ HP.classes [ HH.className "list-group" ] ]
+      [ HP.classes [ HH.ClassName "list-group" ] ]
       (map (selectBtn slot ag)
         [ Nothing
         , Just Ag.Maximum
@@ -289,17 +271,11 @@ renderHighLOD st =
   selectBtn slot ag ctr =
     HH.button
       [ HP.classes
-          ([ HH.className "list-group-item" ]
-           <> (HH.className "active" <$ guard (ctr == ag)))
+          ([ HH.ClassName "list-group-item" ]
+           <> (HH.ClassName "active" <$ guard (ctr == ag)))
       , HE.onClick (HE.input_ (right ∘ ChooseAggregation slot ctr))
       ]
       [ HH.text (maybe "Tabulate" S.stringVal ctr) ]
-
-  showColumn (Column { value }) = showJCursor value
-  showColumn Count = "COUNT"
-
-  showJCursor (J.JField i c) = i <> show c
-  showJCursor c = show c
 
 evalCard ∷ CC.CardEvalQuery ~> DSL
 evalCard = case _ of
@@ -308,11 +284,11 @@ evalCard = case _ of
   CC.Deactivate next →
     pure next
   CC.Save k →
-    map (k ∘ Card.BuildPivotTable ∘ modelFromState) H.get
+    map (k ∘ Card.BuildPivotTable ∘ PS.modelFromState) H.get
   CC.Load card next → do
     case card of
       Card.BuildPivotTable model →
-        H.modify (stateFromModel model)
+        H.modify (PS.stateFromModel model)
       _ → pure unit
     pure next
   CC.ReceiveInput _ _ next →
@@ -323,36 +299,33 @@ evalCard = case _ of
     for_ (evalState ^? _Axes) \axes → do
       H.modify _ { axes = axes }
     pure next
-  CC.ReceiveDimensions dims next → do
-    H.modify _
-      { levelOfDetails =
-          if dims.width < 540.0 || dims.height < 360.0
-            then Low
-            else High
-      }
-    pure next
-  CC.ModelUpdated _ next →
-    pure next
-  CC.ZoomIn next →
-    pure next
+  CC.ReceiveDimensions dims reply → do
+    pure $ reply
+      if dims.width < 540.0 || dims.height < 360.0
+        then Low
+        else High
 
 evalOptions ∷ Query ~> DSL
 evalOptions = case _ of
   AddDimension next → do
-    H.modify _ { selecting = Just Dim }
+    st ← H.get
+    let vals = PS.selectDimensionValues st.axes
+    H.modify _ { selecting = Just (PS.Dim vals) }
     pure next
   AddColumn next → do
-    H.modify _ { selecting = Just Col }
+    st ← H.get
+    let vals = PS.selectColumnValues st.axes
+    H.modify _ { selecting = Just (PS.Col vals) }
     pure next
   RemoveDimension slot next → do
     H.modify \st →
       st { dimensions = Array.filter (not ∘ eq slot ∘ fst) st.dimensions }
-    CC.raiseUpdatedP' CC.EvalModelUpdate
+    H.raise CC.modelUpdate
     pure next
   RemoveColumn slot next → do
     H.modify \st →
       st { columns = Array.filter (not ∘ eq slot ∘ fst) st.columns }
-    CC.raiseUpdatedP' CC.EvalModelUpdate
+    H.raise CC.modelUpdate
     pure next
   OrderDimensionStart slot ev next → do
     let
@@ -361,7 +334,8 @@ evalOptions = case _ of
         , over: Nothing
         , offset: 0.0
         }
-    Drag.subscribe' ev (right ∘ H.action ∘ OrderingDimension slot)
+    H.subscribe $ Drag.dragEventSource ev \drag →
+      Just (right (OrderingDimension slot drag H.Listening))
     H.modify _ { orderingDimension = Just opts }
     pure next
   OrderingDimension slot ev next → do
@@ -375,9 +349,9 @@ evalOptions = case _ of
             Just slot' → do
               H.modify _
                 { orderingDimension = Nothing
-                , dimensions = reorder slot slot' st.dimensions
+                , dimensions = PS.reorder slot slot' st.dimensions
                 }
-              CC.raiseUpdatedP' CC.EvalModelUpdate
+              H.raise CC.modelUpdate
             Nothing →
               H.modify _ { orderingDimension = Nothing }
     pure next
@@ -398,7 +372,8 @@ evalOptions = case _ of
         , over: Nothing
         , offset: 0.0
         }
-    Drag.subscribe' ev (right ∘ H.action ∘ OrderingColumn slot)
+    H.subscribe $ Drag.dragEventSource ev \drag →
+      Just (right (OrderingColumn slot drag H.Listening))
     H.modify _ { orderingColumn = Just opts }
     pure next
   OrderingColumn slot ev next → do
@@ -412,9 +387,9 @@ evalOptions = case _ of
             Just slot' → do
               H.modify _
                 { orderingColumn = Nothing
-                , columns = reorder slot slot' st.columns
+                , columns = PS.reorder slot slot' st.columns
                 }
-              CC.raiseUpdatedP' CC.EvalModelUpdate
+              H.raise CC.modelUpdate
             Nothing →
               H.modify _ { orderingColumn = Nothing }
     pure next
@@ -430,55 +405,32 @@ evalOptions = case _ of
     pure next
   ChooseAggregation slot ag next → do
     st ← H.get
-    H.modify (setColumnAggregation slot ag)
-    CC.raiseUpdatedP' CC.EvalModelUpdate
+    H.modify (PS.setColumnAggregation slot ag)
+    H.raise CC.modelUpdate
     pure next
-
-peek ∷ ∀ a. H.ChildF PCS.ChildSlot PCS.ChildQuery a → DSL Unit
-peek =
-  (coproduct
-    (coproduct peekSelectDim (const (pure unit)))
-    (coproduct peekSelectCol (const (pure unit))))
-  ∘ H.runChildF
-  where
-  peekSelectDim = case _ of
-    DPC.Dismiss _ →
-      H.modify _ { selecting = Nothing }
-    DPC.Confirm value _ → do
-      st ← H.get
-      H.modify _
-        { fresh = st.fresh + 1
-        , dimensions = Array.snoc st.dimensions (st.fresh × (flattenJCursors value))
-        , selecting = Nothing
-        }
-      CC.raiseUpdatedP' CC.EvalModelUpdate
-
-  peekSelectCol = case _ of
-    DPC.Dismiss _ →
-      H.modify _ { selecting = Nothing }
-    DPC.Confirm value _ → do
-      st ← H.get
-      H.modify _
-        { fresh = st.fresh + 1
-        , columns = Array.snoc st.columns (st.fresh × (flattenColumns value))
-        , selecting = Nothing
-        }
-      CC.raiseUpdatedP' CC.EvalModelUpdate
-
-selectColumnValues ∷ State → Cofree List (Either Column Column)
-selectColumnValues st =
-  groupColumns
-    (Count : List.fromFoldable
-      (map (Column ∘ { value: _, valueAggregation: Nothing })
-        (Array.sort
-          (st.axes.category
-           <> st.axes.time
-           <> st.axes.value
-           <> st.axes.date
-           <> st.axes.datetime))))
-
-selectDimensionValues ∷ State → Cofree List (Either J.JCursor J.JCursor)
-selectDimensionValues st =
-  groupJCursors
-    (List.fromFoldable
-      (Array.sort (st.axes.category <> st.axes.time <> st.axes.value)))
+  HandleDimPicker msg next → do
+    case msg of
+      DPC.Dismiss →
+        H.modify _ { selecting = Nothing }
+      DPC.Confirm value → do
+        st ← H.get
+        H.modify _
+          { fresh = st.fresh + 1
+          , dimensions = Array.snoc st.dimensions (st.fresh × (flattenJCursors value))
+          , selecting = Nothing
+          }
+        H.raise CC.modelUpdate
+    pure next
+  HandleColPicker msg next → do
+    case msg of
+      DPC.Dismiss →
+        H.modify _ { selecting = Nothing }
+      DPC.Confirm value → do
+        st ← H.get
+        H.modify _
+          { fresh = st.fresh + 1
+          , columns = Array.snoc st.columns (st.fresh × (flattenColumns value))
+          , selecting = Nothing
+          }
+        H.raise CC.modelUpdate
+    pure next

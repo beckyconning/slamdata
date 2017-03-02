@@ -16,39 +16,41 @@ limitations under the License.
 
 module SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.State
   ( State
-  , StateP
   , OrderingOpts
   , Selecting(..)
+  , Dimensions
   , initialState
   , modelFromState
   , stateFromModel
   , reorder
   , setColumnAggregation
+  , selectColumnValues
+  , selectDimensionValues
   ) where
 
 import SlamData.Prelude
 
+import Control.Comonad.Cofree (Cofree)
+
 import Data.Argonaut (JCursor)
 import Data.Array as Array
+import Data.List (List, (:))
+import Data.List as List
 
-import Halogen (ParentState)
-
-import SlamData.Monad (Slam)
-import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
-import SlamData.Workspace.Card.Setups.Chart.Aggregation as Ag
 import SlamData.Workspace.Card.Setups.Axis (Axes, initialAxes)
-import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.ChildSlot as PCS
-import SlamData.Workspace.Card.Setups.Chart.PivotTable.Component.Query (QueryC)
+import SlamData.Workspace.Card.Setups.Chart.Aggregation as Ag
 import SlamData.Workspace.Card.Setups.Chart.PivotTable.Model (Model, Column(..))
+import SlamData.Workspace.Card.Setups.DimensionPicker.Column (groupColumns)
+import SlamData.Workspace.Card.Setups.DimensionPicker.JCursor (groupJCursors)
 
-type StateP =
-  ParentState State PCS.ChildState QueryC PCS.ChildQuery Slam PCS.ChildSlot
+data Selecting
+  = Dim (Dimensions JCursor)
+  | Col (Dimensions Column)
 
-data Selecting = Dim | Col
+type Dimensions a = Cofree List (Either a a)
 
 type State =
   { axes ∷ Axes
-  , levelOfDetails ∷ LevelOfDetails
   , fresh ∷ Int
   , dimensions ∷ Array (Int × JCursor)
   , columns ∷ Array (Int × Column)
@@ -66,7 +68,6 @@ type OrderingOpts =
 initialState ∷ State
 initialState =
   { axes: initialAxes
-  , levelOfDetails: High
   , fresh: 0
   , dimensions: []
   , columns: []
@@ -112,3 +113,24 @@ setColumnAggregation tag ag st = st { columns = map go st.columns }
   where
   go (tag' × Column col) | tag == tag' = tag × Column (col { valueAggregation = ag })
   go a = a
+
+selectColumnValues ∷ Axes → Cofree List (Either Column Column)
+selectColumnValues axes =
+  groupColumns
+    (Count : List.fromFoldable
+      (map (Column ∘ { value: _, valueAggregation: Nothing })
+        (Array.sort
+          (axes.category
+           <> axes.time
+           <> axes.value
+           <> axes.date
+           <> axes.datetime))))
+
+selectDimensionValues ∷ Axes → Cofree List (Either JCursor JCursor)
+selectDimensionValues axes =
+  groupJCursors
+    (List.fromFoldable
+      (Array.sort
+        (axes.category
+         <> axes.time
+         <> axes.value)))

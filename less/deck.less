@@ -233,7 +233,8 @@ button.sd-zoom-deck {
     overflow: auto;
   }
 
-  > .sd-card-draftboard {
+  > .sd-card-draftboard,
+  > .sd-card-tabs {
     overflow: visible;
   }
 }
@@ -276,7 +277,7 @@ button.sd-zoom-deck {
 
 .sd-focus-deck-frame-hint {
   position: absolute;
-  top: ~"calc(1.5rem + 0.5rem + 2px)";
+  top: ~"calc(0.5rem + 2px)";
   left: ~"calc(1.5rem + 1px)";
   width: ~"calc(50% - (1.5rem + 1px))";;
   z-index: 9999;
@@ -308,3 +309,4 @@ button.sd-zoom-deck {
 @import "deck/pivot-table-card.less";
 @import "deck/dimension-picker.less";
 @import "deck/form-input.less";
+@import "deck/tabs-card.less";

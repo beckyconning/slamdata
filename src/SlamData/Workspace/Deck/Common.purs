@@ -24,14 +24,14 @@ import SlamData.Prelude
 import SlamData.Monad (Slam)
 import SlamData.Workspace.AccessType (AccessType)
 import SlamData.Workspace.AccessType as AT
-import SlamData.Workspace.Deck.Component.ChildSlot (ChildSlot, ChildQuery, ChildState)
-import SlamData.Workspace.Deck.Component.Query (Query)
+import SlamData.Workspace.Deck.Component.ChildSlot (ChildSlot, ChildQuery)
+import SlamData.Workspace.Deck.Component.Query (Query, Message)
 import SlamData.Workspace.Deck.Component.State (State)
 import SlamData.Workspace.Deck.DeckId (DeckId)
 
-type DeckHTML = H.ParentHTML ChildState Query ChildQuery Slam ChildSlot
+type DeckHTML = H.ParentHTML Query ChildQuery ChildSlot Slam
 
-type DeckDSL = H.ParentDSL State ChildState Query ChildQuery Slam ChildSlot
+type DeckDSL = H.ParentDSL State Query ChildQuery ChildSlot Message Slam
 
 type DeckOptions =
   { accessType ∷ AccessType
@@ -43,3 +43,6 @@ type DeckOptions =
 willBePresentedWithChildFrameWhenFocused ∷ DeckOptions → State → Boolean
 willBePresentedWithChildFrameWhenFocused opts st =
   (opts.accessType ≠ AT.ReadOnly) ∧ (L.length opts.displayCursor ≡ 1)
+
+sizerRef ∷ H.RefLabel
+sizerRef = H.RefLabel "sizer"
