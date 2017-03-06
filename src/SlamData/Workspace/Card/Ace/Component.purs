@@ -157,7 +157,7 @@ aceSetup mode editor = do
   whenM (AccessType.isReadOnly ∘ _.accessType <$> Wiring.expose) do
     H.liftEff $ Editor.setReadOnly true editor
     H.liftEff $ Editor.setHighlightActiveLine false editor
-    H.liftEff $ Editor.setStyle "disabled" editor
+    H.liftEff $ Editor.setStyle "sd-disabled" editor
 
 render ∷ CT.AceMode → State → HTML
 render mode state =
