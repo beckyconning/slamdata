@@ -29,29 +29,32 @@ module SlamData.Workspace.Card.Component
   ) where
 
 import SlamData.Prelude
+
+import Data.Foldable (elem)
+
+import DOM.HTML.HTMLElement (getBoundingClientRect)
+
 import Halogen as H
+import Halogen.Component.Utils (busEventSource)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Properties.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
+
+import SlamData.Monad (Slam)
+import SlamData.Wiring as Wiring
+import SlamData.Workspace.AccessType as AccessType
+import SlamData.Workspace.Card.CardType (CardType(..))
 import SlamData.Workspace.Card.CardType as CardType
+import SlamData.Workspace.Card.Common (CardOptions)
 import SlamData.Workspace.Card.Common.EvalQuery as EQ
 import SlamData.Workspace.Card.Component.CSS as CSS
 import SlamData.Workspace.Card.Component.Query as CQ
 import SlamData.Workspace.Card.Component.State as CS
+import SlamData.Workspace.Class (navigateToDeck)
 import SlamData.Workspace.Eval.Card as Card
 import SlamData.Workspace.Eval.Persistence as P
-import DOM.HTML.HTMLElement (getBoundingClientRect)
-import Data.Eq ((==))
-import Data.Foldable (elem)
-import Halogen.Component.Utils (busEventSource)
-import SlamData.Monad (Slam)
-import SlamData.Workspace.AccessType as AccessType
-import SlamData.Wiring as Wiring
-import SlamData.Workspace.Card.CardType (CardType(..))
-import SlamData.Workspace.Card.Common (CardOptions)
-import SlamData.Workspace.Class (navigateToDeck)
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 
 -- | Type synonym for the full type of a card component.
