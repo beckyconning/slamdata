@@ -17,15 +17,14 @@ limitations under the License.
 module SlamData.Workspace.Card.Component.State
   ( CardState
   , Status(..)
+  , ConsumingOrAuthoring(..)
   , initialState
   ) where
 
 import SlamData.Prelude
-
-import Control.Monad.Aff.Bus (BusRW)
-
-import SlamData.Workspace.Card.Component.Query (Input)
 import SlamData.Workspace.Eval.Card as Card
+import Control.Monad.Aff.Bus (BusRW)
+import SlamData.Workspace.Card.Component.Query (Input)
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
 
 data Status
@@ -34,12 +33,17 @@ data Status
   | Active
   | Inactive
 
+data ConsumingOrAuthoring = Consuming | Authoring
+
+derive instance eqConsumingOrAuthoring ∷ Eq ConsumingOrAuthoring
+
 derive instance eqStatus ∷ Eq Status
 
 type CardState =
   { status ∷ Status
   , bus ∷ Maybe (BusRW Card.EvalMessage)
   , levelOfDetails ∷ LevelOfDetails
+  , consumingOrAuthoring ∷ ConsumingOrAuthoring
   }
 
 initialState ∷ Input → CardState
@@ -47,4 +51,5 @@ initialState input =
   { status: if input.active then Active else Pending
   , bus: Nothing
   , levelOfDetails: High
+  , consumingOrAuthoring: Consuming
   }
