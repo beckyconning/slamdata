@@ -42,8 +42,6 @@ data Query a
   | UpdateDefaultValue String a
   | SetModel Model a
   | GetModel (Model → a)
-  | EnableInput a
-  | DisableInput a
 
 data Message
   = NameChanged String
@@ -65,7 +63,7 @@ component =
 render
   ∷ State
   → HTML
-render { model, enabled } =
+render { model } =
   HH.tr_
     [ HH.td_ [ nameField ]
     , HH.td_ [ typeField ]
@@ -82,7 +80,6 @@ render { model, enabled } =
       , HP.value model.name
       , HE.onValueInput (HE.input UpdateName)
       , HP.placeholder "Variable name"
-      , HP.disabled $ not enabled
       ]
 
   quotedName ∷ String → String
@@ -94,7 +91,6 @@ render { model, enabled } =
     HH.select
       [ HE.onValueChange (HE.input UpdateFieldType)
       , ARIA.label $ "Type of " <> (quotedName model.name) <> " variable"
-      , HP.disabled $ not enabled
       ]
       (typeOption <$> allFieldTypes)
 
@@ -124,7 +120,6 @@ render { model, enabled } =
                   $ "Default value of "
                   <> (quotedName model.name)
                   <> " variable is \"true\""
-              , HP.disabled $ not enabled
               ]
           , HH.span_ [ HH.text model.name ]
           ]
@@ -135,7 +130,6 @@ render { model, enabled } =
                , HE.onValueInput (HE.input UpdateDefaultValue)
                , ARIA.label lbl
                , HP.placeholder lbl
-               , HP.disabled $ not enabled
                ]
 
     where
@@ -190,9 +184,3 @@ eval = case _ of
     pure next
   GetModel k →
     k ∘ Lens.view State._model <$> H.get
-  EnableInput next → do
-    H.modify (State._enabled .~ true)
-    pure next
-  DisableInput next → do
-    H.modify (State._enabled .~ false)
-    pure next

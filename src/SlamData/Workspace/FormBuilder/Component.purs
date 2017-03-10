@@ -39,8 +39,6 @@ data Query a
   = GetItems (L.List Item.Model → a)
   | SetItems (L.List Item.Model) a
   | HandleItem ItemSlot Item.Message a
-  | EnableInputs a
-  | DisableInputs a
 
 data Message = ItemUpdated
 
@@ -88,17 +86,6 @@ eval = case _ of
     addItemIfNecessary slotId
     H.raise ItemUpdated
     pure next
-  EnableInputs next → do
-    queryAllItems $ H.action Item.EnableInput
-    pure next
-  DisableInputs next → do
-    queryAllItems $ H.action Item.DisableInput
-    pure next
-
-queryAllItems ∷ ∀ a m. Item.Query a → DSL m (L.List (Maybe a))
-queryAllItems query = do
-  items ← H.gets _.items
-  for items \item → H.query (ItemSlot item) query
 
 addItemIfNecessary ∷ ∀ m. ItemSlot → DSL m Unit
 addItemIfNecessary (ItemSlot i) = do
