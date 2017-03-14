@@ -223,7 +223,10 @@ instance eqAnyCardModel ∷ Eq AnyCardModel where
     _, _ → false
 
 instance encodeJsonCardModel ∷ J.EncodeJson AnyCardModel where
-  encodeJson = encodeCardModel
+  encodeJson = encode
+
+instance decodeJsonCardModel ∷ J.DecodeJson AnyCardModel where
+  decodeJson = decode
 
 modelCardType ∷ AnyCardModel → CT.CardType
 modelCardType = case _ of

@@ -17,36 +17,19 @@ limitations under the License.
 module SlamData.Workspace.Eval.Persistence where
 
 import SlamData.Prelude
-
-import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Aff.Class (class MonadAff, liftAff)
-import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception as Exn
 import Control.Monad.Eff.Ref as Ref
-import Control.Monad.Fork (class MonadFork, fork)
-import Control.Monad.Throw (class MonadThrow, throw, note, noteError)
-
 import Data.Array as Array
-import Data.Lens ((^?))
 import Data.List as List
-import Data.List (List(..), (:))
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Path.Pathy as Pathy
-import Data.Path.Pathy ((</>))
-import Data.Rational ((%))
-import Data.Set (Set)
 import Data.Set as Set
-
-import SlamData.Effects (SlamDataEffects)
-import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Quasar.Data as Quasar
 import SlamData.Quasar.Error as QE
-import SlamData.Wiring (Wiring)
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
-import SlamData.Workspace.AccessType (isEditable)
+import SlamData.Workspace.AccessType as AccessType
 import SlamData.Workspace.Card.CardId as CID
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Draftboard.Layout as Layout
@@ -58,11 +41,27 @@ import SlamData.Workspace.Deck.Model as DM
 import SlamData.Workspace.Eval as Eval
 import SlamData.Workspace.Eval.Card as Card
 import SlamData.Workspace.Eval.Deck as Deck
+import SlamData.Workspace.Model as WM
+import Utils.LocalStorage as LocalStorage
+import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
+import Control.Monad.Aff.Class (class MonadAff, liftAff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Fork (class MonadFork, fork)
+import Control.Monad.Throw (class MonadThrow, throw, note, noteError)
+import Data.Lens ((^?))
+import Data.List (List(..), (:))
+import Data.Map (Map)
+import Data.Path.Pathy ((</>))
+import Data.Rational ((%))
+import Data.Set (Set)
+import SlamData.Effects (SlamDataEffects)
+import SlamData.Quasar.Class (class QuasarDSL)
+import SlamData.Quasar.Error (QError)
+import SlamData.Wiring (Wiring)
+import SlamData.Workspace.Eval.Card (AnyCardModel)
 import SlamData.Workspace.Eval.Graph (pendingGraph, EvalGraph)
 import SlamData.Workspace.Eval.Traverse (TraverseCard(..), TraverseDeck(..), unfoldModelTree, isCyclical)
-import SlamData.Workspace.Model as WM
 import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData)
-
 import Utils.Aff (laterVar)
 
 defaultSaveDebounce ∷ Int
@@ -95,27 +94,49 @@ loadWorkspace ∷ ∀ f m. Persist f m (m (Either QE.QError Deck.Id))
 loadWorkspace = runExceptT do
   { path, eval, accessType } ← Wiring.expose
   stat × ws ← ExceptT $ loadCompatWorkspace path
+  cards ← case accessType of
+    AccessType.Editable →
+      pure ws.cards
+    AccessType.ReadOnly →
+      lift
+        $ either (const ws.cards) (flip Map.union ws.cards)
+        <$> retrieveLocallyStoredCards
   liftAff $ putVar eval.root ws.rootId
   graph ← note (QE.msgToQError "Cannot build graph") $
-    unfoldModelTree ws.decks ws.cards ws.rootId
+    unfoldModelTree ws.decks cards ws.rootId
   lift $ populateGraph mempty mempty Nothing graph
-  when (isLegacy stat && isEditable accessType) do
+  when (isLegacy stat && AccessType.isEditable accessType) do
     ExceptT saveWorkspace
     void $ lift $ pruneLegacyData path -- Not imperative that this succeeds
   pure ws.rootId
 
 saveWorkspace ∷ ∀ f m. Persist f m (m (Either QE.QError Unit))
 saveWorkspace = runExceptT do
-  { path, eval, auth } ← Wiring.expose
+  { path, eval, auth, accessType } ← Wiring.expose
   decks ← map _.model <$> Cache.snapshot eval.decks
   cards ← map _.model <$> Cache.snapshot eval.cards
   rootId ← liftAff $ peekVar eval.root
   let
     json = WM.encode { rootId, decks, cards }
     file = path </> Pathy.file "index"
-  result ← Quasar.save file json
+  traceAnyA accessType
+  result ← case accessType of
+    AccessType.Editable → Quasar.save file json
+    AccessType.ReadOnly → lift $ Right <$> storeCardsLocally cards
   liftEff $ Ref.writeRef auth.retrySave (isLeft result)
   ExceptT $ pure result
+
+cardsLocalStorageKey ∷ String
+cardsLocalStorageKey =
+  "sd-cards"
+
+storeCardsLocally ∷ ∀ m. PersistEnv m (Map CID.CardId AnyCardModel → m Unit)
+storeCardsLocally =
+  LocalStorage.setLocalStorage cardsLocalStorageKey
+
+retrieveLocallyStoredCards ∷ ∀ m. PersistEnv m (m (Either QError (Map CID.CardId AnyCardModel)))
+retrieveLocallyStoredCards =
+  lmap QE.msgToQError <$> LocalStorage.getLocalStorage cardsLocalStorageKey
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do
@@ -232,9 +253,8 @@ snapshotGraph cardId = do
 queueSave ∷ ∀ f m. Persist f m (Int → m Unit)
 queueSave ms = do
   { eval, path, accessType } ← Wiring.expose
-  when (isEditable accessType) do
-    debounce ms path { avar: _ } eval.debounceSaves (pure unit) do
-      void saveWorkspace
+  debounce ms path { avar: _ } eval.debounceSaves (pure unit) do
+    void saveWorkspace
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (m Unit)
 queueSaveImmediate = queueSave 0
