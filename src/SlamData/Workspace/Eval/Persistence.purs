@@ -104,7 +104,7 @@ loadWorkspace = runExceptT do
     AccessType.ReadOnly →
       lift
         $ either (const ws.cards) (flip Map.union ws.cards)
-        <$> retrieveLocallyStoredCards
+        <$> retrieveLocallyStoredCards ws.rootId
   liftAff $ putVar eval.root ws.rootId
   graph ← note (QE.msgToQError "Cannot build graph") $
     unfoldModelTree ws.decks cards ws.rootId
@@ -126,21 +126,21 @@ saveWorkspace = runExceptT do
   traceAnyA accessType
   result ← case accessType of
     AccessType.Editable → Quasar.save file json
-    AccessType.ReadOnly → lift $ Right <$> storeCardsLocally cards
+    AccessType.ReadOnly → lift $ Right <$> storeCardsLocally rootId cards
   liftEff $ Ref.writeRef auth.retrySave (isLeft result)
   ExceptT $ pure result
 
-cardsLocalStorageKey ∷ String
-cardsLocalStorageKey =
-  "sd-cards"
+cardsLocalStorageKey ∷ Deck.Id → String
+cardsLocalStorageKey deckId =
+  "sd-cards-" ⊕ DID.toString deckId
 
-storeCardsLocally ∷ ∀ m. PersistEnv m (Map CID.CardId AnyCardModel → m Unit)
-storeCardsLocally =
-  LocalStorage.setLocalStorage cardsLocalStorageKey
+storeCardsLocally ∷ ∀ m. PersistEnv m (Deck.Id → Map CID.CardId AnyCardModel → m Unit)
+storeCardsLocally deckId =
+  LocalStorage.setLocalStorage $ cardsLocalStorageKey deckId
 
-retrieveLocallyStoredCards ∷ ∀ m. PersistEnv m (m (Either QError (Map CID.CardId AnyCardModel)))
-retrieveLocallyStoredCards =
-  lmap QE.msgToQError <$> LocalStorage.getLocalStorage cardsLocalStorageKey
+retrieveLocallyStoredCards ∷ ∀ m. PersistEnv m (Deck.Id → m (Either QError (Map CID.CardId AnyCardModel)))
+retrieveLocallyStoredCards deckId =
+  lmap QE.msgToQError <$> (LocalStorage.getLocalStorage $ cardsLocalStorageKey deckId)
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do
