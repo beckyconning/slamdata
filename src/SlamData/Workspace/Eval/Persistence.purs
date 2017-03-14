@@ -17,16 +17,34 @@ limitations under the License.
 module SlamData.Workspace.Eval.Persistence where
 
 import SlamData.Prelude
+
+import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
 import Control.Monad.Aff.Bus as Bus
+import Control.Monad.Aff.Class (class MonadAff, liftAff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception as Exn
 import Control.Monad.Eff.Ref as Ref
+import Control.Monad.Fork (class MonadFork, fork)
+import Control.Monad.Throw (class MonadThrow, throw, note, noteError)
+
 import Data.Array as Array
+import Data.Lens ((^?))
+import Data.List (List(..), (:))
 import Data.List as List
+import Data.Map (Map)
 import Data.Map as Map
+import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as Pathy
+import Data.Rational ((%))
+import Data.Set (Set)
 import Data.Set as Set
+
+import SlamData.Effects (SlamDataEffects)
+import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Quasar.Data as Quasar
+import SlamData.Quasar.Error (QError)
 import SlamData.Quasar.Error as QE
+import SlamData.Wiring (Wiring)
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
 import SlamData.Workspace.AccessType as AccessType
@@ -39,30 +57,16 @@ import SlamData.Workspace.Card.Model as CM
 import SlamData.Workspace.Deck.DeckId as DID
 import SlamData.Workspace.Deck.Model as DM
 import SlamData.Workspace.Eval as Eval
+import SlamData.Workspace.Eval.Card (AnyCardModel)
 import SlamData.Workspace.Eval.Card as Card
 import SlamData.Workspace.Eval.Deck as Deck
-import SlamData.Workspace.Model as WM
-import Utils.LocalStorage as LocalStorage
-import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
-import Control.Monad.Aff.Class (class MonadAff, liftAff)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Fork (class MonadFork, fork)
-import Control.Monad.Throw (class MonadThrow, throw, note, noteError)
-import Data.Lens ((^?))
-import Data.List (List(..), (:))
-import Data.Map (Map)
-import Data.Path.Pathy ((</>))
-import Data.Rational ((%))
-import Data.Set (Set)
-import SlamData.Effects (SlamDataEffects)
-import SlamData.Quasar.Class (class QuasarDSL)
-import SlamData.Quasar.Error (QError)
-import SlamData.Wiring (Wiring)
-import SlamData.Workspace.Eval.Card (AnyCardModel)
 import SlamData.Workspace.Eval.Graph (pendingGraph, EvalGraph)
 import SlamData.Workspace.Eval.Traverse (TraverseCard(..), TraverseDeck(..), unfoldModelTree, isCyclical)
 import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData)
+import SlamData.Workspace.Model as WM
+
 import Utils.Aff (laterVar)
+import Utils.LocalStorage as LocalStorage
 
 defaultSaveDebounce ∷ Int
 defaultSaveDebounce = 500
