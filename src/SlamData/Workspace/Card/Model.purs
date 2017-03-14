@@ -31,69 +31,68 @@ module SlamData.Workspace.Card.Model
   , _SetupLabeledInput
   , setupTextLikeInput
   , _SetupTextLikeInput
+  , updateCardModel
   ) where
 
 import SlamData.Prelude
-
-import Data.Argonaut ((:=), (~>), (.?))
 import Data.Argonaut as J
-import Data.Rational ((%))
-
 import Data.Array as Array
 import Data.List as L
-import Data.Lens (Traversal', wander)
-import Data.Path.Pathy (fileName, runFileName)
-
+import Data.StrMap as StrMap
 import SlamData.FileSystem.Resource as R
-import SlamData.Workspace.Card.CardType as CT
-import SlamData.Workspace.Card.CardType.ChartType (ChartType(..))
-import SlamData.Workspace.Card.CardType.FormInputType (FormInputType(..))
 import SlamData.Workspace.Card.Ace.Model as Ace
-import SlamData.Workspace.Card.Variables.Model as Variables
-import SlamData.Workspace.Card.Table.Model as JT
-import SlamData.Workspace.Card.Markdown.Model as MD
+import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.Chart.Model as Chart
+import SlamData.Workspace.Card.DownloadOptions.Component.State as DLO
 import SlamData.Workspace.Card.Draftboard.Layout as Layout
 import SlamData.Workspace.Card.Draftboard.Model as DB
 import SlamData.Workspace.Card.Draftboard.Orientation as Orn
 import SlamData.Workspace.Card.Draftboard.Pane as Pane
-import SlamData.Workspace.Card.DownloadOptions.Component.State as DLO
-import SlamData.Workspace.Card.Setups.Chart.Metric.Model as BuildMetric
-import SlamData.Workspace.Card.Setups.Chart.Sankey.Model as BuildSankey
+import SlamData.Workspace.Card.FormInput.Model as FormInput
+import SlamData.Workspace.Card.Markdown.Model as MD
+import SlamData.Workspace.Card.Port as Port
+import SlamData.Workspace.Card.Query.Model as Query
+import SlamData.Workspace.Card.Setups.Chart.Area.Model as BuildArea
+import SlamData.Workspace.Card.Setups.Chart.Bar.Model as BuildBar
+import SlamData.Workspace.Card.Setups.Chart.Boxplot.Model as BuildBoxplot
+import SlamData.Workspace.Card.Setups.Chart.Candlestick.Model as BuildCandlestick
+import SlamData.Workspace.Card.Setups.Chart.Funnel.Model as BuildFunnel
 import SlamData.Workspace.Card.Setups.Chart.Gauge.Model as BuildGauge
 import SlamData.Workspace.Card.Setups.Chart.Graph.Model as BuildGraph
-import SlamData.Workspace.Card.Setups.Chart.Pie.Model as BuildPie
-import SlamData.Workspace.Card.Setups.Chart.Bar.Model as BuildBar
-import SlamData.Workspace.Card.Setups.Chart.Line.Model as BuildLine
-import SlamData.Workspace.Card.Setups.Chart.Area.Model as BuildArea
-import SlamData.Workspace.Card.Setups.Chart.Scatter.Model as BuildScatter
-import SlamData.Workspace.Card.Setups.Chart.PivotTable.Model as BuildPivotTable
-import SlamData.Workspace.Card.Setups.Chart.Funnel.Model as BuildFunnel
-import SlamData.Workspace.Card.Setups.Chart.Radar.Model as BuildRadar
-import SlamData.Workspace.Card.Setups.Chart.Boxplot.Model as BuildBoxplot
 import SlamData.Workspace.Card.Setups.Chart.Heatmap.Model as BuildHeatmap
-import SlamData.Workspace.Card.Setups.Chart.PunchCard.Model as BuildPunchCard
-import SlamData.Workspace.Card.Setups.Chart.Candlestick.Model as BuildCandlestick
+import SlamData.Workspace.Card.Setups.Chart.Line.Model as BuildLine
+import SlamData.Workspace.Card.Setups.Chart.Metric.Model as BuildMetric
 import SlamData.Workspace.Card.Setups.Chart.Parallel.Model as BuildParallel
-import SlamData.Workspace.Card.Query.Model as Query
-import SlamData.Workspace.Card.Port as Port
-import SlamData.Workspace.Deck.DeckId (DeckId)
-import SlamData.Workspace.Card.Setups.FormInput.Dropdown.Model as SetupDropdown
-import SlamData.Workspace.Card.Setups.FormInput.Radio.Model as SetupRadio
+import SlamData.Workspace.Card.Setups.Chart.Pie.Model as BuildPie
+import SlamData.Workspace.Card.Setups.Chart.PivotTable.Model as BuildPivotTable
+import SlamData.Workspace.Card.Setups.Chart.PunchCard.Model as BuildPunchCard
+import SlamData.Workspace.Card.Setups.Chart.Radar.Model as BuildRadar
+import SlamData.Workspace.Card.Setups.Chart.Sankey.Model as BuildSankey
+import SlamData.Workspace.Card.Setups.Chart.Scatter.Model as BuildScatter
 import SlamData.Workspace.Card.Setups.FormInput.Checkbox.Model as SetupCheckbox
-import SlamData.Workspace.Card.Setups.FormInput.Text.Model as SetupText
-import SlamData.Workspace.Card.Setups.FormInput.Numeric.Model as SetupNumeric
 import SlamData.Workspace.Card.Setups.FormInput.Date.Model as SetupDate
-import SlamData.Workspace.Card.Setups.FormInput.Time.Model as SetupTime
 import SlamData.Workspace.Card.Setups.FormInput.Datetime.Model as SetupDatetime
-import SlamData.Workspace.Card.Setups.FormInput.Static.Model as SetupStatic
+import SlamData.Workspace.Card.Setups.FormInput.Dropdown.Model as SetupDropdown
 import SlamData.Workspace.Card.Setups.FormInput.Labeled.Model as SetupLabeled
+import SlamData.Workspace.Card.Setups.FormInput.Numeric.Model as SetupNumeric
+import SlamData.Workspace.Card.Setups.FormInput.Radio.Model as SetupRadio
+import SlamData.Workspace.Card.Setups.FormInput.Static.Model as SetupStatic
+import SlamData.Workspace.Card.Setups.FormInput.Text.Model as SetupText
 import SlamData.Workspace.Card.Setups.FormInput.TextLike.Model as SetupTextLike
-import SlamData.Workspace.Card.FormInput.Model as FormInput
+import SlamData.Workspace.Card.Setups.FormInput.Time.Model as SetupTime
+import SlamData.Workspace.Card.Table.Model as JT
 import SlamData.Workspace.Card.Tabs.Model as Tabs
-
+import SlamData.Workspace.Card.Variables.Model as Variables
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
+import Data.Argonaut ((:=), (~>), (.?))
+import Data.Lens (Traversal', wander)
+import Data.Path.Pathy (fileName, runFileName)
+import Data.Rational ((%))
+import Data.StrMap (StrMap)
+import SlamData.Workspace.Card.CardType.ChartType (ChartType(..))
+import SlamData.Workspace.Card.CardType.FormInputType (FormInputType(..))
+import SlamData.Workspace.Deck.DeckId (DeckId)
 
 data AnyCardModel
   = Ace CT.AceMode Ace.Model
@@ -179,6 +178,17 @@ instance arbitraryAnyCardModel ∷ SC.Arbitrary AnyCardModel where
       , Tabs <$> Tabs.genModel
       ]
 
+updateCardModel ∷ AnyCardModel → AnyCardModel → AnyCardModel
+updateCardModel = case _, _ of
+  Markdown author, Markdown consumer →
+    Markdown { input: author.input, state: patch author.state consumer.state }
+  x, y → x
+
+patch ∷ ∀ a. StrMap a → StrMap a → StrMap a
+patch =
+  StrMap.fold
+    (\acc key value → if StrMap.member key acc then StrMap.insert key value acc else acc)
+
 instance eqAnyCardModel ∷ Eq AnyCardModel where
   eq = case _, _ of
     Ace x1 y1, Ace x2 y2 → x1 ≡ x2 && Ace.eqModel y1 y2
@@ -221,6 +231,8 @@ instance eqAnyCardModel ∷ Eq AnyCardModel where
     FormInput x, FormInput y → FormInput.eqModel x y
     Tabs x, Tabs y → Tabs.eqModel x y
     _, _ → false
+
+
 
 instance encodeJsonCardModel ∷ J.EncodeJson AnyCardModel where
   encodeJson = encode

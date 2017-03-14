@@ -103,7 +103,7 @@ loadWorkspace = runExceptT do
       pure ws.cards
     AccessType.ReadOnly →
       lift
-        $ either (const ws.cards) (flip Map.union ws.cards)
+        $ either (const ws.cards) (Map.unionWith CM.updateCardModel ws.cards)
         <$> retrieveLocallyStoredCards ws.rootId
   liftAff $ putVar eval.root ws.rootId
   graph ← note (QE.msgToQError "Cannot build graph") $
@@ -123,7 +123,6 @@ saveWorkspace = runExceptT do
   let
     json = WM.encode { rootId, decks, cards }
     file = path </> Pathy.file "index"
-  traceAnyA accessType
   result ← case accessType of
     AccessType.Editable → Quasar.save file json
     AccessType.ReadOnly → lift $ Right <$> storeCardsLocally rootId cards
@@ -135,8 +134,10 @@ cardsLocalStorageKey deckId =
   "sd-cards-" ⊕ DID.toString deckId
 
 storeCardsLocally ∷ ∀ m. PersistEnv m (Deck.Id → Map CID.CardId AnyCardModel → m Unit)
-storeCardsLocally deckId =
-  LocalStorage.setLocalStorage $ cardsLocalStorageKey deckId
+storeCardsLocally deckId = do
+  uh ← LocalStorage.setLocalStorage $ cardsLocalStorageKey deckId
+  traceAnyA "heya"
+  pure uh
 
 retrieveLocallyStoredCards ∷ ∀ m. PersistEnv m (Deck.Id → m (Either QError (Map CID.CardId AnyCardModel)))
 retrieveLocallyStoredCards deckId =
