@@ -42,6 +42,7 @@ data Query a
   | UpdateDefaultValue String a
   | SetModel Model a
   | GetModel (Model → a)
+  | ToggleInput Boolean a
 
 data Message
   = NameChanged String
@@ -51,13 +52,13 @@ data Message
 type HTML = H.ComponentHTML Query
 type DSL = H.ComponentDSL State Query Message
 
-component ∷ ∀ g. H.Component HH.HTML Query Unit Message g
+component ∷ ∀ g. H.Component HH.HTML Query Boolean Message g
 component =
   H.component
-    { initialState: const State.initialState
+    { initialState: State.initialState
     , render
     , eval
-    , receiver: const Nothing
+    , receiver: HE.input ToggleInput
     }
 
 render
@@ -184,3 +185,6 @@ eval = case _ of
     pure next
   GetModel k →
     k ∘ Lens.view State._model <$> H.get
+  ToggleInput enabled next → do
+    H.modify $ State._enabled .~ enabled
+    pure next

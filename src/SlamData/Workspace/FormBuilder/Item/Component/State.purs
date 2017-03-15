@@ -26,13 +26,18 @@ import Data.Lens (Lens', lens)
 import SlamData.Workspace.FormBuilder.Item.Model
 
 type State =
-  { model :: Model
+  { model ∷ Model
+  , enabled ∷ Boolean
   }
 
-_model :: Lens' State Model
+_model ∷ Lens' State Model
 _model = lens _.model _ { model = _ }
 
-initialState :: State
+_enabled ∷ Lens' State Boolean
+_enabled = lens _.enabled _ { enabled = _ }
+
+initialState ∷ Boolean → State
 initialState =
-  { model : initialModel
+  { model: initialModel
+  , enabled: _
   }
