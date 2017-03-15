@@ -32,6 +32,8 @@ import SlamData.Prelude
 
 import Data.Foldable (elem)
 
+import Data.Lens ((.~))
+
 import DOM.HTML.HTMLElement (getBoundingClientRect)
 
 import Halogen as H
@@ -153,7 +155,7 @@ makeCardComponent cardType component options =
     disabled ∷ Boolean
     disabled =
       (not $ CardType.consumerInteractable cardType)
-        ∧ (st.consumingOrAuthoring ≡ CS.Consuming)
+        ∧ (AccessType.isReadOnly st.accessType)
 
   eval ∷ CQ.CardQuery ~> CardDSL f
   eval = case _ of
@@ -162,9 +164,8 @@ makeCardComponent cardType component options =
       when (st.status ≡ CS.Active) do
         initializeInnerCard
         queryInnerCard EQ.Activate
-      whenM
-        (AccessType.isEditable ∘ _.accessType <$> H.lift Wiring.expose)
-        (H.modify (_ { consumingOrAuthoring = CS.Authoring }))
+      H.modify ∘ (CS._accessType .~ _)
+        =<< _.accessType <$> H.lift Wiring.expose
       pure next
     CQ.UpdateDimensions next → do
       st ← H.get

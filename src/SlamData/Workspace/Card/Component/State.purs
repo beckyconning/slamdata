@@ -17,15 +17,17 @@ limitations under the License.
 module SlamData.Workspace.Card.Component.State
   ( CardState
   , Status(..)
-  , ConsumingOrAuthoring(..)
   , initialState
+  , _accessType
   ) where
 
 import SlamData.Prelude
+import Data.Lens (Lens', lens)
 import SlamData.Workspace.Eval.Card as Card
 import Control.Monad.Aff.Bus (BusRW)
 import SlamData.Workspace.Card.Component.Query (Input)
 import SlamData.Workspace.LevelOfDetails (LevelOfDetails(..))
+import SlamData.Workspace.AccessType (AccessType(ReadOnly))
 
 data Status
   = Pending
@@ -33,17 +35,13 @@ data Status
   | Active
   | Inactive
 
-data ConsumingOrAuthoring = Consuming | Authoring
-
-derive instance eqConsumingOrAuthoring ∷ Eq ConsumingOrAuthoring
-
 derive instance eqStatus ∷ Eq Status
 
 type CardState =
   { status ∷ Status
   , bus ∷ Maybe (BusRW Card.EvalMessage)
   , levelOfDetails ∷ LevelOfDetails
-  , consumingOrAuthoring ∷ ConsumingOrAuthoring
+  , accessType ∷ AccessType
   }
 
 initialState ∷ Input → CardState
@@ -51,5 +49,8 @@ initialState input =
   { status: if input.active then Active else Pending
   , bus: Nothing
   , levelOfDetails: High
-  , consumingOrAuthoring: Consuming
+  , accessType: ReadOnly
   }
+
+_accessType ∷ Lens' CardState AccessType
+_accessType = lens _.accessType (_ { accessType = _ })
