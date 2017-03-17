@@ -132,11 +132,10 @@ saveWorkspace = runExceptT do
 saveCardLocally ∷ ∀ f m. (MonadThrow Exn.Error m) ⇒ Persist f m (Card.Id → m (Either QE.QError Unit))
 saveCardLocally cardId = runExceptT do
   rootDeckId ← lift getRootDeckId
-  result ← lift ∘ saveCardsLocally rootDeckId
+  lift ∘ saveCardsLocally rootDeckId
     =<< Map.insert cardId
     <$> ExceptT (Utils.explain noCardFound <$> getCardModel cardId)
     <*> ExceptT (Right <$> getLocallyStoredCards rootDeckId)
-  pure result
   where
   noCardFound ∷ QE.QError
   noCardFound =
@@ -282,7 +281,7 @@ queueSave ms cardId = do
     case accessType of
       AccessType.Editable →
         void saveWorkspace
-      AccessType.ReadOnly → do
+      AccessType.ReadOnly →
         maybe (pure unit) (void ∘ saveCardLocally) cardId
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (Maybe Card.Id → m Unit)

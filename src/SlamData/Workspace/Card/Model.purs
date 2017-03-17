@@ -35,13 +35,19 @@ module SlamData.Workspace.Card.Model
   ) where
 
 import SlamData.Prelude
+import Data.Argonaut ((:=), (~>), (.?))
 import Data.Argonaut as J
 import Data.Array as Array
+import Data.Lens (Traversal', wander)
 import Data.List as L
+import Data.Path.Pathy (fileName, runFileName)
+import Data.Rational ((%))
 import Data.StrMap as StrMap
 import SlamData.FileSystem.Resource as R
 import SlamData.Workspace.Card.Ace.Model as Ace
 import SlamData.Workspace.Card.CardType as CT
+import SlamData.Workspace.Card.CardType.ChartType (ChartType(..))
+import SlamData.Workspace.Card.CardType.FormInputType (FormInputType(..))
 import SlamData.Workspace.Card.Chart.Model as Chart
 import SlamData.Workspace.Card.DownloadOptions.Component.State as DLO
 import SlamData.Workspace.Card.Draftboard.Layout as Layout
@@ -83,16 +89,9 @@ import SlamData.Workspace.Card.Setups.FormInput.Time.Model as SetupTime
 import SlamData.Workspace.Card.Table.Model as JT
 import SlamData.Workspace.Card.Tabs.Model as Tabs
 import SlamData.Workspace.Card.Variables.Model as Variables
+import SlamData.Workspace.Deck.DeckId (DeckId)
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
-import Data.Argonaut ((:=), (~>), (.?))
-import Data.Lens (Traversal', wander)
-import Data.Path.Pathy (fileName, runFileName)
-import Data.Rational ((%))
-import Data.StrMap (StrMap)
-import SlamData.Workspace.Card.CardType.ChartType (ChartType(..))
-import SlamData.Workspace.Card.CardType.FormInputType (FormInputType(..))
-import SlamData.Workspace.Deck.DeckId (DeckId)
 
 data AnyCardModel
   = Ace CT.AceMode Ace.Model
@@ -181,20 +180,15 @@ instance arbitraryAnyCardModel ∷ SC.Arbitrary AnyCardModel where
 updateCardModel ∷ AnyCardModel → AnyCardModel → AnyCardModel
 updateCardModel = case _, _ of
   Markdown author, Markdown consumer →
-    Markdown { input: author.input, state: patch author.state consumer.state }
+    Markdown $ StrMap.union author consumer
   x, y → x
-
-patch ∷ ∀ a. StrMap a → StrMap a → StrMap a
-patch =
-  StrMap.fold
-    (\acc key value → if StrMap.member key acc then StrMap.insert key value acc else acc)
 
 instance eqAnyCardModel ∷ Eq AnyCardModel where
   eq = case _, _ of
     Ace x1 y1, Ace x2 y2 → x1 ≡ x2 && Ace.eqModel y1 y2
     Search s1, Search s2 → s1 ≡ s2
     Chart x, Chart y → Chart.eqModel x y
-    Markdown x, Markdown y → MD.eqModel x y
+    Markdown x, Markdown y → x ≡ y
     Table x, Table y → JT.eqModel x y
     Download, Download → true
     Variables x, Variables y → Variables.eqModel x y
