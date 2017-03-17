@@ -93,7 +93,6 @@ evalCard = case _ of
   CC.Load card next → do
     case card of
       Card.Markdown { input, state } → do
-        traceAnyA { input, state }
         void $ do
           H.modify (_ { input = Just input })
           H.query unit $ H.action (SD.SetDocument input)
@@ -103,7 +102,6 @@ evalCard = case _ of
   CC.ReceiveInput input _ next → do
     for_ (input ^? Port._SlamDown) \sd → do
       H.modify (_ { input = Just sd })
-      traceAnyA "UH"
       void $ H.query unit $ H.action (SD.SetDocument sd)
     pure next
   CC.ReceiveOutput _ _ next →

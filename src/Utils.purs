@@ -56,6 +56,9 @@ replicate n m = go n mempty
 hush ∷ ∀ a b. Either a b → Maybe b
 hush = either (\_ → Nothing) (Just)
 
+explain ∷ ∀ a b. a → Maybe b → Either a b
+explain x = maybe (Left x) Right
+
 rightBool ∷ ∀ a. Either a Boolean → Boolean
 rightBool = either (const false) id
 

@@ -44,7 +44,6 @@ import Data.Set as Set
 import SlamData.Effects (SlamDataEffects)
 import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Quasar.Data as Quasar
-import SlamData.Quasar.Error (QError)
 import SlamData.Quasar.Error as QE
 import SlamData.Wiring (Wiring)
 import SlamData.Wiring as Wiring
@@ -106,7 +105,7 @@ loadWorkspace = runExceptT do
       pure ws.cards
     AccessType.ReadOnly →
       lift
-        $ either (const ws.cards) (Map.unionWith CM.updateCardModel ws.cards)
+        $ Map.unionWith CM.updateCardModel ws.cards
         <$> getLocallyStoredCards ws.rootId
   liftAff $ putVar eval.root ws.rootId
   graph ← note (QE.msgToQError "Cannot build graph") $
@@ -122,7 +121,7 @@ saveWorkspace = runExceptT do
   { path, eval, auth } ← Wiring.expose
   decks ← map _.model <$> Cache.snapshot eval.decks
   cards ← map _.model <$> Cache.snapshot eval.cards
-  rootId ← liftAff $ peekVar eval.root
+  rootId ← lift $ getRootDeckId
   let
     json = WM.encode { rootId, decks, cards }
     file = path </> Pathy.file "index"
@@ -130,12 +129,22 @@ saveWorkspace = runExceptT do
   liftEff $ Ref.writeRef auth.retrySave (isLeft result)
   ExceptT $ pure result
 
-saveCardLocally ∷ ∀ f m. Persist f m (Card.Id → m Unit)
-saveCardLocally cardId = do
-  rootDeckId ← liftAff ∘ peekVar ∘ _.root ∘ _.eval =<< Wiring.expose
-  cards ← Newtype.unwrap $ (Map.insert cardId) <$> (_.model <$> (Compose $ getCard cardId)) <*> (Compose (Utils.hush <$> getLocallyStoredCards rootDeckId))
-  pure unit
-  --maybe (pure unit) (saveCardsLocally rootDeckId) cards
+saveCardLocally ∷ ∀ f m. (MonadThrow Exn.Error m) ⇒ Persist f m (Card.Id → m (Either QE.QError Unit))
+saveCardLocally cardId = runExceptT do
+  rootDeckId ← lift getRootDeckId
+  result ← lift ∘ saveCardsLocally rootDeckId
+    =<< Map.insert cardId
+    <$> ExceptT (Utils.explain noCardFound <$> getCardModel cardId)
+    <*> ExceptT (Right <$> getLocallyStoredCards rootDeckId)
+  pure result
+  where
+  noCardFound ∷ QE.QError
+  noCardFound =
+    QE.msgToQError $ "No card with id " ⊕ show cardId ⊕ " found."
+
+getRootDeckId ∷ ∀ m. PersistEnv m (m Deck.Id)
+getRootDeckId =
+  liftAff ∘ peekVar ∘ _.root ∘ _.eval =<< Wiring.expose
 
 cardsLocalStorageKey ∷ Deck.Id → String
 cardsLocalStorageKey deckId =
@@ -145,9 +154,10 @@ saveCardsLocally ∷ ∀ m. PersistEnv m (Deck.Id → Map CID.CardId AnyCardMode
 saveCardsLocally =
   LocalStorage.setLocalStorage ∘ cardsLocalStorageKey
 
-getLocallyStoredCards ∷ ∀ m. PersistEnv m (Deck.Id → m (Either QError (Map CID.CardId AnyCardModel)))
+getLocallyStoredCards ∷ ∀ m. PersistEnv m (Deck.Id → m (Map CID.CardId AnyCardModel))
 getLocallyStoredCards deckId =
-  lmap QE.msgToQError <$> (LocalStorage.getLocalStorage $ cardsLocalStorageKey deckId)
+  either (const Map.empty) id
+    <$> (LocalStorage.getLocalStorage $ cardsLocalStorageKey deckId)
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do
@@ -168,6 +178,10 @@ getCard ∷ ∀ m. PersistEnv m (Card.Id → m (Maybe Card.Cell))
 getCard cardId = do
   { eval } ← Wiring.expose
   Cache.get cardId eval.cards
+
+getCardModel ∷ ∀ m. PersistEnv m (Card.Id → m (Maybe Card.Model))
+getCardModel =
+  Newtype.unwrap ∘ map _.model ∘ Compose ∘ getCard
 
 getCards ∷ ∀ m. PersistEnv m (Array Card.Id → m (Maybe (Array Card.Cell)))
 getCards = map sequence ∘ traverse getCard
@@ -247,7 +261,7 @@ rebuildGraph = do
   { eval } ← Wiring.expose
   decks ← Cache.snapshot eval.decks
   cards ← Cache.snapshot eval.cards
-  rootId ← liftAff $ peekVar eval.root
+  rootId ← getRootDeckId
   graph ← noteError "Cannot rebuild graph" $
     unfoldModelTree (_.model <$> decks) (_.model <$> cards) rootId
   Cache.restore mempty eval.decks
@@ -263,9 +277,13 @@ snapshotGraph cardId = do
 
 queueSave ∷ ∀ f m. Persist f m (Int → Maybe Card.Id → m Unit)
 queueSave ms cardId = do
-  { eval, path } ← Wiring.expose
-  debounce ms path { avar: _ } eval.debounceSaves (pure unit) do
-    maybe (void saveWorkspace) (void ∘ saveCardLocally) cardId
+  { eval, path, accessType } ← Wiring.expose
+  debounce ms path { avar: _ } eval.debounceSaves (pure unit)
+    case accessType of
+      AccessType.Editable →
+        void saveWorkspace
+      AccessType.ReadOnly → do
+        maybe (pure unit) (void ∘ saveCardLocally) cardId
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (Maybe Card.Id → m Unit)
 queueSaveImmediate = queueSave 0
@@ -346,7 +364,7 @@ deleteDeck deckId = do
   Cache.remove deckId eval.decks
   case cell.parent of
     Nothing → do
-      rootId ← liftAff $ peekVar eval.root
+      rootId ← getRootDeckId
       when (rootId ≡ deckId) $ void do
         Quasar.delete (Left path)
     Just oldParentId → do
