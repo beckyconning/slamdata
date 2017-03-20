@@ -181,7 +181,12 @@ updateCardModel ∷ AnyCardModel → AnyCardModel → AnyCardModel
 updateCardModel = case _, _ of
   Markdown author, Markdown consumer →
     Markdown $ StrMap.union author consumer
-  x, y → x
+  Search author, Search consumer →
+    Search consumer
+  FormInput _, FormInput consumer ->
+    FormInput consumer
+  author, _ →
+    author
 
 instance eqAnyCardModel ∷ Eq AnyCardModel where
   eq = case _, _ of
