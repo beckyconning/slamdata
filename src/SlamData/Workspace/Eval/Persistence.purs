@@ -34,7 +34,6 @@ import Data.List (List(..), (:))
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Newtype as Newtype
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as Pathy
 import Data.Rational ((%))
@@ -180,7 +179,7 @@ getCard cardId = do
 
 getCardModel ∷ ∀ m. PersistEnv m (Card.Id → m (Maybe Card.Model))
 getCardModel =
-  Newtype.unwrap ∘ map _.model ∘ Compose ∘ getCard
+  unwrap ∘ map _.model ∘ Compose ∘ getCard
 
 getCards ∷ ∀ m. PersistEnv m (Array Card.Id → m (Maybe (Array Card.Cell)))
 getCards = map sequence ∘ traverse getCard
