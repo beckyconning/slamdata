@@ -91,10 +91,9 @@ evalCard = case _ of
     pure ∘ k $ Card.Markdown state
   CC.Load card next → do
     case card of
-      Card.Markdown state → do
-        void $ do
-          H.modify (_ { state = state })
-          H.query unit $ H.action (SD.PopulateForm state)
+      Card.Markdown state → void $ do
+        H.modify (_ { state = state })
+        H.query unit $ H.action (SD.PopulateForm state)
       _ → pure unit
     pure next
   CC.ReceiveInput input _ next → do
