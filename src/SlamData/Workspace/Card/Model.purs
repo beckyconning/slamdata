@@ -181,7 +181,7 @@ updateCardModel ∷ AnyCardModel → AnyCardModel → AnyCardModel
 updateCardModel = case _, _ of
   Markdown author, Markdown consumer →
     Markdown $ StrMap.union author consumer
-  Search author, Search consumer →
+  Search _, Search consumer →
     Search consumer
   FormInput _, FormInput consumer ->
     FormInput consumer
