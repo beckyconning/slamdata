@@ -478,7 +478,6 @@ wrapAndGroupDeck orn bias deckId siblingId = do
       putCard oldParentId oldParent'
       rebuildGraph
       publishCardChange (Card.toAll oldParentId) oldParent'
-      queueSaveDefault Nothing -- Does this need to happen as well as publish card change?
     _ → do
       throw (Exn.error "Cannot group deck")
 
