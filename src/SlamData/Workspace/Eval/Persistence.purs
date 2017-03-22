@@ -280,7 +280,7 @@ queueSave ms cardId = do
       AccessType.Editable →
         void saveWorkspace
       AccessType.ReadOnly →
-        for_ cardId (saveCardLocally)
+        for_ cardId saveCardLocally
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (Maybe Card.Id → m Unit)
 queueSaveImmediate = queueSave 0
