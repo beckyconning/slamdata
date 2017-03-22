@@ -65,7 +65,6 @@ import SlamData.Workspace.Eval.Traverse (TraverseCard(..), TraverseDeck(..), unf
 import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData)
 import SlamData.Workspace.Model as WM
 
-import Utils as Utils
 import Utils.Aff (laterVar)
 import Utils.LocalStorage as LocalStorage
 
@@ -133,7 +132,7 @@ saveCardLocally cardId = runExceptT do
   rootDeckId ← lift getRootDeckId
   lift ∘ saveCardsLocally rootDeckId
     =<< Map.insert cardId
-    <$> ExceptT (Utils.explain noCardFound <$> getCardModel cardId)
+    <$> ExceptT (note noCardFound <$> getCardModel cardId)
     <*> ExceptT (Right <$> getLocallyStoredCards rootDeckId)
   where
   noCardFound ∷ QE.QError
