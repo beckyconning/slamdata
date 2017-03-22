@@ -128,7 +128,7 @@ saveWorkspace = runExceptT do
   liftEff $ Ref.writeRef auth.retrySave (isLeft result)
   ExceptT $ pure result
 
-saveCardLocally ∷ ∀ f m. (MonadThrow Exn.Error m) ⇒ Persist f m (Card.Id → m (Either QE.QError Unit))
+saveCardLocally ∷ ∀ f m. Persist f m (Card.Id → m (Either QE.QError Unit))
 saveCardLocally cardId = runExceptT do
   rootDeckId ← lift getRootDeckId
   lift ∘ saveCardsLocally rootDeckId
