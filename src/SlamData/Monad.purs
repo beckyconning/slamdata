@@ -19,6 +19,8 @@ module SlamData.Monad where
 import SlamData.Prelude
 
 import Data.Array as Array
+import Data.Argonaut as Argonaut
+
 import Control.Applicative.Free (FreeAp, hoistFreeAp, liftFreeAp, retractFreeAp)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.Bus as Bus
@@ -56,8 +58,11 @@ import SlamData.Workspace.Class (class WorkspaceDSL)
 import SlamData.Workspace.Deck.DeckId as DeckId
 import SlamData.Workspace.Routing as Routing
 import SlamData.Monad.Auth (getIdTokenSilently)
+import SlamData.LocalStorage as LS
+import SlamData.LocalStorage.Class (class LocalStorageDSL)
 
 import Utils (hush)
+import Utils.LocalStorage as LSUtils
 
 type Slam = SlamM SlamDataEffects
 
@@ -65,6 +70,7 @@ data SlamF eff a
   = Aff (Aff eff a)
   | GetAuthIdToken (Maybe OIDC.IdToken → a)
   | Quasar (QA.QuasarAFC a)
+  | LocalStorage (LS.LocalStorageF a)
   | Notify N.NotificationOptions a
   | Halt GE.GlobalError a
   | Par (SlamA eff a)
@@ -123,6 +129,12 @@ instance globalErrorDSLSlamM ∷ GE.GlobalErrorDSL (SlamM eff) where
 instance workspaceDSLSlamM ∷ WorkspaceDSL (SlamM eff) where
   navigate = SlamM ∘ liftF ∘ flip Navigate unit
 
+instance localStorageDSLSlamM :: LocalStorageDSL (SlamM eff) where
+  persist key value =
+    SlamM $ liftF $ LocalStorage $ LS.Persist (unwrap key) (Argonaut.encodeJson value) unit
+  retrieve key =
+    SlamM $ liftF $ LocalStorage $ LS.Retrieve (unwrap key) (flip bind Argonaut.decodeJson)
+
 newtype SlamA eff a = SlamA (FreeAp (SlamM eff) a)
 
 derive newtype instance functorSlamA ∷ Functor (SlamA eff)
@@ -157,6 +169,10 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         _ →
           pure unit
       runQuasarF (maybe Nothing hush idToken) qf
+    LocalStorage (LS.Retrieve key k) →
+      k <$> LSUtils.getLocalStorage key
+    LocalStorage (LS.Persist key json a) →
+      LSUtils.setLocalStorage key json $> a
     Notify no a → do
       Bus.write no bus.notify
       pure a
