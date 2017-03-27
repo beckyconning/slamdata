@@ -313,8 +313,8 @@ eval = case _ of
   DismissSignInSubmenu next → do
     dismissSignInSubmenu
     pure next
-  DismissMountGuide next → do
-    dismissMountGuide
+  DismissMountHint next → do
+    dismissMountHint
     pure next
   DismissIntroVideo next → do
     dismissIntroVideo
@@ -332,7 +332,7 @@ eval = case _ of
         pure next
     | otherwise → do
         path ← H.gets _.path
-        presentMountGuide items path
+        presentMountHint items path
         resort
         pure next
   HandleDialog DialogMessage.Dismiss next →
@@ -349,7 +349,7 @@ eval = case _ of
         _ → pure false
       unless isCurrentMount do
         H.query' CS.cpListing unit $ H.action $ Listing.Add $ Item (R.Mount m)
-        dismissMountGuide
+        dismissMountHint
         resort
     pure next
   HandleDialog (DialogMessage.ExploreFile fp initialName) next → do
@@ -449,7 +449,7 @@ handleItemMessage = case _ of
 
     listing ← fromMaybe [] <$> (H.query' CS.cpListing unit $ H.request Listing.Get)
     path ← H.gets _.path
-    presentMountGuide listing path
+    presentMountHint listing path
 
     resort
   Item.Share res → do
@@ -474,16 +474,16 @@ handleItemMessage = case _ of
     download res
 
 
-dismissedMountGuideKey ∷ String
-dismissedMountGuideKey = "dismissed-mount-guide"
+dismissedMountHintKey ∷ String
+dismissedMountHintKey = "dismissed-mount-guide"
 
 dismissedIntroVideoKey ∷ String
 dismissedIntroVideoKey = "dismissed-intro-video"
 
-dismissMountGuide ∷ DSL Unit
-dismissMountGuide = do
-  H.lift $ LocalStorage.setLocalStorage dismissedMountGuideKey true
-  H.modify $ State._presentMountGuide .~ false
+dismissMountHint ∷ DSL Unit
+dismissMountHint = do
+  H.lift $ LocalStorage.setLocalStorage dismissedMountHintKey true
+  H.modify $ State._presentMountHint .~ false
 
 dismissIntroVideo ∷ DSL Unit
 dismissIntroVideo = do
@@ -544,15 +544,15 @@ uploadFileSelected f = do
       Left msg → showDialog $ Dialog.Error msg
       Right ge → GE.raiseGlobalError ge
 
-presentMountGuide ∷ ∀ a. Array a → DirPath → DSL Unit
-presentMountGuide xs path = do
+presentMountHint ∷ ∀ a. Array a → DirPath → DSL Unit
+presentMountHint xs path = do
   isSearching ←
     map (fromMaybe false) $ H.query' CS.cpSearch unit (H.request Search.IsSearching)
   isLoading ←
     map (fromMaybe true)  $ H.query' CS.cpSearch unit (H.request Search.IsLoading)
 
   H.modify
-    ∘ (State._presentMountGuide .~ _)
+    ∘ (State._presentMountHint .~ _)
     ∘ ((Array.null xs ∧ path ≡ rootDir ∧ not (isSearching ∧ isLoading)) ∧ _)
     ∘ not
     ∘ either (const false) id
@@ -560,7 +560,7 @@ presentMountGuide xs path = do
   where
   dismissedBefore ∷ DSL (Either String Boolean)
   dismissedBefore =
-    H.lift $ LocalStorage.getLocalStorage dismissedMountGuideKey
+    H.lift $ LocalStorage.getLocalStorage dismissedMountHintKey
 
 dismissSignInSubmenu ∷ DSL Unit
 dismissSignInSubmenu =

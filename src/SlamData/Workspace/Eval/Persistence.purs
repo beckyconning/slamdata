@@ -66,6 +66,7 @@ import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData
 import SlamData.Workspace.Model as WM
 import SlamData.LocalStorage.Class (class LocalStorageDSL)
 import SlamData.LocalStorage.Class as LS
+import SlamData.LocalStorage.Keys as LSK
 
 import Utils.Aff (laterVar)
 
@@ -145,18 +146,14 @@ getRootDeckId ∷ ∀ m. PersistEnv m (m Deck.Id)
 getRootDeckId =
   liftAff ∘ peekVar ∘ _.root ∘ _.eval =<< Wiring.expose
 
-cardsLocalStorageKey ∷ Deck.Id → LS.Key (Map CID.CardId AnyCardModel)
-cardsLocalStorageKey deckId =
-  LS.Key $ "sd-cards-" ⊕ DID.toString deckId
-
 saveCardsLocally ∷ ∀ f m. Persist f m (Deck.Id → Map CID.CardId AnyCardModel → m Unit)
 saveCardsLocally =
-  LS.persist ∘ cardsLocalStorageKey
+  LS.persist ∘ LSK.cardsLocalStorageKey
 
 getLocallyStoredCards ∷ ∀ f m. Persist f m (Deck.Id → m (Map CID.CardId AnyCardModel))
 getLocallyStoredCards deckId =
   either (const Map.empty) id
-    <$> (LS.retrieve $ cardsLocalStorageKey deckId)
+    <$> (LS.retrieve $ LSK.cardsLocalStorageKey deckId)
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do
