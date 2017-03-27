@@ -64,9 +64,10 @@ import SlamData.Workspace.Eval.Graph (pendingGraph, EvalGraph)
 import SlamData.Workspace.Eval.Traverse (TraverseCard(..), TraverseDeck(..), unfoldModelTree, isCyclical)
 import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData)
 import SlamData.Workspace.Model as WM
+import SlamData.LocalStorage.Class (class LocalStorageDSL)
+import SlamData.LocalStorage.Class as LS
 
 import Utils.Aff (laterVar)
-import Utils.LocalStorage as LocalStorage
 
 defaultSaveDebounce ∷ Int
 defaultSaveDebounce = 500
@@ -81,6 +82,7 @@ type Persist f m a =
   , MonadThrow Exn.Error m
   , Parallel f m
   , QuasarDSL m
+  , LocalStorageDSL m
   ) ⇒ a
 
 type PersistEnv m a =
@@ -143,18 +145,18 @@ getRootDeckId ∷ ∀ m. PersistEnv m (m Deck.Id)
 getRootDeckId =
   liftAff ∘ peekVar ∘ _.root ∘ _.eval =<< Wiring.expose
 
-cardsLocalStorageKey ∷ Deck.Id → String
+cardsLocalStorageKey ∷ Deck.Id → LS.Key (Map CID.CardId AnyCardModel)
 cardsLocalStorageKey deckId =
-  "sd-cards-" ⊕ DID.toString deckId
+  LS.Key $ "sd-cards-" ⊕ DID.toString deckId
 
-saveCardsLocally ∷ ∀ m. PersistEnv m (Deck.Id → Map CID.CardId AnyCardModel → m Unit)
+saveCardsLocally ∷ ∀ f m. Persist f m (Deck.Id → Map CID.CardId AnyCardModel → m Unit)
 saveCardsLocally =
-  LocalStorage.setLocalStorage ∘ cardsLocalStorageKey
+  LS.persist ∘ cardsLocalStorageKey
 
-getLocallyStoredCards ∷ ∀ m. PersistEnv m (Deck.Id → m (Map CID.CardId AnyCardModel))
+getLocallyStoredCards ∷ ∀ f m. Persist f m (Deck.Id → m (Map CID.CardId AnyCardModel))
 getLocallyStoredCards deckId =
   either (const Map.empty) id
-    <$> (LocalStorage.getLocalStorage $ cardsLocalStorageKey deckId)
+    <$> (LS.retrieve $ cardsLocalStorageKey deckId)
 
 putDeck ∷ ∀ m. PersistEnv m (Deck.Id → Deck.Model → m Unit)
 putDeck deckId deck = do

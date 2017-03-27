@@ -18,9 +18,6 @@ module SlamData.Monad where
 
 import SlamData.Prelude
 
-import Data.Array as Array
-import Data.Argonaut as Argonaut
-
 import Control.Applicative.Free (FreeAp, hoistFreeAp, liftFreeAp, retractFreeAp)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.Bus as Bus
@@ -31,14 +28,21 @@ import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Fork (class MonadFork, fork)
 import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (class MonadRec, tailRecM, Step(..))
-import Control.Monad.Throw (class MonadThrow)
+import Control.Monad.Throw (class MonadThrow, note)
 import Control.Parallel (parallel, sequential)
 import Control.UI.Browser (locationObject)
 
+import Data.Argonaut as Argonaut
+import Data.Argonaut.Core (stringify)
+import Data.Array as Array
+import Data.Nullable as Nullable
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
 
 import DOM.HTML.Location (setHash)
+import DOM.HTML (window)
+import DOM.HTML.Window (localStorage)
+import DOM.WebStorage.Storage as Storage
 
 import OIDC.Crypt.Types as OIDC
 
@@ -62,7 +66,6 @@ import SlamData.LocalStorage as LS
 import SlamData.LocalStorage.Class (class LocalStorageDSL)
 
 import Utils (hush)
-import Utils.LocalStorage as LSUtils
 
 type Slam = SlamM SlamDataEffects
 
@@ -170,9 +173,12 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
           pure unit
       runQuasarF (maybe Nothing hush idToken) qf
     LocalStorage (LS.Retrieve key k) →
-      k <$> LSUtils.getLocalStorage key
-    LocalStorage (LS.Persist key json a) →
-      LSUtils.setLocalStorage key json $> a
+      k <<< (Argonaut.jsonParser <=< note ("No key " <> key <> " in LocalStorage"))
+        <<< Nullable.toMaybe
+        <$> liftEff (Storage.getItem key =<< localStorage =<< window)
+    LocalStorage (LS.Persist key json a) → do
+      liftEff (window >>= localStorage >>= Storage.setItem key (stringify json))
+      pure a
     Notify no a → do
       Bus.write no bus.notify
       pure a
