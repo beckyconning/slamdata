@@ -22,6 +22,4 @@ instance localStorageDSLHalogenM ∷ (Monad m, LocalStorageDSL m) ⇒ LocalStora
   retrieve = lift ∘ retrieve
   persist k = lift ∘ persist k
 
-instance keyNewtype ∷ Newtype (Key a) String where
-  unwrap (Key s) = s
-  wrap = Key
+derive instance keyNewtype ∷ Newtype (Key a) _
