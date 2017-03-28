@@ -29,13 +29,14 @@ import Data.Path.Pathy as P
 import Data.String as S
 import DOM (DOM)
 import SlamData.FileSystem.Resource as R
-import Utils.LocalStorage (getLocalStorage, setLocalStorage)
+import SlamData.LocalStorage.Class (retrieve, persist)
+import SlamData.LocalStorage.Keys as LSK
 import Utils.Path as PU
 
 
 pathCompletions :: forall e. Aff (AceEffects e) (Array Completion)
 pathCompletions = do
-  paths <- getLocalStorage "paths" <#> either (const []) id
+  paths <- retrieve LSK.autoCompletePathsKey <#> either (const []) id
   pure $ paths <#> S.drop 1 >>> mkCompletion "path" mkCaption
   where
   mkCaption :: String -> Maybe String
@@ -57,8 +58,8 @@ mkCompletion meta f val =
 memoizeCompletionStrs
   :: forall e. PU.DirPath -> Array R.Resource -> Aff (dom :: DOM | e) Unit
 memoizeCompletionStrs dir arr = do
-  alreadyMemoized <- getLocalStorage "paths" <#> either (const []) id
-  setLocalStorage "paths"
+  alreadyMemoized <- retrieve LSK.autoCompletePathsKey <#> either (const []) id
+  persist LSK.autoCompletePathsKey
     $ Arr.sort $ newSiblings <> filterSiblings alreadyMemoized
   where
   parentPath :: String

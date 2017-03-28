@@ -28,21 +28,17 @@ import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Fork (class MonadFork, fork)
 import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (class MonadRec, tailRecM, Step(..))
-import Control.Monad.Throw (class MonadThrow, note)
+import Control.Monad.Throw (class MonadThrow)
 import Control.Parallel (parallel, sequential)
 import Control.UI.Browser (locationObject)
 
 import Data.Argonaut as Argonaut
-import Data.Argonaut.Core (stringify)
 import Data.Array as Array
-import Data.Nullable as Nullable
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
+import Data.Exists as Exists
 
 import DOM.HTML.Location (setHash)
-import DOM.HTML (window)
-import DOM.HTML.Window (localStorage)
-import DOM.WebStorage.Storage as Storage
 
 import OIDC.Crypt.Types as OIDC
 
@@ -73,7 +69,7 @@ data SlamF eff a
   = Aff (Aff eff a)
   | GetAuthIdToken (Maybe OIDC.IdToken → a)
   | Quasar (QA.QuasarAFC a)
-  | LocalStorage (LS.LocalStorageF a)
+  | LocalStorage (Exists.Exists (LS.LocalStorageF a))
   | Notify N.NotificationOptions a
   | Halt GE.GlobalError a
   | Par (SlamA eff a)
@@ -134,9 +130,11 @@ instance workspaceDSLSlamM ∷ WorkspaceDSL (SlamM eff) where
 
 instance localStorageDSLSlamM :: LocalStorageDSL (SlamM eff) where
   persist key value =
-    SlamM $ liftF $ LocalStorage $ LS.Persist (unwrap key) (Argonaut.encodeJson value) unit
+    SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Persist Argonaut.encodeJson key value unit
   retrieve key =
-    SlamM $ liftF $ LocalStorage $ LS.Retrieve (unwrap key) (flip bind Argonaut.decodeJson)
+    SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Retrieve Argonaut.decodeJson key id
+  remove key =
+    SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Remove key unit
 
 newtype SlamA eff a = SlamA (FreeAp (SlamM eff) a)
 
@@ -172,13 +170,8 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         _ →
           pure unit
       runQuasarF (maybe Nothing hush idToken) qf
-    LocalStorage (LS.Retrieve key k) →
-      k <<< (Argonaut.jsonParser <=< note ("No key " <> key <> " in LocalStorage"))
-        <<< Nullable.toMaybe
-        <$> liftEff (Storage.getItem key =<< localStorage =<< window)
-    LocalStorage (LS.Persist key json a) → do
-      liftEff (window >>= localStorage >>= Storage.setItem key (stringify json))
-      pure a
+    LocalStorage lse →
+      Exists.runExists goLS lse
     Notify no a → do
       Bus.write no bus.notify
       pure a
@@ -197,6 +190,9 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         hash  = Routing.mkWorkspaceHash path' action varMaps
       liftEff $ locationObject >>= setHash hash
       pure a
+
+  goLS ∷ ∀ a b. LS.LocalStorageF a b → Aff SlamDataEffects a
+  goLS = liftEff ∘ LS.run
 
   goFork ∷ FF.Fork Slam ~> Aff SlamDataEffects
   goFork = FF.unFork \(FF.ForkF fx k) →

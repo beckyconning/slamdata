@@ -34,18 +34,18 @@ import Halogen.HTML as HH
 
 import SlamData.ActionList.Component as ActionList
 import SlamData.ActionList.Filter.Component as ActionFilter
-import SlamData.Monad (Slam)
 import SlamData.Hint as Hint
+import SlamData.LocalStorage.Class as LS
+import SlamData.LocalStorage.Keys as LSK
+import SlamData.Monad (Slam)
 import SlamData.Workspace.Card.CardType as CT
 import SlamData.Workspace.Card.InsertableCardType as ICT
-import SlamData.Workspace.Card.Next.NextAction as NA
 import SlamData.Workspace.Card.Next.Component.ChildSlot as CS
 import SlamData.Workspace.Card.Next.Component.Query (Query(..))
 import SlamData.Workspace.Card.Next.Component.State (State, initialState)
 import SlamData.Workspace.Card.Next.Component.State as State
+import SlamData.Workspace.Card.Next.NextAction as NA
 import SlamData.Workspace.Card.Port as Port
-
-import Utils.LocalStorage as LocalStorage
 
 type HTML =
   H.ParentHTML Query CS.ChildQuery CS.ChildSlot Slam
@@ -109,17 +109,13 @@ possibleToGetTo ∷ Port.Port → CT.CardType → Boolean
 possibleToGetTo input =
   ICT.possibleToGetTo (ICT.fromPort input) ∘ ICT.fromCardType
 
-dismissedAddCardHintKey ∷ String
-dismissedAddCardHintKey = "dismissedAddCardHint"
-
 getDismissedAddCardHintBefore ∷ DSL Boolean
 getDismissedAddCardHintBefore =
-  H.lift $ either (const $ false) id <$>
-    LocalStorage.getLocalStorage dismissedAddCardHintKey
+  either (const $ false) id <$> LS.retrieve LSK.dismissedAddCardHintKey
 
 storeDismissedAddCardHint ∷ DSL Unit
 storeDismissedAddCardHint =
-  H.lift $ LocalStorage.setLocalStorage dismissedAddCardHintKey true
+  LS.persist LSK.dismissedAddCardHintKey true
 
 dismissAddCardHint ∷ DSL Unit
 dismissAddCardHint =

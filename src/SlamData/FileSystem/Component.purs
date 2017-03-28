@@ -60,9 +60,9 @@ import SlamData.Common.Sort (notSort)
 import SlamData.Config as Config
 import SlamData.Dialog.Render as RenderDialog
 import SlamData.FileSystem.Breadcrumbs.Component as Breadcrumbs
+import SlamData.FileSystem.Component.CSS as FileSystemClassNames
 import SlamData.FileSystem.Component.ChildSlot (ChildQuery, ChildSlot)
 import SlamData.FileSystem.Component.ChildSlot as CS
-import SlamData.FileSystem.Component.CSS as FileSystemClassNames
 import SlamData.FileSystem.Component.Query (Query(..))
 import SlamData.FileSystem.Component.Render (sorting, toolbar)
 import SlamData.FileSystem.Component.State (State, initialState)
@@ -73,9 +73,9 @@ import SlamData.FileSystem.Dialog.Mount.Component as Mount
 import SlamData.FileSystem.Dialog.Mount.Couchbase.Component.State as Couchbase
 import SlamData.FileSystem.Dialog.Mount.MarkLogic.Component.State as MarkLogic
 import SlamData.FileSystem.Dialog.Mount.MongoDB.Component.State as MongoDB
+import SlamData.FileSystem.Dialog.Mount.SQL2.Component.State as SQL2
 import SlamData.FileSystem.Dialog.Mount.SparkHDFS.Component.State as Spark
 import SlamData.FileSystem.Dialog.Mount.SparkLocal.Component.State as SparkLocal
-import SlamData.FileSystem.Dialog.Mount.SQL2.Component.State as SQL2
 import SlamData.FileSystem.Listing.Component as Listing
 import SlamData.FileSystem.Listing.Item (Item(..), itemResource, sortItem)
 import SlamData.FileSystem.Listing.Item.Component as Item
@@ -87,6 +87,8 @@ import SlamData.GlobalError as GE
 import SlamData.GlobalMenu.Component as GlobalMenu
 import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
+import SlamData.LocalStorage.Class as LS
+import SlamData.LocalStorage.Keys as LSK
 import SlamData.Monad (Slam)
 import SlamData.Notification.Component as NC
 import SlamData.Quasar (ldJSON) as API
@@ -101,7 +103,6 @@ import SlamData.Workspace.Deck.Component.CSS as ClassNames
 import SlamData.Workspace.Routing (mkWorkspaceURL)
 
 import Utils.DOM as D
-import Utils.LocalStorage as LocalStorage
 import Utils.Path (DirPath, getNameStr)
 
 type HTML = H.ParentHTML Query ChildQuery ChildSlot Slam
@@ -474,25 +475,19 @@ handleItemMessage = case _ of
     download res
 
 
-dismissedMountHintKey ∷ String
-dismissedMountHintKey = "dismissed-mount-guide"
-
-dismissedIntroVideoKey ∷ String
-dismissedIntroVideoKey = "dismissed-intro-video"
-
 dismissMountHint ∷ DSL Unit
 dismissMountHint = do
-  H.lift $ LocalStorage.setLocalStorage dismissedMountHintKey true
+  LS.persist LSK.dismissedMountHintKey true
   H.modify $ State._presentMountHint .~ false
 
 dismissIntroVideo ∷ DSL Unit
 dismissIntroVideo = do
-  H.lift $ LocalStorage.setLocalStorage dismissedIntroVideoKey true
+  LS.persist LSK.dismissedIntroVideoKey true
   H.modify $ State._presentIntroVideo .~ false
 
 dismissedIntroVideoBefore ∷ DSL Boolean
 dismissedIntroVideoBefore =
-  H.lift $ either (const false) id <$> LocalStorage.getLocalStorage dismissedIntroVideoKey
+  either (const false) id <$> LS.retrieve LSK.dismissedIntroVideoKey
 
 uploadFileSelected ∷ Cf.File → DSL Unit
 uploadFileSelected f = do
@@ -560,7 +555,7 @@ presentMountHint xs path = do
   where
   dismissedBefore ∷ DSL (Either String Boolean)
   dismissedBefore =
-    H.lift $ LocalStorage.getLocalStorage dismissedMountHintKey
+    LS.retrieve LSK.dismissedMountHintKey
 
 dismissSignInSubmenu ∷ DSL Unit
 dismissSignInSubmenu =

@@ -15,23 +15,15 @@ limitations under the License.
 -}
 
 module Utils.LocalStorage
-  ( getLocalStorage
-  , setLocalStorage
-  , removeLocalStorage
-  , onStorageEvent
+  ( onStorageEvent
   , StorageEvent
   ) where
 
 import Prelude
 
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (class MonadEff, liftEff)
 
-import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, jsonParser, encodeJson, printJson)
-import Data.Either (Either(..))
 import Data.Foreign (Foreign)
-import Data.Function.Uncurried (Fn3, Fn2, runFn3, runFn2)
-import Data.Maybe (Maybe(..), maybe)
 import Unsafe.Coerce as U
 
 import DOM (DOM)
@@ -40,10 +32,6 @@ import DOM.Event.EventTarget as EventTarget
 import DOM.HTML as DOMHTML
 import DOM.HTML.Types as DOMHTMLTypes
 
-foreign import setLocalStorageImpl
-  ∷ forall eff. Fn2 String String (Eff (dom ∷ DOM | eff) Unit)
-foreign import getLocalStorageImpl
-  ∷ forall eff a . Fn3 (Maybe a) (a → Maybe a) String (Eff (dom ∷ DOM | eff) (Maybe String))
 foreign import removeLocalStorageImpl
   ∷ forall eff . String → (Eff (dom ∷ DOM | eff)) Unit
 
@@ -57,28 +45,6 @@ type StorageEvent =
 
 eventToStorageEvent ∷ Event → StorageEvent
 eventToStorageEvent = U.unsafeCoerce
-
-setLocalStorage
-  ∷ forall a eff g
-  . (EncodeJson a, MonadEff (dom ∷ DOM | eff) g)
-  ⇒ String → a → g Unit
-setLocalStorage key val =
-  liftEff
-    $ runFn2 setLocalStorageImpl key
-    $ printJson
-    $ encodeJson val
-
-getLocalStorage
-  ∷ forall a eff g. (DecodeJson a, MonadEff (dom ∷ DOM | eff) g) ⇒ String → g (Either String a)
-getLocalStorage key =
-  liftEff
-    $ maybe (Left $ "There is no value for key " <> key) (jsonParser >=> decodeJson)
-    <$> runFn3 getLocalStorageImpl Nothing Just key
-
-removeLocalStorage
-  ∷ forall g eff. (MonadEff (dom ∷ DOM | eff) g) ⇒ String → g Unit
-removeLocalStorage k =
-  liftEff $ removeLocalStorageImpl k
 
 onStorageEvent
   ∷ ∀ eff

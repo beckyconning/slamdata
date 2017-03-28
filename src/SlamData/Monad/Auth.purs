@@ -31,11 +31,11 @@ import SlamData.Effects (SlamDataEffects)
 import SlamData.Prelude
 import SlamData.Quasar.Aff (runQuasarF)
 import SlamData.Quasar.Auth.Authentication as Auth
-import SlamData.Quasar.Auth.Keys as AuthKeys
 import SlamData.Quasar.Error (QError)
 import SlamData.Quasar.Error as QError
+import SlamData.LocalStorage.Class as LS
+import SlamData.LocalStorage.Keys as LSK
 import Utils (passover, singletonValue)
-import Utils.LocalStorage as LocalStorage
 
 getIdTokenSilently ∷ AllowedAuthenticationModes → Auth.RequestIdTokenBus → Aff SlamDataEffects (Either QError Auth.EIdToken)
 getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
@@ -87,9 +87,8 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
   getProviderFromLocalStorage ∷ Eff SlamDataEffects (Either QError QAT.ProviderR)
   getProviderFromLocalStorage =
     lmap (unauthorizedError ∘ Just) ∘ map QAT.runProvider
-      <$> LocalStorage.getLocalStorage
-            (AuthKeys.hyphenatedSuffix
-               AuthKeys.providerLocalStorageKey
+      <$> LS.retrieve
+            (LSK.providerLocalStorageKey
                $ AuthenticationMode.toKeySuffix AuthenticationMode.ChosenProvider)
 
   noProvidersMessage ∷ String

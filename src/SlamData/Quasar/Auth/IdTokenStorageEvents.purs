@@ -24,7 +24,6 @@ import Control.Monad.Eff.Ref (REF, newRef, readRef, writeRef)
 import Data.Argonaut (decodeJson, jsonParser)
 import DOM (DOM)
 import OIDC.Crypt.Types (IdToken(..))
-import SlamData.Quasar.Auth.Keys as AuthKeys
 import Utils.LocalStorage as LocalStorage
 
 pullIdTokenFromStorageEvent ∷ ∀ eff. Aff (dom ∷ DOM, ref ∷ REF | eff) (Either String IdToken)
@@ -40,7 +39,8 @@ pullIdTokenFromStorageEvent = makeAff' \onError onSuccess → do
 
   where
   isIdTokenKeyEvent =
-    eq (AuthKeys.hyphenatedSuffix AuthKeys.idTokenLocalStorageKey AuthKeys.fromRedirectSuffix)
+    const true
+    --eq (AuthKeys.hyphenatedSuffix AuthKeys.idTokenLocalStorageKey AuthKeys.fromRedirectSuffix)
 
   parseIdToken =
     map IdToken <=< decodeJson <=< jsonParser
