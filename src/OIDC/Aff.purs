@@ -20,7 +20,6 @@ import Control.Monad.Eff.Random (random, RANDOM)
 import Control.UI.Browser (hostAndProtocol, getHref)
 import DOM (DOM)
 import Data.List as L
-import Data.Newtype as Newtype
 import Data.URI (printURI, runParseURI)
 import Data.URI.Types as URI
 import OIDC.Crypt as Cryptography
@@ -64,10 +63,10 @@ getAuthenticationUri prompt unhashedNonce pr redirectURIStr = do
         $ L.fromFoldable
         $ map (map Just)
           [ Tuple "response_type"  "id_token token"
-          , Tuple "client_id" $ Newtype.unwrap pr.clientId
+          , Tuple "client_id" $ unwrap pr.clientId
           , Tuple "redirect_uri" redirectURIStr
           , Tuple "scope" "openid email"
-          , Tuple "nonce" $ Newtype.unwrap nonce
+          , Tuple "nonce" $ unwrap nonce
           , Tuple "prompt" $ printPrompt prompt
           , Tuple "display" "popup"
           ]

@@ -26,7 +26,6 @@ import Data.Argonaut (encodeJson)
 import Data.Foldable as F
 import Data.Foreign (toForeign)
 import Data.Map as Map
-import Data.Newtype as Newtype
 import Data.Path.Pathy as Pathy
 import Data.StrMap as SM
 import Data.String as Str
@@ -466,7 +465,7 @@ workspaceTokenName workspacePath idToken =
     payload =
       hush $ Eff.runPure $ Exception.try $ OIDC.readPayload idToken
     email =
-      fromMaybe "unknown user" $ Newtype.unwrap <$> (OIDC.pluckEmail =<< payload)
+      fromMaybe "unknown user" $ unwrap <$> (OIDC.pluckEmail =<< payload)
     workspace =
       Pathy.printPath workspacePath
   in

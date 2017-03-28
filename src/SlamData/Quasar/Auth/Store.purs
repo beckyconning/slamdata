@@ -20,7 +20,6 @@ import SlamData.Prelude
 
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
-import Data.Newtype as Newtype
 import OIDC.Crypt.Types as OIDCT
 import Quasar.Advanced.Types as QAT
 import SlamData.Quasar.Auth.Keys as AuthKeys
@@ -30,7 +29,7 @@ storeIdToken ∷ ∀ e. String → Either String OIDCT.IdToken → Eff (dom ∷ 
 storeIdToken keySuffix idToken =
   LS.setLocalStorage
     (AuthKeys.hyphenatedSuffix AuthKeys.idTokenLocalStorageKey keySuffix)
-    $ Newtype.unwrap
+    $ unwrap
     <$> idToken
 
 storeProvider ∷ ∀ e. String → QAT.Provider → Eff (dom ∷ DOM | e) Unit
