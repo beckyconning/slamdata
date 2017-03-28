@@ -28,6 +28,8 @@ import Control.Monad.Eff as Eff
 import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Eff.Exception as Exception
 
+import Data.Newtype as Newtype
+
 import Halogen as H
 import Halogen.Component.Utils (busEventSource)
 import Halogen.HTML as HH
@@ -128,7 +130,7 @@ update = do
         , submenus:
             [ { label:
                 fromMaybe "unknown user"
-                $ map Crypt.runEmail
+                $ map Newtype.unwrap
                 $ Crypt.pluckEmail
                 $ payload
               , submenu:
