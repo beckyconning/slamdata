@@ -24,7 +24,7 @@ import SlamData.LocalStorage.Keys as LSK
 
 storeIdToken ∷ ∀ m. (LS.LocalStorageDSL m) ⇒ String → Either String OIDCT.IdToken → m Unit
 storeIdToken keySuffix idToken =
-  LS.persist (LSK.idTokenLocalStorageKey keySuffix) (OIDCT.runIdToken <$> idToken)
+  LS.persist (LSK.idTokenLocalStorageKey keySuffix) idToken
 
 storeProvider ∷ ∀ m. (LS.LocalStorageDSL m) ⇒ String → QAT.Provider → m Unit
 storeProvider =

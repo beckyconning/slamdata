@@ -3,6 +3,7 @@ module SlamData.LocalStorage.Keys where
 import SlamData.Prelude
 
 import Data.Map (Map)
+import OIDC.Crypt.Types as OIDCT
 import Quasar.Advanced.Types as QAT
 import SlamData.LocalStorage.Class as LS
 import SlamData.Workspace.Card.CardId as CID
@@ -48,7 +49,7 @@ dismissedFlipGuideKey = LS.Key "dismissedFlipGuide"
 
 -- Authentication
 
-idTokenLocalStorageKey ∷ String -> LS.Key (Either String String)
+idTokenLocalStorageKey ∷ String -> LS.Key (Either String OIDCT.IdToken)
 idTokenLocalStorageKey = LS.Key ∘ ("sd-auth-id-token-" ⊕ _)
 
 keyStringLocalStorageKey ∷ String -> LS.Key String

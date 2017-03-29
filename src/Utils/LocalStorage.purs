@@ -32,9 +32,6 @@ import DOM.Event.EventTarget as EventTarget
 import DOM.HTML as DOMHTML
 import DOM.HTML.Types as DOMHTMLTypes
 
-foreign import removeLocalStorageImpl
-  ∷ forall eff . String → (Eff (dom ∷ DOM | eff)) Unit
-
 type StorageEvent =
   { key ∷ String
   , oldValue ∷ String

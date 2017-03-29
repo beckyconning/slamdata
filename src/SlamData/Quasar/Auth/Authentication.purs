@@ -61,7 +61,7 @@ import Data.Traversable as T
 import OIDC.Aff as OIDCAff
 import OIDC.Crypt as OIDCCrypt
 import OIDC.Crypt.JSONWebKey (JSONWebKey)
-import OIDC.Crypt.Types (IdToken(..), UnhashedNonce(..))
+import OIDC.Crypt.Types (IdToken, UnhashedNonce(..))
 import Quasar.Advanced.Types (ProviderR)
 import Quasar.Advanced.Types as QAT
 import SlamData.Config as Config
@@ -308,9 +308,8 @@ getIdTokenUsingLocalStorage message = do
     Tuple _ _ → pure Nothing
 
 getUnverifiedIdTokenUsingLocalStorage ∷ ∀ eff. String → Aff (AuthEffects eff) (Either String IdToken)
-getUnverifiedIdTokenUsingLocalStorage keySuffix =
-  flip bind (map IdToken)
-    <$> LS.retrieve (LSK.idTokenLocalStorageKey keySuffix)
+getUnverifiedIdTokenUsingLocalStorage =
+  map join ∘ LS.retrieve ∘ LSK.idTokenLocalStorageKey
 
 getUnhashedNonceUsingLocalStorage ∷ ∀ eff. String → Aff (AuthEffects eff) (Either String UnhashedNonce)
 getUnhashedNonceUsingLocalStorage keySuffix =
@@ -360,7 +359,7 @@ verifyWithJwk providerR unhashedNonce idToken jwk = do
       (Seconds 1.0)
       idToken
       providerR.openIDConfiguration.issuer
-      providerR.clientID
+      providerR.clientId
       unhashedNonce
       jwk
 

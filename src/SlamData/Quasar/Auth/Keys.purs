@@ -16,7 +16,5 @@ limitations under the License.
 
 module SlamData.Quasar.Auth.Keys where
 
-import Prelude ((<>))
-
 fromRedirectSuffix ∷ String
 fromRedirectSuffix = "from-redirect"
