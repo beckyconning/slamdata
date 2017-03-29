@@ -61,7 +61,7 @@ import Data.Traversable as T
 import OIDC.Aff as OIDCAff
 import OIDC.Crypt as OIDCCrypt
 import OIDC.Crypt.JSONWebKey (JSONWebKey)
-import OIDC.Crypt.Types (IdToken, UnhashedNonce(..))
+import OIDC.Crypt.Types (IdToken, UnhashedNonce)
 import Quasar.Advanced.Types (ProviderR)
 import Quasar.Advanced.Types as QAT
 import SlamData.Config as Config
@@ -313,8 +313,7 @@ getUnverifiedIdTokenUsingLocalStorage =
 
 getUnhashedNonceUsingLocalStorage ∷ ∀ eff. String → Aff (AuthEffects eff) (Either String UnhashedNonce)
 getUnhashedNonceUsingLocalStorage keySuffix =
-  rmap UnhashedNonce
-    <$> LS.retrieve (LSK.nonceLocalStorageKey keySuffix)
+  LS.retrieve (LSK.nonceLocalStorageKey keySuffix)
 
 getIdTokenFromLSOnChange
   ∷ ∀ eff

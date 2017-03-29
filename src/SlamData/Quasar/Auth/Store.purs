@@ -35,12 +35,12 @@ removeProvider =
   LS.remove ∘ LSK.providerLocalStorageKey
 
 storeKeyString ∷ ∀ m. (LS.LocalStorageDSL m) ⇒ String → OIDCT.KeyString → m Unit
-storeKeyString keySuffix (OIDCT.KeyString ks) =
-  LS.persist (LSK.keyStringLocalStorageKey keySuffix) ks
+storeKeyString keySuffix =
+  LS.persist (LSK.keyStringLocalStorageKey keySuffix)
 
 storeUnhashedNonce ∷ ∀ m. (LS.LocalStorageDSL m) ⇒ String → OIDCT.UnhashedNonce → m Unit
-storeUnhashedNonce keySuffix (OIDCT.UnhashedNonce n) =
-  LS.persist (LSK.nonceLocalStorageKey keySuffix) n
+storeUnhashedNonce keySuffix =
+  LS.persist (LSK.nonceLocalStorageKey keySuffix)
 
 removeIdToken ∷ ∀ m. (LS.LocalStorageDSL m) ⇒ String → m Unit
 removeIdToken =

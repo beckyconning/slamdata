@@ -52,10 +52,10 @@ dismissedFlipGuideKey = LS.Key "dismissedFlipGuide"
 idTokenLocalStorageKey ∷ String -> LS.Key (Either String OIDCT.IdToken)
 idTokenLocalStorageKey = LS.Key ∘ ("sd-auth-id-token-" ⊕ _)
 
-keyStringLocalStorageKey ∷ String -> LS.Key String
+keyStringLocalStorageKey ∷ String -> LS.Key OIDCT.KeyString
 keyStringLocalStorageKey = LS.Key ∘ ("sd-auth-csrf-" ⊕ _)
 
-nonceLocalStorageKey ∷ String -> LS.Key String
+nonceLocalStorageKey ∷ String -> LS.Key OIDCT.UnhashedNonce
 nonceLocalStorageKey = LS.Key ∘ ("sd-auth-replay-" ⊕ _)
 
 providerLocalStorageKey ∷ String -> LS.Key QAT.Provider
