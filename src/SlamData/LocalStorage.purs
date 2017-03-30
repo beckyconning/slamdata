@@ -16,17 +16,33 @@ limitations under the License.
 
 module SlamData.LocalStorage where
 
-import SlamData.Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Except (runExcept)
+import Control.Monad.Aff (Aff, runAff)
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff.AVar as AVar
+import DOM (DOM)
+import DOM.Event.EventTarget as EventTarget
+import DOM.Event.Types (Event, EventType(..))
+import DOM.HTML as DOMHTML
+import DOM.HTML as HTML
+import DOM.HTML.Types as DOMHTMLTypes
+import DOM.HTML.Window as Window
+import DOM.WebStorage.Storage as Storage
 import Data.Argonaut (Json)
-import Control.Monad.Throw (note)
-import Data.Nullable as Nullable
 import Data.Argonaut as Argonaut
 import Data.Argonaut.Core as ArgonautCore
-import DOM (DOM)
-import DOM.WebStorage.Storage as Storage
-import DOM.HTML.Window as Window
-import DOM.HTML as HTML
-import Control.Monad.Eff (Eff)
+import Data.Foreign (F, toForeign)
+import Data.Foldable (for_)
+import Data.Nullable as Nullable
+import SlamData.Prelude
+import DOM.WebStorage.Event.Types (StorageEvent)
+import Data.Argonaut (decodeJson, jsonParser)
+import DOM.WebStorage.Event.Types as DWSET
+import DOM.WebStorage.Event.StorageEvent as DWSE
+import Data.Nullable as Nullable
+import Control.Monad.Throw (note)
 
 newtype Key a = Key String
 
@@ -35,18 +51,34 @@ derive instance keyNewtype ∷ Newtype (Key a) _
 data LocalStorageF a b
   = Persist (b -> Json) (Key b) b a
   | Retrieve (Json -> Either String b) (Key b) (Either String b -> a)
+  | AwaitChange (Json -> Either String b) (Key b) (b → a)
   | Remove (Key b) a
 
-run :: forall a b eff. LocalStorageF a b -> Eff (dom :: DOM | eff) a
+run :: forall a b eff. LocalStorageF a b -> Aff (dom :: DOM, avar :: AVAR | eff) a
 run = case _ of
   Retrieve decode key k →
     k <<< (decode <=< Argonaut.jsonParser <=< note ("No key " <> unwrap key <> " in LocalStorage"))
       <<< Nullable.toMaybe
-      <$> (Storage.getItem (unwrap key) =<< Window.localStorage =<< HTML.window)
+      <$> (liftEff $ Storage.getItem (unwrap key) =<< Window.localStorage =<< HTML.window)
   Persist encode key json a → do
-    HTML.window >>= Window.localStorage >>= Storage.setItem (unwrap key) (ArgonautCore.stringify $ encode json)
+    liftEff $ HTML.window >>= Window.localStorage >>= Storage.setItem (unwrap key) (ArgonautCore.stringify $ encode json)
     pure a
   Remove key a → do
-    HTML.window >>= Window.localStorage >>= Storage.removeItem (unwrap key)
+    liftEff $ HTML.window >>= Window.localStorage >>= Storage.removeItem (unwrap key)
     pure a
+  AwaitChange decode key k → do
+    newValue ← AVar.makeVar
+    win ← liftEff $ DOMHTMLTypes.windowToEventTarget <$> DOMHTML.window
+    let listener =
+          EventTarget.eventListener \event → do
+            for_ (lmap show (runExcept (DWSET.readStorageEvent $ toForeign event))) \event' →
+                when (Nullable.toMaybe (DWSE.key event') == Just (unwrap key)) do
+                  for_ (decode =<< jsonParser =<< note "null new value" (Nullable.toMaybe (DWSE.newValue event'))) \newValue' → do
+                      void $ runAff (const $ pure unit) (const $ pure unit) $ AVar.putVar newValue $ newValue'
+                      liftEff $ EventTarget.removeEventListener (EventType "storage") listener false win
+    liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
+    k <$> AVar.takeVar newValue
+
+-- newValue $ DWSET.readStorageEvent $ toForeign event
+
 

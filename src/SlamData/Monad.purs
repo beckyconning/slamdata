@@ -135,6 +135,8 @@ instance localStorageDSLSlamM :: LocalStorageDSL (SlamM eff) where
     SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Retrieve Argonaut.decodeJson key id
   remove key =
     SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Remove key unit
+  awaitChange key =
+    SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.AwaitChange Argonaut.decodeJson key id
 
 newtype SlamA eff a = SlamA (FreeAp (SlamM eff) a)
 
@@ -192,7 +194,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
       pure a
 
   goLS ∷ ∀ a b. LS.LocalStorageF a b → Aff SlamDataEffects a
-  goLS = liftEff ∘ LS.run
+  goLS = LS.run
 
   goFork ∷ FF.Fork Slam ~> Aff SlamDataEffects
   goFork = FF.unFork \(FF.ForkF fx k) →

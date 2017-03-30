@@ -212,10 +212,9 @@ authenticate = maybe logOut logIn
 
   logOut ∷ DSL Unit
   logOut = do
-    H.liftEff do
-      AuthStore.removeIdToken keySuffix
-      AuthStore.removeUnhashedNonce keySuffix
-      AuthStore.removeProvider keySuffix
+    AuthStore.removeIdToken keySuffix
+    AuthStore.removeUnhashedNonce keySuffix
+    AuthStore.removeProvider keySuffix
     update
 
   logIn ∷ ProviderR → DSL Unit

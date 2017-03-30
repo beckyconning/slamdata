@@ -21,8 +21,6 @@ import Control.Monad.Aff as Aff
 import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (liftEff)
 import Quasar.Advanced.QuasarAF as QA
 import Quasar.Advanced.Types as QAT
 import SlamData.AuthenticationMode (AuthenticationMode, AllowedAuthenticationModes)
@@ -52,7 +50,7 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
   getWithProviderFromLocalStorage ∷ Aff SlamDataEffects (Either QError Auth.EIdToken)
   getWithProviderFromLocalStorage =
     shiftAffErrorsIntoQError $ traverse (get AuthenticationMode.ChosenProvider)
-      =<< liftEff getProviderFromLocalStorage
+      =<< getProviderFromLocalStorage
 
   getWithSingletonProviderFromQuasar ∷ Aff SlamDataEffects (Either QError Auth.EIdToken)
   getWithSingletonProviderFromQuasar =
@@ -84,7 +82,7 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus = do
       (const $ Left $ unauthorizedError $ Just tooManyProvidersMessage)
 
   -- Get previously chosen provider from local storage
-  getProviderFromLocalStorage ∷ Eff SlamDataEffects (Either QError QAT.ProviderR)
+  getProviderFromLocalStorage ∷ Aff SlamDataEffects (Either QError QAT.ProviderR)
   getProviderFromLocalStorage =
     lmap (unauthorizedError ∘ Just) ∘ map QAT.runProvider
       <$> LS.retrieve

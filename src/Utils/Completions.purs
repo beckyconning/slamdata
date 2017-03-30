@@ -21,6 +21,7 @@ import Prelude
 import Ace.Types (Completion)
 import Ace.Halogen.Component (AceEffects)
 import Control.Monad.Aff (Aff)
+import Control.Monad.Aff.AVar (AVAR)
 import Data.Array as Arr
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Either (Either(..), either)
@@ -56,7 +57,7 @@ mkCompletion meta f val =
 
 
 memoizeCompletionStrs
-  :: forall e. PU.DirPath -> Array R.Resource -> Aff (dom :: DOM | e) Unit
+  :: forall e. PU.DirPath -> Array R.Resource -> Aff (dom :: DOM, avar :: AVAR | e) Unit
 memoizeCompletionStrs dir arr = do
   alreadyMemoized <- retrieve LSK.autoCompletePathsKey <#> either (const []) id
   persist LSK.autoCompletePathsKey

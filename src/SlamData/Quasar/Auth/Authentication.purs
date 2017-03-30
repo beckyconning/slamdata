@@ -157,7 +157,7 @@ getIdTokenSilently
   → Aff (AuthEffects eff) EIdToken
 getIdTokenSilently message = do
   unhashedNonce ← liftEff OIDCAff.getRandomUnhashedNonce
-  liftEff $ AuthStore.storeUnhashedNonce message.keySuffix unhashedNonce
+  AuthStore.storeUnhashedNonce message.keySuffix unhashedNonce
   appendHiddenRequestIFrameToBody unhashedNonce
     >>= case _ of
       Left error → pure $ Left error
@@ -183,7 +183,7 @@ getIdTokenUsingPrompt
   → Aff (AuthEffects eff) EIdToken
 getIdTokenUsingPrompt message = do
   unhashedNonce ← liftEff OIDCAff.getRandomUnhashedNonce
-  liftEff $ AuthStore.storeUnhashedNonce message.keySuffix unhashedNonce
+  AuthStore.storeUnhashedNonce message.keySuffix unhashedNonce
   sequential
     $ parallel (getIdTokenFromLSOnChange message.providerR unhashedNonce)
     <|> parallel (prompt unhashedNonce)
@@ -288,7 +288,7 @@ getIdToken message =
         getIdTokenUsingLocalStorage message
           >>= maybe (getIdTokenSilently message) (pure ∘ Right)
     -- Store provider and idToken for future local storage gets and reauthentications
-    liftEff $ case eIdToken of
+    case eIdToken of
       Left _ →
         AuthStore.removeProvider message.keySuffix
           *> AuthStore.removeIdToken message.keySuffix
