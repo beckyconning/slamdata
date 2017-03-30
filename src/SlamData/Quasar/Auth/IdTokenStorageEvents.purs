@@ -28,3 +28,4 @@ import SlamData.LocalStorage.Keys as LocalStorageKeys
 
 pullIdTokenFromStorageEvent ∷ ∀ eff. Aff (dom ∷ DOM, avar ∷ AVAR | eff) (Either String IdToken)
 pullIdTokenFromStorageEvent = LocalStorage.awaitChange $ LocalStorageKeys.idTokenLocalStorageKey fromRedirectSuffix
+

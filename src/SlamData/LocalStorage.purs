@@ -16,29 +16,23 @@ limitations under the License.
 
 module SlamData.LocalStorage where
 
-import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Except (runExcept)
 import Control.Monad.Aff (Aff, runAff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.AVar as AVar
 import DOM (DOM)
 import DOM.Event.EventTarget as EventTarget
-import DOM.Event.Types (Event, EventType(..))
+import DOM.Event.Types (EventType(..))
 import DOM.HTML as DOMHTML
 import DOM.HTML as HTML
 import DOM.HTML.Types as DOMHTMLTypes
 import DOM.HTML.Window as Window
 import DOM.WebStorage.Storage as Storage
-import Data.Argonaut (Json)
 import Data.Argonaut as Argonaut
 import Data.Argonaut.Core as ArgonautCore
-import Data.Foreign (F, toForeign)
-import Data.Foldable (for_)
-import Data.Nullable as Nullable
+import Data.Foreign (toForeign)
 import SlamData.Prelude
-import DOM.WebStorage.Event.Types (StorageEvent)
-import Data.Argonaut (decodeJson, jsonParser)
+import Data.Argonaut (Json, jsonParser)
 import DOM.WebStorage.Event.Types as DWSET
 import DOM.WebStorage.Event.StorageEvent as DWSE
 import Data.Nullable as Nullable
