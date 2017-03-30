@@ -66,10 +66,10 @@ run = case _ of
     let listener =
           EventTarget.eventListener \event → do
             for_ (lmap show (runExcept (DWSET.readStorageEvent $ toForeign event))) \event' →
-                when (Nullable.toMaybe (DWSE.key event') == Just (unwrap key)) do
-                  for_ (decode =<< jsonParser =<< note "null new value" (Nullable.toMaybe (DWSE.newValue event'))) \newValue' → do
-                      void $ runAff (const $ pure unit) (const $ pure unit) $ AVar.putVar newValue $ newValue'
-                      liftEff $ EventTarget.removeEventListener (EventType "storage") listener false win
+                when (Nullable.toMaybe (DWSE.key event') == Just (unwrap key))
+                  $ for_ (decode =<< jsonParser =<< note "null new value" (Nullable.toMaybe (DWSE.newValue event'))) \newValue' → do
+                    void $ runAff (const $ pure unit) (const $ pure unit) $ AVar.putVar newValue $ newValue'
+                    liftEff $ EventTarget.removeEventListener (EventType "storage") listener false win
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
     k <$> AVar.takeVar newValue
 
