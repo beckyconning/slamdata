@@ -73,6 +73,3 @@ run = case _ of
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
     k <$> AVar.takeVar newValue
 
--- newValue $ DWSET.readStorageEvent $ toForeign event
-
-
