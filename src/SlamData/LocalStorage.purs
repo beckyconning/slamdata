@@ -17,7 +17,7 @@ limitations under the License.
 module SlamData.LocalStorage where
 
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Aff (Aff, runAff)
+import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.AVar as AVar
 import DOM (DOM)
@@ -30,13 +30,12 @@ import DOM.HTML.Window as Window
 import DOM.WebStorage.Storage as Storage
 import Data.Argonaut as Argonaut
 import Data.Argonaut.Core as ArgonautCore
-import Data.Foreign (toForeign)
 import SlamData.Prelude
-import Data.Argonaut (Json, jsonParser)
-import DOM.WebStorage.Event.Types as DWSET
-import DOM.WebStorage.Event.StorageEvent as DWSE
+import Data.Argonaut (Json)
 import Data.Nullable as Nullable
 import Control.Monad.Throw (note)
+import Utils.AVar as AVarUtils
+import Utils.StorageEvent as StorageEventUtils
 
 newtype Key a = Key String
 
@@ -55,21 +54,27 @@ run = case _ of
       <<< Nullable.toMaybe
       <$> (liftEff $ Storage.getItem (unwrap key) =<< Window.localStorage =<< HTML.window)
   Persist encode key json a → do
-    liftEff $ HTML.window >>= Window.localStorage >>= Storage.setItem (unwrap key) (ArgonautCore.stringify $ encode json)
+    liftEff
+      $ HTML.window
+      >>= Window.localStorage
+      >>= Storage.setItem (unwrap key) (ArgonautCore.stringify $ encode json)
     pure a
   Remove key a → do
-    liftEff $ HTML.window >>= Window.localStorage >>= Storage.removeItem (unwrap key)
+    liftEff
+      $ HTML.window
+      >>= Window.localStorage
+      >>= Storage.removeItem (unwrap key)
     pure a
   AwaitChange decode key k → do
-    newValue ← AVar.makeVar
+    newValueAVar ← AVar.makeVar
     win ← liftEff $ DOMHTMLTypes.windowToEventTarget <$> DOMHTML.window
     let listener =
-          EventTarget.eventListener \event → do
-            for_ (lmap show (runExcept (DWSET.readStorageEvent $ toForeign event))) \event' →
-                when (Nullable.toMaybe (DWSE.key event') == Just (unwrap key))
-                  $ for_ (decode =<< jsonParser =<< note "null new value" (Nullable.toMaybe (DWSE.newValue event'))) \newValue' → do
-                    void $ runAff (const $ pure unit) (const $ pure unit) $ AVar.putVar newValue $ newValue'
-                    liftEff $ EventTarget.removeEventListener (EventType "storage") listener false win
+          EventTarget.eventListener \event →
+            for_ (StorageEventUtils.read event) \event' →
+              when (StorageEventUtils.keyEq (unwrap key) event')
+                $ for_ (StorageEventUtils.decodeNewValue' decode event') \newValue →
+                  AVarUtils.putVar newValueAVar newValue
+                    *> EventTarget.removeEventListener (EventType "storage") listener false win
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
-    k <$> AVar.takeVar newValue
+    k <$> AVar.takeVar newValueAVar
 
