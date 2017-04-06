@@ -347,7 +347,6 @@ firefoxify n =
      then decimalCrop 1 n
      else n
 
-
 lineHeightPx ∷ Number
 lineHeightPx =
   13.0
@@ -360,7 +359,7 @@ iconSizeRatio =
 -- This can cause text to overflow.
 buttonPaddingHighEstimate ∷ Number
 buttonPaddingHighEstimate =
-  0.2
+  0.3
 
 decimalCrop ∷ Int → Number → Number
 decimalCrop i n =
@@ -423,7 +422,7 @@ defaultConf boundingDimensions as =
       fromMaybe zero $ F.maximum $ map (A.length ∘ _.lines) buttonConfs
 
     maxTextHeightPx =
-      Int.toNumber maxNumberOfLines * fontSizePx
+      Int.toNumber maxNumberOfLines * lineHeightPx
 
     buttonPaddingEstimatePx ∷ Number
     buttonPaddingEstimatePx =
@@ -439,7 +438,7 @@ defaultConf boundingDimensions as =
 
     textDoesNotFitOnItsOwn ∷ Boolean
     textDoesNotFitOnItsOwn =
-      maxTextHeightPx > dimensions.height
+      maxTextHeightPx + buttonPaddingEstimatePx > dimensions.height
       ∨ dimensions.width < 40.0
 
 
