@@ -173,7 +173,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
           pure unit
       runQuasarF (maybe Nothing hush idToken) qf
     LocalStorage lse →
-      Exists.runExists goLS lse
+      Exists.runExists LS.run lse
     Notify no a → do
       Bus.write no bus.notify
       pure a
@@ -192,9 +192,6 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         hash  = Routing.mkWorkspaceHash path' action varMaps
       liftEff $ locationObject >>= setHash hash
       pure a
-
-  goLS ∷ ∀ a b. LS.LocalStorageF a b → Aff SlamDataEffects a
-  goLS = LS.run
 
   goFork ∷ FF.Fork Slam ~> Aff SlamDataEffects
   goFork = FF.unFork \(FF.ForkF fx k) →
