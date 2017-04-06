@@ -22,9 +22,7 @@ module SlamData.LocalStorage.Class
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.AVar (AVAR)
 import DOM (DOM)
---import DOM.WebStorage.Event.Types (StorageEvent)
 import Data.Argonaut (class DecodeJson, class EncodeJson, encodeJson, decodeJson)
---import Data.Foreign (F)
 import Halogen (HalogenM)
 import SlamData.LocalStorage (Key(..), LocalStorageF(..), run)
 import SlamData.Prelude
@@ -35,8 +33,6 @@ class LocalStorageDSL m where
   persist ∷ forall a. EncodeJson a ⇒ Key a → a → m Unit
   remove ∷ forall a. EncodeJson a ⇒ Key a → m Unit
   awaitChange ∷ forall a. DecodeJson a ⇒ Key a → m a
-
---  | OnEvent (F StorageEvent -> Eff (dom ∷ DOM | eff) Unit) (Eff (dom ∷ DOM | eff) Unit → a)
 
 instance localStorageDSLMaybeT ∷ (Monad m, LocalStorageDSL m) ⇒ LocalStorageDSL (MaybeT m) where
   retrieve = lift ∘ retrieve
