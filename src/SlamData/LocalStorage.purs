@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.LocalStorage (Key(..), LocalStorageF, run) where
+module SlamData.LocalStorage (Key(..), LocalStorageF(..), run) where
 
 import SlamData.Prelude
 
