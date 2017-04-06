@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module SlamData.LocalStorage where
+module SlamData.LocalStorage (Key(..), LocalStorageF, run) where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff (Aff)
-import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff (Aff, runAff)
+import Control.Monad.Aff.AVar (AVar, AVAR)
 import Control.Monad.Aff.AVar as AVar
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Throw (note)
 import DOM (DOM)
@@ -80,6 +81,12 @@ run = case _ of
                     *> EventTarget.removeEventListener (EventType "storage") listener false win
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
     k <$> AVar.takeVar newValueAVar
+
+-- Ok to runAff here without an error handler as putVar is non blocking and we
+-- never cancel this AVar. Void is applied as the canceller is unusable.
+putVar ∷ forall a eff. AVar a → a → Eff (avar ∷ AVAR | eff) Unit
+putVar avar =
+  void ∘ runAff (const $ pure unit) (const $ pure unit) ∘ AVar.putVar avar
 
 -- Needs a foldable instance so can't be forall m. MonadError MultipleErrors m => m StorageEvent
 fromEvent ∷ Event → Either MultipleErrors StorageEvent
