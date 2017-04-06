@@ -38,7 +38,6 @@ import Data.Argonaut as Argonaut
 import Data.Argonaut.Core as ArgonautCore
 import Data.Foreign (MultipleErrors)
 import Data.Nullable as Nullable
-import Utils.AVar as AVarUtils
 import Utils.StorageEvent as StorageEventUtils
 
 newtype Key a = Key String
@@ -77,7 +76,7 @@ run = case _ of
             for_ (fromEvent event) \event' →
               when (StorageEventUtils.keyEq (unwrap key) event')
                 $ for_ (StorageEventUtils.decodeNewValue' decode event') \newValue →
-                  AVarUtils.putVar newValueAVar newValue
+                  putVar newValueAVar newValue
                     *> EventTarget.removeEventListener (EventType "storage") listener false win
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
     k <$> AVar.takeVar newValueAVar
