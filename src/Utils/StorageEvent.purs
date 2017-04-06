@@ -1,3 +1,4 @@
+
 {-
 Copyright 2017 SlamData, Inc.
 
@@ -16,28 +17,35 @@ limitations under the License.
 
 module Utils.StorageEvent where
 
-import DOM.Event.Types (Event)
-import Data.Foreign (toForeign)
-import SlamData.Prelude
-import DOM.WebStorage.Event.Types as DWSET
-import DOM.WebStorage.Event.StorageEvent as DWSE
-import Data.Nullable as Nullable
-import Control.Monad.Throw (note)
-import Data.Argonaut (class DecodeJson, Json, decodeJson, jsonParser)
+import Prelude
 
-read ∷ Event → Either String DWSET.StorageEvent
-read =
-  lmap show ∘ runExcept ∘ DWSET.readStorageEvent ∘ toForeign
+import Control.Monad.Error.Class (class MonadError)
+import DOM.Event.Types (Event)
+import DOM.WebStorage.Event.StorageEvent as DWSE
+import DOM.WebStorage.Event.Types as DWSET
+import Data.Argonaut (class DecodeJson, Json, decodeJson, jsonParser)
+import Data.Foreign (MultipleErrors, toForeign)
+import Data.Nullable as Nullable
+import Utils.Error as Error
+import Data.Maybe(Maybe(Just))
+
+fromEvent ∷ forall m. (MonadError MultipleErrors m) ⇒ Event → m DWSET.StorageEvent
+fromEvent =
+  Error.fromExcept <<< DWSET.readStorageEvent <<< toForeign
 
 keyEq ∷ String → DWSET.StorageEvent → Boolean
 keyEq key event =
   Nullable.toMaybe (DWSE.key event) == Just key
 
-decodeNewValue' ∷ forall a. (Json -> Either String a) → DWSET.StorageEvent → Either String a
-decodeNewValue' decode event =
-  decode =<< jsonParser =<< note "null new value" (Nullable.toMaybe (DWSE.newValue event))
+newValue ∷ forall m. (MonadError String m) ⇒ DWSET.StorageEvent → m String
+newValue =
+  Error.fromMaybe "StorageEvent newValue is null." <<< Nullable.toMaybe <<< DWSE.newValue
 
-decodeNewValue ∷ forall a. DecodeJson a ⇒ DWSET.StorageEvent → Either String a
+decodeNewValue' ∷ forall a m. (MonadError String m) ⇒ (Json -> m a) → DWSET.StorageEvent → m a
+decodeNewValue' decode =
+  decode <=< Error.fromEither <<< jsonParser <=< newValue
+
+decodeNewValue ∷ forall a m. (MonadError String m) ⇒ DecodeJson a ⇒ DWSET.StorageEvent → m a
 decodeNewValue =
-  decodeNewValue' decodeJson
+  Error.fromEither <<< decodeNewValue' decodeJson
 

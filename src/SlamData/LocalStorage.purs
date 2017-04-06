@@ -16,24 +16,27 @@ limitations under the License.
 
 module SlamData.LocalStorage where
 
-import Control.Monad.Eff.Class (liftEff)
+import SlamData.Prelude
+
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.AVar as AVar
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Throw (note)
 import DOM (DOM)
 import DOM.Event.EventTarget as EventTarget
-import DOM.Event.Types (EventType(..))
+import DOM.Event.Types (Event, EventType(..))
 import DOM.HTML as DOMHTML
 import DOM.HTML as HTML
 import DOM.HTML.Types as DOMHTMLTypes
 import DOM.HTML.Window as Window
 import DOM.WebStorage.Storage as Storage
+import DOM.WebStorage.Event.StorageEvent (StorageEvent)
+import Data.Argonaut (Json)
 import Data.Argonaut as Argonaut
 import Data.Argonaut.Core as ArgonautCore
-import SlamData.Prelude
-import Data.Argonaut (Json)
+import Data.Foreign (MultipleErrors)
 import Data.Nullable as Nullable
-import Control.Monad.Throw (note)
 import Utils.AVar as AVarUtils
 import Utils.StorageEvent as StorageEventUtils
 
@@ -70,11 +73,15 @@ run = case _ of
     win ← liftEff $ DOMHTMLTypes.windowToEventTarget <$> DOMHTML.window
     let listener =
           EventTarget.eventListener \event →
-            for_ (StorageEventUtils.read event) \event' →
+            for_ (fromEvent event) \event' →
               when (StorageEventUtils.keyEq (unwrap key) event')
                 $ for_ (StorageEventUtils.decodeNewValue' decode event') \newValue →
                   AVarUtils.putVar newValueAVar newValue
                     *> EventTarget.removeEventListener (EventType "storage") listener false win
     liftEff $ EventTarget.addEventListener (EventType "storage") listener false win
     k <$> AVar.takeVar newValueAVar
+
+-- Needs a foldable instance so can't be forall m. MonadError MultipleErrors m => m StorageEvent
+fromEvent ∷ Event → Either MultipleErrors StorageEvent
+fromEvent = StorageEventUtils.fromEvent
 
