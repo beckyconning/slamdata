@@ -1,6 +1,4 @@
 {-
-Copyright 2016 SlamData, Inc.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -144,7 +142,7 @@ render state@{ version, sort, salt, path } =
 renderIntroVideoBackdrop ∷ HTML
 renderIntroVideoBackdrop =
   HH.div
-    [ HP.class_ (HH.ClassName "deck-dialog-backdrop")
+    [ HP.class_ (HH.ClassName "fs-backdrop")
     , HE.onMouseDown $ HE.input_ DismissIntroVideo
     ]
     []
@@ -152,7 +150,7 @@ renderIntroVideoBackdrop =
 renderIntroVideo ∷ HTML
 renderIntroVideo =
   HH.div
-    [ HP.class_ $ HC.ClassName "deck-dialog" ]
+    [ HP.class_ $ HC.ClassName "fs-dialog" ]
     [ HH.div
         [ HCSS.style do
              CSS.paddingLeft CSS.nil

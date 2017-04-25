@@ -34,7 +34,7 @@ import Halogen.Themes.Bootstrap3 as B
 
 import DOM.HTML.Types (readHTMLElement)
 import DOM.Classy.Element (toElement)
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (fixedModalDialog, modalHeader, modalBody, modalFooter)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.Monad (Slam)
 import SlamData.Render.Icon as I
@@ -66,7 +66,7 @@ component =
 
 render ∷ String → H.ComponentHTML Query
 render url =
-  modalDialog
+  fixedModalDialog
     [ modalHeader "Link to deck"
     , modalBody
         $ HH.form

@@ -18,17 +18,27 @@ module SlamData.Dialog.Render where
 
 import SlamData.Prelude
 
+import CSS as CSS
+
 import Halogen.HTML as H
+import Halogen.HTML.Properties as HP
+import Halogen.HTML.CSS as HCSS
 
 import SlamData.Render.Common (classedDiv)
 
 modalDialog :: forall f p. Array (H.HTML p (f Unit)) -> H.HTML p (f Unit)
 modalDialog children =
-  -- I think we don't need stopPropagation and preventDefault anymore
-  (classedDiv $ H.ClassName "deck-dialog")
-  [ H.div_
-    children
-  ]
+  H.div
+    [ HP.class_ $ H.ClassName "deck-dialog" ]
+    [ H.div_ children ]
+
+fixedModalDialog :: forall f p. Array (H.HTML p (f Unit)) -> H.HTML p (f Unit)
+fixedModalDialog children =
+  H.div
+    [ HP.class_ $ H.ClassName "deck-dialog"
+    , HCSS.style $ CSS.position CSS.fixed
+    ]
+    [ H.div_ children ]
 
 modalHeader :: forall f p. String -> H.HTML p (f Unit)
 modalHeader message =

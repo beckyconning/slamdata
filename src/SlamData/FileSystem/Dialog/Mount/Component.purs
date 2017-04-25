@@ -31,7 +31,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap3 as B
 
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (fixedModalDialog, modalHeader, modalBody, modalFooter)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.FileSystem.Dialog.Mount.Common.SettingsQuery as SQ
 import SlamData.FileSystem.Dialog.Mount.Component.ChildSlot as CS
@@ -65,7 +65,7 @@ component =
 
 render ∷ MCS.State → HTML
 render state@{ new } =
-  modalDialog
+  fixedModalDialog
     [ modalHeader "Mount"
     , modalBody $
         HH.form

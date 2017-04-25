@@ -32,7 +32,7 @@ import Global as Global
 
 import Quasar.Paths as Config
 
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (fixedModalDialog, modalHeader, modalBody, modalFooter)
 import SlamData.Download.Model as D
 import SlamData.Download.Render as Rd
 import SlamData.FileSystem.Dialog.Download.Component.Query (Query(..))
@@ -44,7 +44,7 @@ import SlamData.Render.CSS as Rc
 
 render ∷ State → H.ComponentHTML Query
 render state =
-  modalDialog
+  fixedModalDialog
   [ modalHeader "Download"
   , modalBody
       $ HH.form

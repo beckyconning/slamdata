@@ -28,7 +28,7 @@ import Halogen.HTML.Properties.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Config as Config
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (fixedModalDialog, modalHeader, modalBody, modalFooter)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.Monad (Slam)
 import SlamData.Render.Common (formGroup)
@@ -62,7 +62,7 @@ component =
 
 render ∷ State → H.ComponentHTML Query
 render state =
-  modalDialog
+  fixedModalDialog
     [ modalHeader "Explore file"
     , modalBody
       $ HH.form_

@@ -24,7 +24,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap3 as B
 
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (modalHeader, modalBody, modalFooter)
 import SlamData.Monad (Slam)
 
 data Query a
@@ -33,10 +33,12 @@ data Query a
 
 data Message = Dismiss
 
-component ∷ H.Component HH.HTML Query String Message Slam
-component =
+component
+  ∷ (Array (H.ComponentHTML Query) → (H.ComponentHTML Query))
+  → H.Component HH.HTML Query String Message Slam
+component renderDialog =
   H.component
-    { render
+    { render: render renderDialog
     , eval
     , initialState: id
     , receiver: HE.input SetMessage
@@ -66,9 +68,12 @@ nonModalRender message =
         ]
     ]
 
-render ∷ String → H.ComponentHTML Query
-render message =
-  modalDialog
+render
+  ∷ (Array (H.ComponentHTML Query) → (H.ComponentHTML Query))
+  → String
+  → H.ComponentHTML Query
+render renderDialog message =
+  renderDialog
     [ modalHeader "Error"
     , modalBody
         $ HH.div

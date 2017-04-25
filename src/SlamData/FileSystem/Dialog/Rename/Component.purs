@@ -35,7 +35,7 @@ import Halogen.HTML.Properties.ARIA as ARIA
 import Halogen.Themes.Bootstrap3 as B
 
 import SlamData.Config as Config
-import SlamData.Dialog.Render (modalDialog, modalHeader, modalBody, modalFooter)
+import SlamData.Dialog.Render (fixedModalDialog, modalHeader, modalBody, modalFooter)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.FileSystem.Listing.Item.Component.CSS as ItemCSS
 import SlamData.FileSystem.Resource as R
@@ -159,7 +159,7 @@ component =
 
 render ∷ State → HTML
 render dialog =
-  modalDialog
+  fixedModalDialog
   [ modalHeader "Move/rename"
   , modalBody
     $ HH.form

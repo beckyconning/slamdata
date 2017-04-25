@@ -18,11 +18,14 @@ module SlamData.FileSystem.Dialog.Component where
 
 import SlamData.Prelude
 
+import CSS as CSS
+
 import Data.Array (singleton)
 
 import Halogen as H
 import Halogen.Component.ChildPath as CP
 import Halogen.HTML as HH
+import Halogen.HTML.CSS as HCSS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Properties.ARIA as ARIA
@@ -30,6 +33,7 @@ import Halogen.HTML.Properties.ARIA as ARIA
 import Network.HTTP.RequestHeader (RequestHeader)
 
 import SlamData.Dialog.Error.Component as Error
+import SlamData.Dialog.Render (fixedModalDialog)
 import SlamData.FileSystem.Dialog.Download.Component as Download
 import SlamData.FileSystem.Dialog.Explore.Component as Explore
 import SlamData.FileSystem.Dialog.Mount.Component (MountSettings)
@@ -39,7 +43,7 @@ import SlamData.FileSystem.Dialog.Share.Component as Share
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.FileSystem.Resource (Resource, Mount)
 import SlamData.Monad (Slam)
-import SlamData.Workspace.Deck.Component.CSS as CSS
+import SlamData.Workspace.Deck.Component.CSS as ClassNames
 
 import Utils.Path (DirPath, FilePath)
 
@@ -85,13 +89,16 @@ render ∷ State → H.ParentHTML Query ChildQuery ChildSlot Slam
 render state =
   HH.div_
     [ HH.div
-        [ HP.classes $ [ HH.ClassName "deck-dialog-backdrop" ] ⊕ (guard (isNothing state) $> CSS.invisible)
+        [ HP.classes
+            $ [ HH.ClassName "deck-dialog-backdrop" ]
+            ⊕ (guard (isNothing state) $> ClassNames.invisible)
+        , HCSS.style $ CSS.position CSS.fixed
         , HE.onMouseDown (HE.input_ RaiseDismiss)
         , ARIA.hidden $ show $ isNothing state
         ]
         []
     , HH.div
-        [ HP.classes $ [] ⊕ (guard (isNothing state) $> CSS.invisible)
+        [ HP.classes $ [] ⊕ (guard (isNothing state) $> ClassNames.invisible)
         , ARIA.hidden $ show $ isNothing state
         ]
         $ maybe [] (singleton <<< dialog) state
@@ -99,7 +106,7 @@ render state =
   where
   dialog = case _ of
     Error str →
-      HH.slot' CP.cp1 unit Error.component str (HE.input_ RaiseDismiss)
+      HH.slot' CP.cp1 unit (Error.component fixedModalDialog) str (HE.input_ RaiseDismiss)
     Share str →
       HH.slot' CP.cp2 unit Share.component str (HE.input HandleChild)
     Rename res →
