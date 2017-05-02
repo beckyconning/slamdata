@@ -31,7 +31,7 @@ import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Fork (Canceler(..), fork, cancel)
 import Control.UI.Browser (setTitle, replaceLocation)
 
-import Data.Array (null, filter, mapMaybe, take, drop)
+import Data.Array (filter, mapMaybe, take, drop)
 import Data.Lens (Lens', lens, (%~), (<>~))
 import Data.Map as M
 import Data.Path.Pathy ((</>), rootDir, parseAbsDir, sandbox, currentDir)
@@ -62,7 +62,6 @@ import SlamData.GlobalError as GE
 import SlamData.Monad (Slam, runSlam)
 import SlamData.Quasar.Auth.Permission as Permission
 import SlamData.Quasar.FS (children) as Quasar
-import SlamData.Quasar.Mount (mountInfo) as Quasar
 import SlamData.Wiring as Wiring
 import SlamData.Workspace.AccessType (AccessType(..))
 
@@ -192,26 +191,10 @@ redirects driver var mbOld = case _ of
       listingProcessHandler driver =<< runProcess process
 
       when (isNothing queryParts.query)
-        $ checkMount queryParts.path driver
-      checkUnconfigured driver
+        $ liftAff $ driver.query $ H.action $ SetIsMount queryParts.path
+      liftAff $ driver.query $ H.action $ SetIsUnconfigured
       else
         liftAff $ driver.query $ H.action $ SetLoading false
-
-checkMount
-  ∷ DirPath
-  → FileSystemIO
-  → Slam Unit
-checkMount path driver =
-  liftAff ∘ driver.query ∘ H.action ∘ SetIsMount ∘ isRight
-    =<< Quasar.mountInfo (Left path)
-
-checkUnconfigured
-  ∷ FileSystemIO
-  → Slam Unit
-checkUnconfigured driver = do
-  isMount ← isRight <$> Quasar.mountInfo (Left rootDir)
-  isEmpty ← either (const false) null <$> Quasar.children rootDir
-  liftAff $ driver.query $ H.action $ SetIsUnconfigured $ not isMount ∧ isEmpty
 
 listingProducer
   ∷ AVar ListingState
