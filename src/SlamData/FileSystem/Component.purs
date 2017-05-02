@@ -79,6 +79,7 @@ import SlamData.FileSystem.Dialog.Mount.SparkLocal.Component.State as SparkLocal
 import SlamData.FileSystem.Listing.Component as Listing
 import SlamData.FileSystem.Listing.Item (Item(..), itemResource, sortItem)
 import SlamData.FileSystem.Listing.Item.Component as Item
+import SlamData.FileSystem.Resource (Resource)
 import SlamData.FileSystem.Resource as R
 import SlamData.FileSystem.Routing (browseURL)
 import SlamData.FileSystem.Routing.Salt (newSalt)
@@ -246,8 +247,8 @@ eval = case _ of
     configure $ R.Database path
     pure next
   MakeMount next → do
-    path ← H.gets _.path
-    showDialog $ Dialog.Mount path "" Nothing
+    parent ← H.gets _.path
+    showDialog $ Dialog.Mount $ Mount.New { parent }
     pure next
   MakeFolder next → do
     result ← runExceptT do
@@ -351,6 +352,12 @@ eval = case _ of
         _ ← H.query' CS.cpListing unit $ H.action $ Listing.Add $ Item (R.Mount m)
         dismissMountHint
         resort
+      H.liftEff Browser.reload
+    pure next
+  HandleDialog DialogMessage.MountDelete next → do
+    mount ← H.query' CS.cpDialog unit $ H.request Dialog.SaveMount
+    for_ (join mount) (remove ∘ R.Mount)
+    H.liftEff Browser.reload
     pure next
   HandleDialog (DialogMessage.ExploreFile fp initialName) next → do
     { path } ← H.get
@@ -427,35 +434,8 @@ handleItemMessage = case _ of
     showDialog $ Dialog.Rename res
     flip getDirectories rootDir \x →
       void $ H.query' CS.cpDialog unit $ H.action $ Dialog.AddDirsToRename x
-  Item.Remove res → do
-    -- Replace actual item with phantom
-    _ ← H.query' CS.cpListing unit $ H.action $ Listing.Filter $ not ∘ eq res ∘ itemResource
-    _ ← H.query' CS.cpListing unit $ H.action $ Listing.Add $ PhantomItem res
-    -- Save order of items during deletion (or phantom will be on top of list)
-    resort
-    -- Try to delete
-    mbTrashFolder ← H.lift $ API.delete res
-    -- Remove phantom resource after we have response from server
-    _ ← H.query' CS.cpListing unit $ H.action $ Listing.Filter $ not ∘ eq res ∘ itemResource
-    case mbTrashFolder of
-      Left err → do
-        -- Error occured: put item back and show dialog
-        void $ H.query' CS.cpListing unit $ H.action $ Listing.Add (Item res)
-        case GE.fromQError err of
-          Left m →
-            showDialog $ Dialog.Error m
-          Right ge →
-            GE.raiseGlobalError ge
-      Right mbRes →
-        -- Item has been deleted: probably add trash folder
-        for_ mbRes \res' →
-          void $ H.query' CS.cpListing unit $ H.action $ Listing.Add (Item res')
-
-    listing ← fromMaybe [] <$> (H.query' CS.cpListing unit $ H.request Listing.Get)
-    path ← H.gets _.path
-    presentMountHint listing path
-
-    resort
+  Item.Remove res →
+    remove res
   Item.Share res → do
     path ← H.gets _.path
     loc ← map (_ ⊕ "/") $ H.liftEff locationString
@@ -477,6 +457,36 @@ handleItemMessage = case _ of
   Item.Download res →
     download res
 
+remove ∷ Resource → DSL Unit
+remove res = do
+  -- Replace actual item with phantom
+  _ ← H.query' CS.cpListing unit $ H.action $ Listing.Filter $ not ∘ eq res ∘ itemResource
+  _ ← H.query' CS.cpListing unit $ H.action $ Listing.Add $ PhantomItem res
+  -- Save order of items during deletion (or phantom will be on top of list)
+  resort
+  -- Try to delete
+  mbTrashFolder ← H.lift $ API.delete res
+  -- Remove phantom resource after we have response from server
+  _ ← H.query' CS.cpListing unit $ H.action $ Listing.Filter $ not ∘ eq res ∘ itemResource
+  case mbTrashFolder of
+    Left err → do
+      -- Error occured: put item back and show dialog
+      void $ H.query' CS.cpListing unit $ H.action $ Listing.Add (Item res)
+      case GE.fromQError err of
+        Left m →
+          showDialog $ Dialog.Error m
+        Right ge →
+          GE.raiseGlobalError ge
+    Right mbRes →
+      -- Item has been deleted: probably add trash folder
+      for_ mbRes \res' →
+        void $ H.query' CS.cpListing unit $ H.action $ Listing.Add (Item res')
+
+  listing ← fromMaybe [] <$> (H.query' CS.cpListing unit $ H.request Listing.Get)
+  path ← H.gets _.path
+  presentMountHint listing path
+
+  resort
 
 dismissMountHint ∷ DSL Unit
 dismissMountHint = do
@@ -577,15 +587,21 @@ configure m =
     R.Database path, Left err
       | path /= rootDir → raiseError err
       | otherwise →
-          -- We need to allow a non-existant root mount to be configured to
-          -- allow for the case where Quasar has not yet had any mounts set
-          -- up.
-          showDialog $ Dialog.Mount rootDir "" Nothing
-    _, Right config →
+          showDialog $ Dialog.Mount Mount.Root
+    R.View path, Right config →
       showDialog $ Dialog.Mount
-        (fromMaybe rootDir (either parentDir parentDir anyPath))
-        (getNameStr anyPath)
-        (Just (fromConfig config))
+        $ Mount.Edit
+          { parent: either parentDir parentDir anyPath
+          , name: Just $ getNameStr anyPath
+          , settings: fromConfig config
+          }
+    R.Database path, Right config →
+      showDialog $ Dialog.Mount
+        $ Mount.Edit
+          { parent: if path ≡ rootDir then Nothing else either parentDir parentDir anyPath
+          , name: if path ≡ rootDir then Nothing else Just $ getNameStr anyPath
+          , settings: fromConfig config
+          }
   where
     anyPath =
       R.mountPath m

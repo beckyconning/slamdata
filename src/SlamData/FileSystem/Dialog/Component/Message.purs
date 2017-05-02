@@ -16,9 +16,11 @@ limitations under the License.
 
 module SlamData.FileSystem.Dialog.Component.Message where
 
+import Data.Maybe (Maybe)
 import Utils.Path as UP
 
 data Message
   = Dismiss
   | MountSave
   | ExploreFile UP.FilePath String
+  | MountDelete
