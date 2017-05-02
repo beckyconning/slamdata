@@ -23,6 +23,7 @@ module SlamData.FileSystem.Component
 
 import SlamData.Prelude
 
+import Control.Monad.Rec.Class (tailRecM, Step(Done, Loop))
 import Control.UI.Browser (setLocation, locationString, clearValue)
 import Control.UI.Browser as Browser
 import Control.UI.Browser.Event as Be
@@ -278,7 +279,7 @@ eval = case _ of
     pure next
   MakeWorkspace next → do
     state ← H.get
-    if state.isMount ∨ (rootDir ≠ state.path)
+    isMounted >>= if _
       then do
         let
           newWorkspaceName = Config.newWorkspaceName ⊕ "." ⊕ Config.workspaceExtension
@@ -476,6 +477,19 @@ setIsMount ∷ DirPath → DSL Unit
 setIsMount path = do
   isMount ← isRight <$> API.mountInfo (Left path)
   H.modify $ State._isMount .~ isMount
+
+isMounted ∷ DSL Boolean
+isMounted = do
+  path ← H.gets _.path
+  tailRecM go path
+  where
+  go ∷ DirPath → DSL (Step DirPath Boolean)
+  go path = do
+    isMount ← isRight <$> API.mountInfo (Left path)
+    pure
+      $ if isMount
+          then Done true
+          else maybe (Done false) Loop (parentDir path)
 
 setIsUnconfigured ∷ DSL Unit
 setIsUnconfigured = do
