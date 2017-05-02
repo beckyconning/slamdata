@@ -48,6 +48,7 @@ data Query a
   | SetSort Sort a
   | SetSalt Salt a
   | SetIsMount Boolean a
+  | SetIsUnconfigured Boolean a
   | Configure a
   | ShowHiddenFiles a
   | HideHiddenFiles a
