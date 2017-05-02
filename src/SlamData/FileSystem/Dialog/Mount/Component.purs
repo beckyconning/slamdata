@@ -79,9 +79,9 @@ render state@{ name, new, parent } =
           <> maybe [] (pure ∘ settings) state.settings
           <> maybe [] (pure ∘ errorMessage) state.message
     , modalFooter
-        $ [ btnMount state ]
+        $ [ progressSpinner state ]
         <> (guard (not new ∧ isNothing parent) $> btnDelete)
-        <> [ btnCancel, progressSpinner state ]
+        <> [ btnMount state, btnCancel ]
     ]
   where
   settings ∷ MCS.MountSettings → HTML
@@ -150,7 +150,7 @@ btnCancel =
 btnDelete ∷ HTML
 btnDelete =
   HH.button
-    [ HP.classes [B.btn]
+    [ HP.classes [B.btn, HH.ClassName "btn-careful" ]
     , HE.onClick (HE.input_ RaiseMountDelete)
     ]
     [ HH.text "Unmount" ]
