@@ -191,8 +191,8 @@ redirects driver var mbOld = case _ of
       listingProcessHandler driver =<< runProcess process
 
       when (isNothing queryParts.query)
-        $ liftAff $ driver.query $ H.action $ SetIsMount queryParts.path
-      liftAff $ driver.query $ H.action $ SetIsUnconfigured
+        $ liftAff $ driver.query $ H.action $ CheckIsMount queryParts.path
+      liftAff $ driver.query $ H.action $ CheckIsUnconfigured
       else
         liftAff $ driver.query $ H.action $ SetLoading false
 

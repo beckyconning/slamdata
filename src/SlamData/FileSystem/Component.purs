@@ -227,11 +227,11 @@ eval = case _ of
   SetSalt salt next → do
     H.modify $ State._salt .~ salt
     pure next
-  SetIsMount path next → do
-    setIsMount path
+  CheckIsMount path next → do
+    checkIsMount path
     pure next
-  SetIsUnconfigured next → do
-    setIsUnconfigured
+  CheckIsUnconfigured next → do
+    checkIsUnconfigured
     pure next
   SetVersion version next → do
     H.modify $ State._version .~ Just version
@@ -367,8 +367,8 @@ eval = case _ of
           _ ← H.query' CS.cpListing unit $ H.action $ Listing.Add $ Item (R.Mount m)
           dismissMountHint
           resort
-          setIsMount =<< H.gets _.path
-          setIsUnconfigured
+          checkIsMount =<< H.gets _.path
+          checkIsUnconfigured
     pure next
   HandleDialog DialogMessage.MountDelete next → do
     mount ← H.query' CS.cpDialog unit $ H.request Dialog.SaveMount
@@ -473,8 +473,8 @@ handleItemMessage = case _ of
   Item.Download res →
     download res
 
-setIsMount ∷ DirPath → DSL Unit
-setIsMount path = do
+checkIsMount ∷ DirPath → DSL Unit
+checkIsMount path = do
   isMount ← isRight <$> API.mountInfo (Left path)
   H.modify $ State._isMount .~ isMount
 
@@ -491,8 +491,8 @@ isMounted = do
           then Done true
           else maybe (Done false) Loop (parentDir path)
 
-setIsUnconfigured ∷ DSL Unit
-setIsUnconfigured = do
+checkIsUnconfigured ∷ DSL Unit
+checkIsUnconfigured = do
   isMount ← isRight <$> API.mountInfo (Left rootDir)
   isEmpty ← either (const false) Array.null <$> API.children rootDir
   H.modify $ State._isUnconfigured .~ (not isMount ∧ isEmpty)
@@ -527,8 +527,8 @@ remove res = do
   presentMountHint listing path
 
   resort
-  setIsMount path
-  setIsUnconfigured
+  checkIsMount path
+  checkIsUnconfigured
 
 dismissMountHint ∷ DSL Unit
 dismissMountHint = do
