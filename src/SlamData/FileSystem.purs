@@ -193,30 +193,25 @@ redirects driver var mbOld = case _ of
 
       when (isNothing queryParts.query)
         $ checkMount queryParts.path driver
+      checkUnconfigured driver
       else
         liftAff $ driver.query $ H.action $ SetLoading false
-
 
 checkMount
   ∷ DirPath
   → FileSystemIO
   → Slam Unit
-checkMount path driver = do
-  let
-    setIsMount =
-      liftAff $ driver.query $ H.action $ SetIsMount true
+checkMount path driver =
+  liftAff ∘ driver.query ∘ H.action ∘ SetIsMount ∘ isRight
+    =<< Quasar.mountInfo (Left path)
 
-  Quasar.mountInfo (Left path) >>= case _ of
-    -- When Quasar has no mounts configured we want to enable the root to be
-    -- configured as a mount - if `/` is not a mount and also has no children
-    -- then we know it's in this unconfigured state.
-    Left _ | path ≡ rootDir →
-      void $ Quasar.children path >>= traverse \children →
-        when (null children) $ setIsMount
-    Left _ →
-      pure unit
-    Right _ →
-      setIsMount
+checkUnconfigured
+  ∷ FileSystemIO
+  → Slam Unit
+checkUnconfigured driver = do
+  isMount ← isRight <$> Quasar.mountInfo (Left rootDir)
+  isEmpty ← either (const false) null <$> Quasar.children rootDir
+  liftAff $ driver.query $ H.action $ SetIsUnconfigured $ not isMount ∧ isEmpty
 
 listingProducer
   ∷ AVar ListingState

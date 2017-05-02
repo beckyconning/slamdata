@@ -37,7 +37,7 @@ import Data.Foldable as F
 import Data.Lens ((.~), preview)
 import Data.MediaType (MediaType(..))
 import Data.MediaType.Common (textCSV, applicationJSON)
-import Data.Path.Pathy (rootDir, (</>), dir, file, parentDir)
+import Data.Path.Pathy (rootDir, (</>), dir, file, parentDir, printPath)
 import Data.String as S
 import Data.String.Regex as RX
 import Data.String.Regex.Flags as RXF
@@ -226,8 +226,11 @@ eval = case _ of
   SetSalt salt next → do
     H.modify $ State._salt .~ salt
     pure next
-  SetIsMount isMount next → do
-    H.modify $ State._isMount .~ isMount
+  SetIsMount bool next → do
+    H.modify $ State._isMount .~ bool
+    pure next
+  SetIsUnconfigured bool next → do
+    H.modify $ State._isUnconfigured .~ bool
     pure next
   SetVersion version next → do
     H.modify $ State._version .~ Just version
@@ -274,23 +277,31 @@ eval = case _ of
         void $ H.query' CS.cpListing unit $ H.action $ Listing.Add $ Item dirRes
     pure next
   MakeWorkspace next → do
-    path ← H.gets _.path
-    let
-      newWorkspaceName = Config.newWorkspaceName ⊕ "." ⊕ Config.workspaceExtension
-    name ← API.getNewName path newWorkspaceName
-    case name of
-      Left err →
-        case GE.fromQError err of
-          Left msg →
-            -- This error isn't strictly true as we're not actually creating the
-            -- workspace here, but saying there was a problem "creating a name for the
-            -- workspace" would be a little strange
-            showDialog $ Dialog.Error
-              $ "There was a problem creating the workspace: " ⊕ msg
-          Right ge →
-            GE.raiseGlobalError ge
-      Right name' → do
-        H.liftEff $ setLocation $ mkWorkspaceURL (path </> dir name') New
+    state ← H.get
+    if state.isMount ∨ (rootDir ≠ state.path)
+      then do
+        let
+          newWorkspaceName = Config.newWorkspaceName ⊕ "." ⊕ Config.workspaceExtension
+        name ← API.getNewName state.path newWorkspaceName
+        case name of
+          Left err →
+            case GE.fromQError err of
+              Left msg →
+                -- This error isn't strictly true as we're not actually creating the
+                -- workspace here, but saying there was a problem "creating a name for the
+                -- workspace" would be a little strange
+                showDialog $ Dialog.Error
+                  $ "There was a problem creating the workspace: " ⊕ msg
+              Right ge →
+                GE.raiseGlobalError ge
+          Right name' → do
+            H.liftEff $ setLocation $ mkWorkspaceURL (state.path </> dir name') New
+       else
+         showDialog
+           $ Dialog.Error
+           $ "There was a problem creating the workspace: Path "
+           ⊕ printPath state.path
+           ⊕ " is not inside a mount."
     pure next
   UploadFile el next → do
     mbInput ← H.liftEff $ D.querySelector "input" el
