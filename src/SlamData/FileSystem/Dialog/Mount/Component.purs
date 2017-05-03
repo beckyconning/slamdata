@@ -114,7 +114,7 @@ fldName name =
     ]
 
 selScheme ∷ MCS.State → HTML
-selScheme state m
+selScheme state =
   HH.div
     [ HP.class_ B.formGroup ]
     [ HH.label_
