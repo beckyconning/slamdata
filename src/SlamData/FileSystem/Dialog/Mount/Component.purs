@@ -114,7 +114,7 @@ fldName name =
     ]
 
 selScheme ∷ MCS.State → HTML
-selScheme state =
+selScheme state m
   HH.div
     [ HP.class_ B.formGroup ]
     [ HH.label_
@@ -131,7 +131,6 @@ selScheme state =
     map
       (\s → let string = MS.schemeToString s in HH.option [ HP.selected $ Just string ≡ (MS.schemeToString ∘ MCS.scheme <$> state.settings) ] [ HH.text string ])
       MS.schemes
-
 
 errorMessage ∷ String → HTML
 errorMessage msg =
