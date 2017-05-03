@@ -67,22 +67,22 @@ component =
 
 render ∷ MCS.State → HTML
 render state@{ name, new, parent } =
-  modalDialog
-    [ modalHeader "Mount"
-    , modalBody $
-        HH.form
-          [ HE.onSubmit $ HE.input PreventDefault
-          , HP.class_ RC.dialogMount
-          ]
-          $ maybe [] (pure ∘ fldName) state.name
-          <> (pure $ selScheme state)
-          <> maybe [] (pure ∘ settings) state.settings
-          <> maybe [] (pure ∘ errorMessage) state.message
-    , modalFooter
-        $ [ progressSpinner state ]
-        <> (guard (not new ∧ isNothing parent) $> btnDelete)
-        <> [ btnMount state, btnCancel ]
-    ]
+  HH.form
+    [ HE.onSubmit $ HE.input PreventDefaultAndNotifySave ]
+    [ modalDialog
+        [ modalHeader "Mount"
+        , modalBody
+            $ HH.div
+                [ HP.class_ RC.dialogMount ]
+                $ maybe [] (pure ∘ fldName) state.name
+                <> (pure $ selScheme state)
+                <> maybe [] (pure ∘ settings) state.settings
+                <> maybe [] (pure ∘ errorMessage) state.message
+        , modalFooter
+            $ (guard (not new ∧ isNothing parent) $> btnDelete)
+            <> [ progressSpinner state, btnMount state, btnCancel ]
+        ]
+      ]
   where
   settings ∷ MCS.MountSettings → HTML
   settings ss = case ss of
@@ -157,12 +157,12 @@ btnDelete =
 
 btnMount ∷ MCS.State → HTML
 btnMount state@{ new, saving } =
-  HH.button
-    [ HP.classes [B.btn, B.btnPrimary]
+  HH.input
+    [ HP.type_ HP.InputSubmit
+    , HP.classes [B.btn, B.btnPrimary]
     , HP.enabled (not saving && MCS.canSave state)
-    , HE.onClick (HE.input_ NotifySave)
+    , HP.value text
     ]
-    [ HH.text text ]
   where
   text = if new then "Mount" else "Save changes"
 
@@ -180,9 +180,6 @@ eval (SelectScheme newScheme next) = do
   pure next
 eval (RaiseDismiss next) = do
   H.raise Message.Dismiss
-  pure next
-eval (NotifySave next) = do
-  H.raise Message.MountSave
   pure next
 eval (Save k) = do
   { new, parent, name } ← H.get
@@ -205,9 +202,16 @@ eval (Save k) = do
         Nothing → pure Nothing
       H.modify (MCS._saving .~ false)
       pure $ k mount
-eval (PreventDefault ev next) = H.liftEff (DOM.preventDefault ev) $> next
+eval (PreventDefaultAndNotifySave ev next) = do
+  H.liftEff (DOM.preventDefault ev)
+  notifySave
+  pure next
 eval (Validate next) = validateInput $> next
 eval (RaiseMountDelete next) = H.raise Message.MountDelete $> next
+
+notifySave ∷ DSL Unit
+notifySave =
+  H.raise Message.MountSave
 
 handleQError ∷ Api.QError → DSL Unit
 handleQError err =
