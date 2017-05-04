@@ -156,12 +156,11 @@ btnDelete =
 
 btnMount ∷ MCS.State → HTML
 btnMount state@{ new, saving } =
-  HH.input
-    [ HP.type_ HP.InputSubmit
-    , HP.classes [B.btn, B.btnPrimary]
+  HH.button
+    [ HP.classes [B.btn, B.btnPrimary]
     , HP.enabled (not saving && MCS.canSave state)
-    , HP.value text
     ]
+    [ HH.text text ]
   where
   text = if new then "Mount" else "Save changes"
 

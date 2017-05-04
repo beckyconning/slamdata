@@ -147,17 +147,16 @@ btnCancel state =
 btnDownload ∷ State → H.ComponentHTML Query
 btnDownload state =
   let disabled = isJust $ state.error
-  in HH.input
+  in HH.button
          [ HP.classes $ [ B.btn, B.btnPrimary ]
            ⊕ if disabled
               then [ B.disabled ]
               else [ ]
          , HP.disabled disabled
-         , HP.type_ HP.InputSubmit
          , ARIA.label "Proceed download"
          , HP.title "Proceed download"
-         , HP.value "Download"
          ]
+         [ HH.text "Download" ]
 
 optionsCSV ∷ D.CSVOptions → H.ComponentHTML Query
 optionsCSV = Rd.optionsCSV (\lens v → ModifyCSVOpts (lens .~ v))
