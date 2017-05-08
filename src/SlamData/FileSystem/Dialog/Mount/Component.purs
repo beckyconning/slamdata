@@ -80,7 +80,7 @@ render state@{ name, new, parent } =
                 <> maybe [] (pure ∘ errorMessage) state.message
         , modalFooter
             $ (guard (not new ∧ isNothing parent) $> btnDelete state)
-            <> [ btnMount state, btnCancel ]
+            <> [ btnMount state, btnCancel state ]
         ]
       ]
   where
@@ -138,45 +138,53 @@ errorMessage msg =
     [ HP.classes [ B.alert, B.alertDanger ] ]
     [ HH.text msg ]
 
-btnCancel ∷ HTML
-btnCancel =
+btnCancel ∷ MCS.State -> HTML
+btnCancel state@{ unMounting, saving } =
   HH.button
     [ HP.classes [B.btn]
+    , HP.enabled $ not saving && not unMounting
     , HE.onClick (HE.input_ RaiseDismiss)
     ]
     [ HH.text "Cancel" ]
 
 btnDelete ∷ MCS.State -> HTML
-btnDelete state@{ unMounting } =
+btnDelete state@{ unMounting, saving } =
   HH.button
-    [ HP.classes [B.btn, HH.ClassName "btn-careful" ]
+    [ HP.classes
+        $ fold
+          [ [ B.btn, HH.ClassName "btn-careful" ]
+          , guard unMounting $> HH.ClassName "btn-loading"
+          ]
     , HE.onClick (HE.input_ RaiseMountDelete)
     , HP.type_ HP.ButtonButton
-    , HP.enabled (not unMounting)
+    , HP.enabled $ not saving && not unMounting
     ]
     $ fold
-      [ guard unMounting *> progressSpinner
+      [ guard unMounting *> progressSpinner "Unmounting"
       , pure $ HH.text "Unmount"
       ]
 
 btnMount ∷ MCS.State → HTML
-btnMount state@{ new, saving } =
+btnMount state@{ new, saving, unMounting } =
   HH.button
-    [ HP.classes [B.btn, B.btnPrimary]
-    , HP.enabled (not saving && MCS.canSave state)
+    [ HP.classes
+        $ fold
+          [ [ B.btn, B.btnPrimary ]
+          , guard saving $> HH.ClassName "btn-loading"
+          ]
+    , HP.enabled $ not saving && not unMounting && MCS.canSave state
     ]
     $ fold
-      [ guard saving *> progressSpinner
+      [ guard saving *> progressSpinner loadingText
       , pure $ HH.text text
       ]
   where
   text = if new then "Mount" else "Save changes"
+  loadingText = if new then "Mounting" else "Saving changes"
 
-
-
-progressSpinner ∷ Array HTML
-progressSpinner =
-  [ HH.img [ HP.src "img/spin.gif" ]
+progressSpinner ∷ String → Array HTML
+progressSpinner alt =
+  [ HH.img [ HP.src "img/spin.gif", HP.alt alt ]
   , HH.text " "
   ]
 
