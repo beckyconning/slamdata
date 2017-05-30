@@ -136,6 +136,7 @@ type BusWiring =
   , globalError ∷ Bus.BusRW GE.GlobalError
   , stepByStep ∷ Bus.BusRW GuideType
   , hintDismissals ∷ Bus.BusRW HintDismissalMessage
+  , trialExpired ∷ Bus.BusRW Unit
   }
 
 type WiringR =
@@ -227,7 +228,8 @@ make path accessType vm permissionTokenHashes = liftAff do
     globalError ← Bus.make
     stepByStep ← Bus.make
     hintDismissals ← Bus.make
-    pure { decks, workspace, notify, globalError, stepByStep, hintDismissals }
+    trialExpired ← Bus.make
+    pure { decks, workspace, notify, globalError, stepByStep, hintDismissals, trialExpired }
 
 focusDeck
   ∷ ∀ m

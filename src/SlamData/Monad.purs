@@ -177,7 +177,10 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
       Bus.write no bus.notify
       pure a
     Halt err a → do
-      Bus.write (GE.toNotificationOptions err) bus.notify
+      Bus.write unit bus.trialExpired
+      --case err of
+      --  GE.PaymentRequired -> Bus.write unit bus.trialExpired
+      --  _ -> Bus.write (GE.toNotificationOptions err) bus.notify
       pure a
     Par (SlamA p) →
       sequential $ retractFreeAp $ hoistFreeAp (parallel <<< runSlam wiring) p

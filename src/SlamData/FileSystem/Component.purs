@@ -195,6 +195,7 @@ eval = case _ of
       (H.modify $ State._presentIntroVideo .~ true)
     H.subscribe $ busEventSource (flip HandleError ES.Listening) w.bus.globalError
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
+    H.subscribe $ busEventSource (flip HandleTrialExpired ES.Listening) w.bus.trialExpired
     pure next
   Transition page next → do
     H.modify
@@ -381,6 +382,9 @@ eval = case _ of
       Search.Submit → do
         H.query' CS.cpSearch unit $ H.request Search.GetValue
     H.liftEff $ setLocation $ browseURL value st.sort salt st.path
+    pure next
+  HandleTrialExpired _ next → do
+    _ ← H.query' CS.cpDialog unit $ H.action $ Dialog.Show Dialog.TrialExpired
     pure next
   SetLoading bool next → do
     _ ← H.query' CS.cpSearch unit $ H.action $ Search.SetLoading bool

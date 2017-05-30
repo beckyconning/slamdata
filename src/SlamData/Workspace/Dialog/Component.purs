@@ -23,13 +23,13 @@ module SlamData.Workspace.Dialog.Component
   ) where
 
 import SlamData.Prelude
-
 import Halogen as H
 import Halogen.Component.ChildPath as CP
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import SlamData.Dialog.Error.Component as Error
+import SlamData.Dialog.Render (trialExpired)
 import SlamData.Monad (Slam)
 import SlamData.Workspace.Deck.Options (DeckOptions)
 import SlamData.Workspace.Dialog.Confirm.Component as Confirm
@@ -154,6 +154,9 @@ render = case _ of
         , cardPaths
         }
         \Reason.Dismiss → Just $ H.action $ Raise Dismissed
+
+    TrialExpired →
+      trialExpired
 
 eval ∷ Query ~> DSL
 eval = case _ of

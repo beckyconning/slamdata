@@ -33,3 +33,4 @@ data Dialog
   | Unshare DeckOptions SharingInput
   | Rename DeckOptions String
   | DeleteDeck DeckOptions
+  | TrialExpired

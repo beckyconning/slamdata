@@ -70,6 +70,7 @@ data Query a
   | HandleNotifications Notification.Message a
   | HandleSignInMessage SignInMessage a
   | HandleSearch Search.Message a
+  | HandleTrialExpired Unit a
   | SetLoading Boolean a
   | SetIsSearching Boolean a
   | AddListings (Array Item) a
