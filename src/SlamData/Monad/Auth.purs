@@ -40,10 +40,15 @@ getIdTokenSilently ∷ AllowedAuthenticationModes → Auth.RequestIdTokenBus →
 getIdTokenSilently interactionlessSignIn idTokenRequestBus =
   -- Currently singleton provider from Quasar configuration if none chosen.
   -- Eventually this will use all providers in Quasar configuration
-  either
-    (const $ signedOutBefore >>= if _ then pure unauthorized else getWithSingletonProviderFromQuasar)
-    (pure ∘ Right)
-    =<< getWithProviderFromLocalStorage
+  case interactionlessSignIn of
+    AuthenticationMode.ChosenProviderAndAllProviders →
+      either (const $ getWithSingletonProviderFromQuasar) (pure ∘ Right)
+        =<< getWithProviderFromLocalStorage
+    AuthenticationMode.ChosenProviderOnly →
+      either
+        (const $ signedOutBefore >>= if _ then pure unauthorized else getWithSingletonProviderFromQuasar)
+        (pure ∘ Right)
+        =<< getWithProviderFromLocalStorage
   where
 
   unauthorized ∷ Either QError Auth.EIdToken
