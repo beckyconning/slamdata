@@ -64,7 +64,7 @@ getIdTokenSilently interactionlessSignIn idTokenRequestBus =
   
   authModeSignedOutBefore ∷ AuthenticationMode.AuthenticationMode → Aff SlamDataEffects Boolean
   authModeSignedOutBefore =
-    map (either (const false) (const true))
+    map isRight
       ∘ LS.retrieve
       ∘ LSK.nonceLocalStorageKey
       ∘ AuthenticationMode.toKeySuffix
