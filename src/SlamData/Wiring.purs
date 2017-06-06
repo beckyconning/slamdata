@@ -15,56 +15,56 @@ limitations under the License.
 -}
 
 module SlamData.Wiring
-  ( Wiring(..)
-  , WiringR
-  , EChartsWiring
-  , EvalWiring
+  ( ActiveState
   , AuthWiring
-  , CacheWiring
   , BusWiring
-  , DeckMessage(..)
-  , WorkspaceMessage(..)
-  , HintDismissalMessage(..)
-  , ActiveState
+  , CacheWiring
   , DebounceEval
   , DebounceSave
-  , make
-  , unWiring
+  , DeckMessage(..)
+  , EChartsWiring
+  , EvalWiring
+  , HintDismissalMessage(..)
+  , Wiring(..)
+  , WiringR
+  , WorkspaceMessage(..)
   , expose
   , focusDeck
-  , switchDeckToFront
-  , switchDeckToFlip
+  , make
   , showDialog
+  , switchDeckToFlip
+  , switchDeckToFront
+  , unWiring
   ) where
 
 import SlamData.Prelude
-
-import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
-import Control.Monad.Aff.Class (class MonadAff, liftAff)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Ref (Ref)
 import Control.Monad.Eff.Ref as Ref
-import Data.StrMap (StrMap)
 import ECharts.Theme as ETheme
-import Quasar.Advanced.Types (TokenHash)
-import SlamData.AuthenticationMode (AllowedAuthenticationModes, allowedAuthenticationModesForAccessType)
-import SlamData.Effects (SlamDataEffects)
 import SlamData.GlobalError as GE
-import SlamData.GlobalMenu.Bus (SignInBus)
 import SlamData.Notification as N
 import SlamData.Quasar.Auth.Authentication as Auth
-import SlamData.Wiring.Cache (Cache)
 import SlamData.Wiring.Cache as Cache
-import SlamData.Workspace.AccessType (AccessType)
 import SlamData.Workspace.Card.Port.VarMap as Port
-import SlamData.Workspace.Deck.DeckId (DeckId)
-import SlamData.Workspace.Deck.Options (DeckOptions)
-import SlamData.Workspace.Dialog.Types (Dialog)
 import SlamData.Workspace.EChartThemeLoader as EChartThemeLoader
 import SlamData.Workspace.Eval.Card as Card
 import SlamData.Workspace.Eval.Deck as Deck
+import Control.Monad.Aff.AVar (AVar)
+import Control.Monad.Aff.Class (class MonadAff, liftAff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Ref (Ref)
+import Data.StrMap (StrMap)
+import Quasar.Advanced.Types (TokenHash)
+import SlamData.AuthenticationMode (AllowedAuthenticationModes, allowedAuthenticationModesForAccessType)
+import SlamData.Effects (SlamDataEffects)
+import SlamData.GlobalMenu.Bus (SignInBus)
+import SlamData.Wiring.Cache (Cache)
+import SlamData.License (LicenseProblem)
+import SlamData.Workspace.AccessType (AccessType)
+import SlamData.Workspace.Deck.DeckId (DeckId)
+import SlamData.Workspace.Deck.Options (DeckOptions)
+import SlamData.Workspace.Dialog.Types (Dialog)
 import SlamData.Workspace.Eval.Graph (EvalGraph)
 import SlamData.Workspace.Guide (GuideType)
 import Utils.Path (DirPath)
@@ -136,7 +136,7 @@ type BusWiring =
   , globalError ∷ Bus.BusRW GE.GlobalError
   , stepByStep ∷ Bus.BusRW GuideType
   , hintDismissals ∷ Bus.BusRW HintDismissalMessage
-  , trialExpired ∷ Bus.BusRW Unit
+  , licenseProblems ∷ Bus.BusRW LicenseProblem
   }
 
 type WiringR =
@@ -176,6 +176,7 @@ make path accessType vm permissionTokenHashes = liftAff do
   bus ← makeBus
   echarts ← makeEcharts
   varMaps ← liftEff (Ref.newRef vm)
+  license ← liftEff (Ref.newRef vm)
   pure $ Wiring { path, accessType, varMaps, eval, auth, cache, bus, echarts }
 
   where
@@ -228,8 +229,8 @@ make path accessType vm permissionTokenHashes = liftAff do
     globalError ← Bus.make
     stepByStep ← Bus.make
     hintDismissals ← Bus.make
-    trialExpired ← Bus.make
-    pure { decks, workspace, notify, globalError, stepByStep, hintDismissals, trialExpired }
+    licenseProblems ← Bus.make
+    pure { decks, workspace, notify, globalError, stepByStep, hintDismissals, licenseProblems }
 
 focusDeck
   ∷ ∀ m

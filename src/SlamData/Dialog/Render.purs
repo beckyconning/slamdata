@@ -42,8 +42,8 @@ modalBody = classedDiv (H.ClassName "deck-dialog-body") <<< pure
 modalFooter :: forall f p. Array (H.HTML p (f Unit)) -> H.HTML p (f Unit)
 modalFooter = classedDiv (H.ClassName "deck-dialog-footer")
 
-trialExpired ∷ ∀ f p. H.HTML p (f Unit)
-trialExpired =
+licenseExpired ∷ ∀ f p. H.HTML p (f Unit)
+licenseExpired =
    modalDialog
      [ modalHeader "Your licence has expired."
      , modalBody
@@ -54,6 +54,32 @@ trialExpired =
                   or an extended trial period with kick-off training for your team,
                   configuration and optimization assistance and support with queries,
                   sharing and distribution."""
+           ]
+     , modalFooter
+         [ H.a
+             [ HP.classes [ CN.btn, CN.btnPrimary ]
+             , HP.href "https://slamdata.com/contact-us/"
+             ]
+             [ H.text "Contact SlamData" ]
+         , H.a
+             [ HP.classes [ CN.btn, CN.btnDefault ]
+             , HP.href "https://slamdata.com/slamdata-jump-start/"
+             ]
+             [ H.text "Get a kick start" ]
+         ]
+     ]
+
+licenseInvalid ∷ ∀ f p. H.HTML p (f Unit)
+licenseInvalid =
+   modalDialog
+     [ modalHeader "Your licence is invalid."
+     , modalBody
+         $ H.div_
+           [ H.text
+               """Try double checking your license information and
+                  installing or providing your Java system properties
+                  again. If you are still experiencing problems with your
+                  license after trying this please do get in touch."""
            ]
      , modalFooter
          [ H.a

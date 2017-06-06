@@ -26,7 +26,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.HTML.Properties.ARIA as ARIA
 import Network.HTTP.RequestHeader (RequestHeader)
 import SlamData.Dialog.Error.Component as Error
-import SlamData.Dialog.Render (trialExpired)
+import SlamData.Dialog.Render (licenseExpired, licenseInvalid)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
 import SlamData.FileSystem.Dialog.Download.Component as Download
 import SlamData.FileSystem.Dialog.Mount.Component as Mount
@@ -35,6 +35,7 @@ import SlamData.FileSystem.Dialog.Share.Component as Share
 import SlamData.FileSystem.Resource (Resource, Mount)
 import SlamData.Monad (Slam)
 import SlamData.Workspace.Deck.Component.CSS as CSS
+import SlamData.License as License
 
 data Dialog
   = Error String
@@ -42,7 +43,7 @@ data Dialog
   | Rename Resource
   | Mount Mount.Input
   | Download Resource (Array RequestHeader)
-  | TrialExpired
+  | LicenseProblem License.LicenseProblem
 
 type State = Maybe Dialog
 
@@ -100,8 +101,10 @@ render state =
       HH.slot' CP.cp4 unit Download.component { resource, headers } (HE.input HandleChild)
     Mount input →
       HH.slot' CP.cp5 unit Mount.component input (HE.input HandleChild)
-    TrialExpired →
-      trialExpired
+    LicenseProblem License.Expired →
+      licenseExpired
+    LicenseProblem License.Invalid →
+      licenseInvalid
 
 eval ∷ Query ~> H.ParentDSL State Query ChildQuery ChildSlot Message Slam
 eval = case _ of

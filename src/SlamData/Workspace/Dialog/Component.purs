@@ -29,7 +29,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import SlamData.Dialog.Error.Component as Error
-import SlamData.Dialog.Render (trialExpired)
+import SlamData.Dialog.Render (licenseExpired, licenseInvalid)
 import SlamData.Monad (Slam)
 import SlamData.Workspace.Deck.Options (DeckOptions)
 import SlamData.Workspace.Dialog.Confirm.Component as Confirm
@@ -39,6 +39,7 @@ import SlamData.Workspace.Dialog.Rename.Component as Rename
 import SlamData.Workspace.Dialog.Share.Component as Share
 import SlamData.Workspace.Dialog.Types (Dialog(..))
 import SlamData.Workspace.Dialog.Unshare.Component as Unshare
+import SlamData.License as License
 
 type State = Maybe Dialog
 
@@ -155,8 +156,11 @@ render = case _ of
         }
         \Reason.Dismiss → Just $ H.action $ Raise Dismissed
 
-    TrialExpired →
-      trialExpired
+    LicenseProblem License.Expired →
+      licenseExpired
+
+    LicenseProblem License.Invalid →
+      licenseInvalid
 
 eval ∷ Query ~> DSL
 eval = case _ of

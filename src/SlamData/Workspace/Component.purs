@@ -170,7 +170,7 @@ eval = case _ of
     H.subscribe $ busEventSource (H.request ∘ PresentStepByStepGuide) bus.stepByStep
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) auth.signIn
     H.subscribe $ busEventSource (flip HandleWorkspace ES.Listening) bus.workspace
-    H.subscribe $ busEventSource (flip HandleTrialExpired ES.Listening) bus.trialExpired
+    H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) bus.licenseProblems
     H.subscribe $ throttledEventSource_ (Milliseconds 100.0) onResize (H.request Resize)
     pure next
   PresentStepByStepGuide guideType reply → do
@@ -245,8 +245,8 @@ eval = case _ of
     pure next
   HandleWorkspace (Wiring.ShowDialog dlg) next →
     H.query' cpDialog unit (H.action (Dialog.Show dlg)) $> next
-  HandleTrialExpired unit next →
-    H.query' cpDialog unit (H.action (Dialog.Show Dialog.TrialExpired)) $> next
+  HandleLicenseProblem problem next →
+    H.query' cpDialog unit (H.action (Dialog.Show $ Dialog.LicenseProblem problem)) $> next
   HandleDialog msg next →
     handleDialog msg $> next
 
