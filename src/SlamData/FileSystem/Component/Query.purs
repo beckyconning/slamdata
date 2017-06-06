@@ -17,18 +17,22 @@ limitations under the License.
 module SlamData.FileSystem.Component.Query where
 
 import SlamData.Prelude
+
 import SlamData.FileSystem.Dialog.Component.Message as Dialog
 import SlamData.FileSystem.Listing.Component as Listing
 import SlamData.FileSystem.Search.Component as Search
 import SlamData.Notification.Component as Notification
+
 import DOM.Event.Types (Event)
 import DOM.HTML.Types (HTMLElement)
+
 import SlamData.Common.Sort (Sort)
 import SlamData.FileSystem.Listing.Item (Item)
 import SlamData.FileSystem.Routing.Salt (Salt)
 import SlamData.GlobalError (GlobalError)
 import SlamData.GlobalMenu.Bus (SignInMessage)
 import SlamData.License (LicenseProblem)
+
 import Utils.Path (DirPath)
 
 type PageTransition =

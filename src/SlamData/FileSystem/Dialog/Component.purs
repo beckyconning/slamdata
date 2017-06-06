@@ -17,14 +17,18 @@ limitations under the License.
 module SlamData.FileSystem.Dialog.Component where
 
 import SlamData.Prelude
+
 import Data.Array (singleton)
+
 import Halogen as H
 import Halogen.Component.ChildPath as CP
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Properties.ARIA as ARIA
+
 import Network.HTTP.RequestHeader (RequestHeader)
+
 import SlamData.Dialog.Error.Component as Error
 import SlamData.Dialog.Render (licenseExpired, licenseInvalid)
 import SlamData.FileSystem.Dialog.Component.Message (Message(..))
@@ -33,9 +37,9 @@ import SlamData.FileSystem.Dialog.Mount.Component as Mount
 import SlamData.FileSystem.Dialog.Rename.Component as Rename
 import SlamData.FileSystem.Dialog.Share.Component as Share
 import SlamData.FileSystem.Resource (Resource, Mount)
+import SlamData.License as License
 import SlamData.Monad (Slam)
 import SlamData.Workspace.Deck.Component.CSS as CSS
-import SlamData.License as License
 
 data Dialog
   = Error String

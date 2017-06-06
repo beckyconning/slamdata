@@ -17,24 +17,10 @@ limitations under the License.
 module SlamData.Monad where
 
 import SlamData.Prelude
-import Control.Monad.Aff.Bus as Bus
-import Data.Argonaut as Argonaut
-import Data.Array as Array
-import Data.Exists as Exists
-import Data.Path.Pathy as P
-import OIDC.Crypt.Types as OIDC
-import Quasar.Advanced.QuasarAF as QA
-import Quasar.Advanced.Types as QAT
-import SlamData.GlobalError as GE
-import SlamData.LocalStorage as LS
-import SlamData.Monad.ForkF as FF
-import SlamData.Notification as N
-import SlamData.Quasar.Auth.Authentication as Auth
-import SlamData.Wiring as Wiring
-import SlamData.Workspace.Deck.DeckId as DeckId
-import SlamData.Workspace.Routing as Routing
+
 import Control.Applicative.Free (FreeAp, hoistFreeAp, liftFreeAp, retractFreeAp)
 import Control.Monad.Aff (Aff)
+import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
@@ -44,17 +30,38 @@ import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (class MonadRec, tailRecM, Step(..))
 import Control.Parallel (parallel, sequential)
 import Control.UI.Browser (locationObject)
+
 import DOM.HTML.Location (setHash)
+
+import Data.Argonaut as Argonaut
+import Data.Array as Array
+import Data.Exists as Exists
 import Data.Path.Pathy ((</>))
+import Data.Path.Pathy as P
+
+import OIDC.Crypt.Types as OIDC
+
+import Quasar.Advanced.QuasarAF as QA
+import Quasar.Advanced.Types as QAT
+
 import SlamData.Effects (SlamDataEffects)
+import SlamData.GlobalError as GE
+import SlamData.License as License
+import SlamData.LocalStorage as LS
 import SlamData.LocalStorage.Class (class LocalStorageDSL)
 import SlamData.Monad.Auth (getIdTokenSilently)
+import SlamData.Monad.ForkF as FF
+import SlamData.Notification as N
 import SlamData.Quasar.Aff (runQuasarF)
 import SlamData.Quasar.Auth (class QuasarAuthDSL)
+import SlamData.Quasar.Auth.Authentication as Auth
 import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Wiring (Wiring)
-import SlamData.License as License
+import SlamData.Wiring as Wiring
 import SlamData.Workspace.Class (class WorkspaceDSL)
+import SlamData.Workspace.Deck.DeckId as DeckId
+import SlamData.Workspace.Routing as Routing
+
 import Utils (hush)
 
 type Slam = SlamM SlamDataEffects

@@ -22,33 +22,55 @@ module SlamData.FileSystem.Component
   ) where
 
 import SlamData.Prelude
+
 import CSS as CSS
+
 import Control.Monad.Aff as Aff
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
+import Control.Monad.Rec.Class (tailRecM, Step(Done, Loop))
+import Control.UI.Browser (setLocation, locationString, clearValue)
 import Control.UI.Browser as Browser
 import Control.UI.Browser.Event as Be
 import Control.UI.File as Cf
+
 import DOM.Event.Event as DEE
+
+import Data.Argonaut (jsonParser, jsonEmptyObject)
 import Data.Array as Array
+import Data.Coyoneda (liftCoyoneda)
 import Data.Foldable as F
+import Data.Lens ((.~), preview)
+import Data.MediaType (MediaType(..))
+import Data.MediaType.Common (textCSV, applicationJSON)
+import Data.Path.Pathy (rootDir, (</>), dir, file, parentDir, printPath)
 import Data.String as S
 import Data.String.Regex as RX
 import Data.String.Regex.Flags as RXF
+
 import Halogen as H
+import Halogen.Component.Utils (busEventSource)
 import Halogen.HTML as HH
 import Halogen.HTML.CSS as HCSS
 import Halogen.HTML.Core as HC
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
+
 import Quasar.Advanced.QuasarAF as QA
+import Quasar.Data (QData(..))
 import Quasar.Mount as QM
+
+import SlamData.Common.Sort (notSort)
 import SlamData.Config as Config
 import SlamData.Dialog.Render as RenderDialog
 import SlamData.FileSystem.Breadcrumbs.Component as Breadcrumbs
 import SlamData.FileSystem.Component.CSS as FileSystemClassNames
+import SlamData.FileSystem.Component.ChildSlot (ChildQuery, ChildSlot)
 import SlamData.FileSystem.Component.ChildSlot as CS
+import SlamData.FileSystem.Component.Query (Query(..))
+import SlamData.FileSystem.Component.Render (sorting, toolbar)
+import SlamData.FileSystem.Component.State (State, initialState)
 import SlamData.FileSystem.Component.State as State
 import SlamData.FileSystem.Dialog.Component as Dialog
 import SlamData.FileSystem.Dialog.Component.Message as DialogMessage
@@ -60,8 +82,12 @@ import SlamData.FileSystem.Dialog.Mount.SQL2.Component.State as SQL2
 import SlamData.FileSystem.Dialog.Mount.SparkHDFS.Component.State as Spark
 import SlamData.FileSystem.Dialog.Mount.SparkLocal.Component.State as SparkLocal
 import SlamData.FileSystem.Listing.Component as Listing
+import SlamData.FileSystem.Listing.Item (Item(..), itemResource, sortItem)
 import SlamData.FileSystem.Listing.Item.Component as Item
+import SlamData.FileSystem.Resource (Resource)
 import SlamData.FileSystem.Resource as R
+import SlamData.FileSystem.Routing (browseURL)
+import SlamData.FileSystem.Routing.Salt (newSalt)
 import SlamData.FileSystem.Search.Component as Search
 import SlamData.GlobalError as GE
 import SlamData.GlobalMenu.Component as GlobalMenu
@@ -69,30 +95,9 @@ import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
+import SlamData.Monad (Slam)
 import SlamData.Notification as Notification
 import SlamData.Notification.Component as NC
-import SlamData.Wiring as Wiring
-import Utils.DOM as D
-import Control.Monad.Rec.Class (tailRecM, Step(Done, Loop))
-import Control.UI.Browser (setLocation, locationString, clearValue)
-import Data.Argonaut (jsonParser, jsonEmptyObject)
-import Data.Coyoneda (liftCoyoneda)
-import Data.Lens ((.~), preview)
-import Data.MediaType (MediaType(..))
-import Data.MediaType.Common (textCSV, applicationJSON)
-import Data.Path.Pathy (rootDir, (</>), dir, file, parentDir, printPath)
-import Halogen.Component.Utils (busEventSource)
-import Quasar.Data (QData(..))
-import SlamData.Common.Sort (notSort)
-import SlamData.FileSystem.Component.ChildSlot (ChildQuery, ChildSlot)
-import SlamData.FileSystem.Component.Query (Query(..))
-import SlamData.FileSystem.Component.Render (sorting, toolbar)
-import SlamData.FileSystem.Component.State (State, initialState)
-import SlamData.FileSystem.Listing.Item (Item(..), itemResource, sortItem)
-import SlamData.FileSystem.Resource (Resource)
-import SlamData.FileSystem.Routing (browseURL)
-import SlamData.FileSystem.Routing.Salt (newSalt)
-import SlamData.Monad (Slam)
 import SlamData.Quasar (ldJSON) as API
 import SlamData.Quasar.Auth (authHeaders) as API
 import SlamData.Quasar.Class (liftQuasar)
@@ -100,9 +105,12 @@ import SlamData.Quasar.Data (makeFile, save) as API
 import SlamData.Quasar.FS (children, delete, getNewName) as API
 import SlamData.Quasar.Mount (mountInfo) as API
 import SlamData.Render.Common (content, row)
+import SlamData.Wiring as Wiring
 import SlamData.Workspace.Action (Action(..), AccessType(..))
 import SlamData.Workspace.Routing (mkWorkspaceURL)
+
 import Utils (finally)
+import Utils.DOM as D
 import Utils.Path (DirPath, getNameStr)
 
 type HTML = H.ParentHTML Query ChildQuery ChildSlot Slam
