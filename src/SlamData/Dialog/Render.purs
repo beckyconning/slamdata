@@ -49,11 +49,11 @@ licenseExpired =
      , modalBody
          $ H.div_
            [ H.text
-               """Thanks for trying SlamData Advanced!
-                  Get in touch with us today to purchase SlamData Advanced
-                  or an extended trial period with kick-off training for your team,
-                  configuration and optimization assistance and support with queries,
-                  sharing and distribution."""
+               $ "Thanks for trying SlamData Advanced! "
+               <> "Get in touch with us today to purchase SlamData Advanced "
+               <> "or an extended trial period with kick-off training for your team, "
+               <> "configuration and optimization assistance and support with queries, "
+               <> "sharing and distribution."
            ]
      , modalFooter
          [ H.a
@@ -76,10 +76,10 @@ licenseInvalid =
      , modalBody
          $ H.div_
            [ H.text
-               """Try double checking your license information and
-                  installing or providing your Java system properties
-                  again. If you are still experiencing problems with your
-                  license after trying this please do get in touch."""
+               $ "Try double checking your license information and "
+               <> "installing or providing your Java system properties "
+               <> "again. If you are still experiencing problems with your "
+               <> "license after trying this please do get in touch."
            ]
      , modalFooter
          [ H.a

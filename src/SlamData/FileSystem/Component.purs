@@ -23,6 +23,9 @@ module SlamData.FileSystem.Component
 
 import SlamData.Prelude
 import CSS as CSS
+import Control.Monad.Aff as Aff
+import Control.Monad.Aff.AVar as AVar
+import Control.Monad.Aff.Bus as Bus
 import Control.UI.Browser as Browser
 import Control.UI.Browser.Event as Be
 import Control.UI.File as Cf
@@ -39,6 +42,7 @@ import Halogen.HTML.Core as HC
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
+import Quasar.Advanced.QuasarAF as QA
 import Quasar.Mount as QM
 import SlamData.Config as Config
 import SlamData.Dialog.Render as RenderDialog
@@ -65,6 +69,7 @@ import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
+import SlamData.Notification as Notification
 import SlamData.Notification.Component as NC
 import SlamData.Wiring as Wiring
 import Utils.DOM as D
@@ -90,6 +95,7 @@ import SlamData.FileSystem.Routing.Salt (newSalt)
 import SlamData.Monad (Slam)
 import SlamData.Quasar (ldJSON) as API
 import SlamData.Quasar.Auth (authHeaders) as API
+import SlamData.Quasar.Class (liftQuasar)
 import SlamData.Quasar.Data (makeFile, save) as API
 import SlamData.Quasar.FS (children, delete, getNewName) as API
 import SlamData.Quasar.Mount (mountInfo) as API
@@ -188,6 +194,14 @@ eval = case _ of
     H.subscribe $ busEventSource (flip HandleError ES.Listening) w.bus.globalError
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) w.bus.licenseProblems
+    daysRemaining ← map (_.daysRemaining ∘ _.slamdataLicense) <$> liftQuasar QA.licenseInfo
+    case daysRemaining of
+      Right i | i <= 30 → void $ H.liftAff do
+        trigger ← AVar.makeVar
+        Bus.write (daysRemainingNotification trigger i) w.bus.notify
+        Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
+      _ →
+        pure unit
     pure next
   Transition page next → do
     H.modify
@@ -363,7 +377,8 @@ eval = case _ of
       _ ← queryHeaderGripper $ H.action Gripper.StopDragging
       pure unit
     pure next
-  HandleNotifications _ next →
+  HandleNotifications (NC.Fulfill trigger) next → do
+    H.liftAff $ AVar.putVar trigger unit
     pure next
   HandleSearch m next → do
     salt ← H.liftEff newSalt
@@ -681,3 +696,16 @@ createWorkspace path action = do
           GE.raiseGlobalError ge
     Right name' →
       void $ action (mkWorkspaceURL (path </> dir name'))
+
+daysRemainingNotification ∷ AVar.AVar Unit → Int → Notification.NotificationOptions
+daysRemainingNotification avar i =
+  { notification: Notification.Info $ show i <> " licenced days remaining."
+  , detail: Nothing
+  , actionOptions:
+      Just $ Notification.ActionOptions
+        { message: "Please get in touch renew your licence."
+        , actionMessage: "Contact SlamData"
+        , action: Notification.Fulfill avar
+        }
+  , timeout: Nothing
+  }
