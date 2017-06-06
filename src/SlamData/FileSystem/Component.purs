@@ -202,7 +202,7 @@ eval = case _ of
     H.subscribe $ busEventSource (flip HandleError ES.Listening) w.bus.globalError
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) w.bus.licenseProblems
-    daysRemaining ← map _.slamdataLicense.daysRemaining <$> liftQuasar QA.licenseInfo
+    daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
     case daysRemaining of
       Right i | i <= 30 → void $ H.liftAff do
         trigger ← AVar.makeVar
