@@ -45,13 +45,26 @@ modalFooter = classedDiv (H.ClassName "deck-dialog-footer")
 trialExpired ∷ ∀ f p. H.HTML p (f Unit)
 trialExpired =
    modalDialog
-     [ modalHeader "Your trial licence has expired"
+     [ modalHeader "Your licence has expired."
      , modalBody
          $ H.div_
-           [ H.text "Hi." ]
+           [ H.text
+               """Thanks for trying SlamData Advanced!
+                  Get in touch with us today to purchase SlamData Advanced
+                  or an extended trial period with kick-off training for your team,
+                  configuration and optimization assistance and support with queries,
+                  sharing and distribution."""
+           ]
      , modalFooter
          [ H.a
-             [ HP.classes [ CN.btn, CN.btnPrimary ] ]
-             [ H.text "Buy SlamData" ]
+             [ HP.classes [ CN.btn, CN.btnPrimary ]
+             , HP.href "https://slamdata.com/contact-us/"
+             ]
+             [ H.text "Contact SlamData" ]
+         , H.a
+             [ HP.classes [ CN.btn, CN.btnDefault ]
+             , HP.href "https://slamdata.com/slamdata-jump-start/"
+             ]
+             [ H.text "Get a kick start" ]
          ]
      ]
