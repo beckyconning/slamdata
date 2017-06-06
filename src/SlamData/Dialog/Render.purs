@@ -20,8 +20,8 @@ import SlamData.Prelude
 
 import Halogen.HTML as H
 import Halogen.HTML.Properties as HP
-import SlamData.Render.ClassName as CN
 
+import SlamData.Render.ClassName as CN
 import SlamData.Render.Common (classedDiv)
 
 modalDialog :: forall f p. Array (H.HTML p (f Unit)) -> H.HTML p (f Unit)
