@@ -707,11 +707,11 @@ createWorkspace path action = do
 
 daysRemainingNotification ∷ AVar.AVar Unit → Int → Notification.NotificationOptions
 daysRemainingNotification avar i =
-  { notification: Notification.Info $ show i <> " licenced days remaining."
+  { notification: Notification.Info $ show i <> " Licensed days remaining."
   , detail: Nothing
   , actionOptions:
       Just $ Notification.ActionOptions
-        { message: "Please get in touch renew your licence."
+        { message: "Please get in touch renew your License."
         , actionMessage: "Contact SlamData"
         , action: Notification.Fulfill avar
         }

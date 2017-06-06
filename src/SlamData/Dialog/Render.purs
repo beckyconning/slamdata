@@ -45,7 +45,7 @@ modalFooter = classedDiv (H.ClassName "deck-dialog-footer")
 licenseExpired ∷ ∀ f p. H.HTML p (f Unit)
 licenseExpired =
    modalDialog
-     [ modalHeader "Your licence has expired."
+     [ modalHeader "Your License has expired."
      , modalBody
          $ H.div_
            [ H.text
@@ -72,7 +72,7 @@ licenseExpired =
 licenseInvalid ∷ ∀ f p. H.HTML p (f Unit)
 licenseInvalid =
    modalDialog
-     [ modalHeader "Your licence is invalid."
+     [ modalHeader "Your License is invalid."
      , modalBody
          $ H.div_
            [ H.text
