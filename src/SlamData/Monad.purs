@@ -181,7 +181,7 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
     Halt err a → do
       case err of
         GE.PaymentRequired →
-          map (_.status ∘ _.slamdataLicense) <$> runQuasarF (maybe Nothing hush Nothing) QA.licenseInfo
+          map _.slamdataLicense.status <$> runQuasarF (maybe Nothing hush Nothing) QA.licenseInfo
             >>= case _ of
               Right QAT.LicenseExpired → Bus.write License.Expired bus.licenseProblems 
               _ → Bus.write License.Invalid bus.licenseProblems 
