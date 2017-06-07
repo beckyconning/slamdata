@@ -22,40 +22,34 @@ module SlamData.GlobalMenu.Component
   ) where
 
 import SlamData.Prelude
-
-import Control.UI.Browser as Browser
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Eff as Eff
-import Control.Monad.Eff.Ref as Ref
 import Control.Monad.Eff.Exception as Exception
-
+import Control.Monad.Eff.Ref as Ref
+import Control.UI.Browser as Browser
 import Halogen as H
-import Halogen.Component.Utils (busEventSource)
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
-import Halogen.HTML.Events as HE
-
 import OIDC.Crypt as Crypt
-
-import Quasar.Advanced.Types (ProviderR)
-
 import SlamData.AuthenticationMode as AuthenticationMode
-import SlamData.Workspace.Eval.Card as EvalCard
-import SlamData.GlobalError (GlobalError)
 import SlamData.GlobalError as GlobalError
-import SlamData.GlobalMenu.Bus (SignInMessage(..))
-import SlamData.Monad (Slam)
 import SlamData.Quasar as Api
 import SlamData.Quasar.Auth as Auth
-import SlamData.Quasar.Auth.Authentication (AuthenticationError, toNotificationOptions)
 import SlamData.Quasar.Auth.Store as AuthStore
 import SlamData.Render.Icon as I
 import SlamData.Wiring as Wiring
+import SlamData.Workspace.Eval.Card as EvalCard
 import SlamData.Workspace.Eval.Persistence as Persistence
-
 import Utils.DOM as DOM
+import Halogen.Component.Utils (busEventSource)
+import Quasar.Advanced.Types (ProviderR)
+import SlamData.GlobalError (GlobalError)
+import SlamData.GlobalMenu.Bus (SignInMessage(..))
+import SlamData.Monad (Slam)
+import SlamData.Quasar.Auth.Authentication (AuthenticationError, toNotificationOptions)
 
 data AuthenticateOrPresentHelp
 
@@ -295,6 +289,7 @@ authenticate = maybe logOut logIn
   logOut = do
     AuthStore.removeIdToken keySuffix
     AuthStore.removeProvider keySuffix
+    AuthStore.storeSignedOutBefore
     update
 
   logIn ∷ ProviderR → DSL Unit
