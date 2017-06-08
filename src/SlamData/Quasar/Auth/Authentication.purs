@@ -291,6 +291,7 @@ getIdToken message =
       Left _ →
         AuthStore.removeProvider message.keySuffix
           *> AuthStore.removeIdToken message.keySuffix
+          *> AuthStore.storeSignedOutBefore
       Right idToken →
         AuthStore.storeProvider message.keySuffix (QAT.Provider message.providerR)
           *> AuthStore.storeIdToken message.keySuffix (Right idToken)
