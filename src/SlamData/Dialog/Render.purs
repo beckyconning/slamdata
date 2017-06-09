@@ -47,7 +47,7 @@ licenseExpired =
   H.div
     [ HP.classes [ H.ClassName "deck-dialog", H.ClassName "license-dialog" ] ]
     [ H.div_
-        [ H.img [ HP.src "img/logo-center.png" ]
+        [ H.img [ HP.src "img/logo-center.svg" ]
         , modalHeader "Your license has expired"
         , modalBody
             $ H.div_
