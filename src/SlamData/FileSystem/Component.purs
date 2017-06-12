@@ -206,7 +206,7 @@ eval = case _ of
     case daysRemaining of
       Right i | i <= 30 && i > 0 → void $ H.liftAff do
         trigger ← AVar.makeVar
-        Bus.write (daysRemainingNotification trigger i) w.bus.notify
+        Bus.write (Notification.daysRemainingNotification trigger i) w.bus.notify
         Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
       _ →
         pure unit
@@ -713,16 +713,3 @@ createWorkspace path action = do
           GE.raiseGlobalError ge
     Right name' →
       void $ action (mkWorkspaceURL (path </> dir name'))
-
-daysRemainingNotification ∷ AVar.AVar Unit → Int → Notification.NotificationOptions
-daysRemainingNotification avar i =
-  { notification: Notification.Info $ show i <> " Licensed days remaining."
-  , detail: Nothing
-  , actionOptions:
-      Just $ Notification.ActionOptions
-        { message: "Please get in touch renew your License."
-        , actionMessage: "Contact SlamData"
-        , action: Notification.Fulfill avar
-        }
-  , timeout: Nothing
-  }
