@@ -177,14 +177,7 @@ eval = case _ of
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) bus.licenseProblems
     H.subscribe $ throttledEventSource_ (Milliseconds 100.0) onResize (H.request Resize)
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) bus.licenseProblems
-    daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
-    case daysRemaining, accessType of
-      Right i, AT.Editable | i <= 30 && i > 0 → void $ H.liftAff do
-        trigger ← AVar.makeVar
-        Bus.write (Notification.daysRemainingNotification trigger i) bus.notify
-        Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
-      _, _ →
-        pure unit
+    notifyDaysRemainingIfNeeded
     pure next
   PresentStepByStepGuide guideType reply → do
     H.modify (_ { guide = Just guideType })
@@ -300,6 +293,18 @@ eval = case _ of
       for_ (Authentication.toNotificationOptions error) $
         flip Bus.write bus.notify
       Bus.write SignInFailure auth.signIn
+
+notifyDaysRemainingIfNeeded ∷ WorkspaceDSL Unit
+notifyDaysRemainingIfNeeded = do
+  { accessType, bus } ← Wiring.expose
+  daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
+  case daysRemaining, accessType of
+    Right i, AT.Editable | i <= 30 && i > 0 → void $ H.liftAff do
+      trigger ← AVar.makeVar
+      Bus.write (Notification.daysRemainingNotification trigger i) bus.notify
+      Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
+    _, _ →
+      pure unit
 
 runFreshWorkspace ∷ Array CM.AnyCardModel → WorkspaceDSL Unit
 runFreshWorkspace cards = do
