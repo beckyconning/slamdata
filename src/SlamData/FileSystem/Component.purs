@@ -94,7 +94,8 @@ import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
-import SlamData.Monad (Slam, notifyDaysRemainingIfNeeded)
+import SlamData.Monad (Slam)
+import SlamData.Monad.License (notifyDaysRemainingIfNeeded)
 import SlamData.Notification.Component as NC
 import SlamData.Quasar (ldJSON) as API
 import SlamData.Quasar.Auth (authHeaders) as API
