@@ -25,9 +25,7 @@ import SlamData.Prelude
 
 import CSS as CSS
 
-import Control.Monad.Aff as Aff
 import Control.Monad.Aff.AVar as AVar
-import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Rec.Class (tailRecM, Step(Done, Loop))
 import Control.UI.Browser (setLocation, locationString, clearValue)
 import Control.UI.Browser as Browser
@@ -79,9 +77,9 @@ import SlamData.FileSystem.Dialog.Mount.Couchbase.Component.State as Couchbase
 import SlamData.FileSystem.Dialog.Mount.MarkLogic.Component.State as MarkLogic
 import SlamData.FileSystem.Dialog.Mount.MongoDB.Component.State as MongoDB
 import SlamData.FileSystem.Dialog.Mount.SQL2.Component.State as SQL2
+import SlamData.FileSystem.Dialog.Mount.SparkFTP.Component.State as SparkFTP
 import SlamData.FileSystem.Dialog.Mount.SparkHDFS.Component.State as SparkHDFS
 import SlamData.FileSystem.Dialog.Mount.SparkLocal.Component.State as SparkLocal
-import SlamData.FileSystem.Dialog.Mount.SparkFTP.Component.State as SparkFTP
 import SlamData.FileSystem.Listing.Component as Listing
 import SlamData.FileSystem.Listing.Item (Item(..), itemResource, sortItem)
 import SlamData.FileSystem.Listing.Item.Component as Item
@@ -96,8 +94,7 @@ import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
-import SlamData.Monad (Slam)
-import SlamData.Notification as Notification
+import SlamData.Monad (Slam, notifyDaysRemainingIfNeeded)
 import SlamData.Notification.Component as NC
 import SlamData.Quasar (ldJSON) as API
 import SlamData.Quasar.Auth (authHeaders) as API
@@ -204,13 +201,7 @@ eval = case _ of
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) w.bus.licenseProblems
     daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
-    case daysRemaining of
-      Right i | i <= 30 && i > 0 → void $ H.liftAff do
-        trigger ← AVar.makeVar
-        Bus.write (Notification.daysRemainingNotification trigger i) w.bus.notify
-        Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
-      _ →
-        pure unit
+    notifyDaysRemainingIfNeeded
     pure next
   Transition page next → do
     H.modify

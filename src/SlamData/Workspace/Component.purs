@@ -20,18 +20,21 @@ module SlamData.Workspace.Component
   ) where
 
 import SlamData.Prelude
+
 import Control.Monad.Aff as Aff
-import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.AVar (makeVar, peekVar, takeVar, putVar)
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Eff.Ref (readRef)
 import Control.Monad.Fork (fork)
 import Control.UI.Browser as Browser
+
 import DOM.Classy.Event (currentTarget, target) as DOM
 import DOM.Classy.Node (toNode) as DOM
+
 import Data.Coyoneda (liftCoyoneda)
 import Data.List as List
 import Data.Time.Duration (Milliseconds(..))
+
 import Halogen as H
 import Halogen.Component.Utils (busEventSource)
 import Halogen.Component.Utils.Throttled (throttledEventSource_)
@@ -39,7 +42,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
-import Quasar.Advanced.QuasarAF as QA
+
 import SlamData.AuthenticationMode as AuthenticationMode
 import SlamData.FileSystem.Resource as R
 import SlamData.GlobalError as GE
@@ -50,12 +53,10 @@ import SlamData.Header.Component as Header
 import SlamData.Header.Gripper.Component as Gripper
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
-import SlamData.Monad (Slam)
-import SlamData.Notification as Notification
+import SlamData.Monad (Slam, notifyDaysRemainingIfNeeded)
 import SlamData.Notification.Component as NC
 import SlamData.Quasar as Quasar
 import SlamData.Quasar.Auth.Authentication as Authentication
-import SlamData.Quasar.Class (liftQuasar)
 import SlamData.Quasar.Error as QE
 import SlamData.Wiring as Wiring
 import SlamData.Wiring.Cache as Cache
@@ -78,6 +79,7 @@ import SlamData.Workspace.Guide (GuideType(..))
 import SlamData.Workspace.Guide as GuideData
 import SlamData.Workspace.StateMode (StateMode(..))
 import SlamData.Workspace.StateMode as StateMode
+
 import Utils (endSentence)
 import Utils.DOM (onResize, nodeEq)
 
@@ -293,18 +295,6 @@ eval = case _ of
       for_ (Authentication.toNotificationOptions error) $
         flip Bus.write bus.notify
       Bus.write SignInFailure auth.signIn
-
-notifyDaysRemainingIfNeeded ∷ WorkspaceDSL Unit
-notifyDaysRemainingIfNeeded = do
-  { accessType, bus } ← Wiring.expose
-  daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
-  case daysRemaining, accessType of
-    Right i, AT.Editable | i <= 30 && i > 0 → void $ H.liftAff do
-      trigger ← AVar.makeVar
-      Bus.write (Notification.daysRemainingNotification trigger i) bus.notify
-      Aff.forkAff $ AVar.takeVar trigger *> (H.liftEff $ Browser.newTab "https://slamdata.com/contact-us/")
-    _, _ →
-      pure unit
 
 runFreshWorkspace ∷ Array CM.AnyCardModel → WorkspaceDSL Unit
 runFreshWorkspace cards = do
