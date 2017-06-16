@@ -27,6 +27,7 @@ import CSS as CSS
 
 import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Rec.Class (tailRecM, Step(Done, Loop))
+import Control.Monad.Fork (fork)
 import Control.UI.Browser (setLocation, locationString, clearValue)
 import Control.UI.Browser as Browser
 import Control.UI.Browser.Event as Be
@@ -199,7 +200,7 @@ eval = case _ of
 
     dismissedIntroVideoBefore >>= if _
      then void $ H.query' CS.cpNotify unit $ H.action $ NC.UpdateRenderMode NC.Notifications
-     else liftQuasar QA.licenseInfo >>= traverse_
+     else void $ fork $ liftQuasar QA.licenseInfo >>= traverse_
       (_.status >>> case _ of
          QAT.LicenseValid → H.modify $ State._presentIntroVideo .~ true
          QAT.LicenseExpired → pure unit)
