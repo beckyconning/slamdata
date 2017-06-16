@@ -94,7 +94,10 @@ licenseInvalid =
         , DR.modalBody
             $ H.div_
                 [ H.p_
-                    [ H.text "Try double checking your license information and reinstalling. If you are still experiencing problems with your license after trying this please contact support." ]
+                    [ H.text
+                        $ "Try double checking your license information and "
+                        <> howToFix App
+                        <> ". If you are still experiencing problems with your license after trying this please contact support." ]
               ]
         , DR.modalFooter
             [ H.a
