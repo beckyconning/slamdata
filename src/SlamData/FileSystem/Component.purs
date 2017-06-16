@@ -56,6 +56,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
 
 import Quasar.Advanced.QuasarAF as QA
+import Quasar.Advanced.Types as QAT
 import Quasar.Data (QData(..))
 import Quasar.Mount as QM
 
@@ -195,13 +196,16 @@ eval ∷ Query ~> DSL
 eval = case _ of
   Init next → do
     w ← H.lift Wiring.expose
+
     dismissedIntroVideoBefore >>= if _
      then void $ H.query' CS.cpNotify unit $ H.action $ NC.UpdateRenderMode NC.Notifications
-     else H.modify $ State._presentIntroVideo .~ true
+     else liftQuasar QA.licenseInfo >>= traverse_
+      (_.status >>> case _ of
+         QAT.LicenseValid → H.modify $ State._presentIntroVideo .~ true
+         QAT.LicenseExpired → pure unit)
     H.subscribe $ busEventSource (flip HandleError ES.Listening) w.bus.globalError
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) w.bus.licenseProblems
-    daysRemaining ← map _.daysRemaining <$> liftQuasar QA.licenseInfo
     notifyDaysRemainingIfNeeded
     pure next
   Transition page next → do
