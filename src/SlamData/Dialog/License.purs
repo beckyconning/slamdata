@@ -74,7 +74,7 @@ advancedTrialLicenseExpired =
                 , H.p_
                     [ H.text
                         $ "Get in touch with us today to purchase SlamData Advanced "
-                        <> "or an extended trial period with kick-off training for your team, "
+                        <> "or an extended trial period with training for your team, "
                         <> "configuration and optimization assistance and support with queries, "
                         <> "sharing and distribution."
                     ]
@@ -89,7 +89,7 @@ advancedTrialLicenseExpired =
                 [ HP.classes [ CN.btn, CN.btnDefault ]
                 , HP.href "https://slamdata.com/slamdata-jump-start/"
                 ]
-                [ H.text "Get a kick start" ]
+                [ H.text "Request training" ]
             ]
         ]
   ]
@@ -122,7 +122,7 @@ licenseInvalid =
                 [ HP.classes [ CN.btn, CN.btnDefault ]
                 , HP.href "https://slamdata.com/slamdata-jump-start/"
                 ]
-                [ H.text "Get a kick start" ]
+                [ H.text "Request training" ]
             ]
         ]
     ]
