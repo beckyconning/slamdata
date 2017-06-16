@@ -97,7 +97,7 @@ licenseInvalid =
                     [ H.text
                         $ "Try double checking your license information and "
                         <> howToFix App
-                        <> ". If you are still experiencing problems with your license after trying this please contact support." ]
+                        <> " before restarting SlamData. If you are still experiencing problems with your license after trying this please contact support." ]
               ]
         , DR.modalFooter
             [ H.a
