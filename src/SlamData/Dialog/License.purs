@@ -38,12 +38,7 @@ advancedLicenseExpired =
                 [ H.p_
                     [ H.text "Thanks for using SlamData Advanced!" ]
                 , H.p_
-                    [ H.text
-                        $ "Get in touch with us today to renew your "
-                        <> "license or to purchase training for your team, "
-                        <> "configuration and optimization assistance and support with queries, "
-                        <> "sharing and distribution."
-                    ]
+                    [ H.text "Get in touch with us today to purchase SlamData Advanced or an extended trial period with raining for your team, configuration and optimization assistance and support ith queries, sharing and distribution." ]
               ]
         , DR.modalFooter
             [ H.a
@@ -72,12 +67,7 @@ advancedTrialLicenseExpired =
                 [ H.p_
                     [ H.text "Thanks for trying SlamData Advanced!" ]
                 , H.p_
-                    [ H.text
-                        $ "Get in touch with us today to purchase SlamData Advanced "
-                        <> "or an extended trial period with training for your team, "
-                        <> "configuration and optimization assistance and support with queries, "
-                        <> "sharing and distribution."
-                    ]
+                    [ H.text "Get in touch with us today to purchase a SlamData license or an extended trial period with training for your team, configuration, query optimization and support." ]
               ]
         , DR.modalFooter
             [ H.a
@@ -104,13 +94,7 @@ licenseInvalid =
         , DR.modalBody
             $ H.div_
                 [ H.p_
-                    [ H.text
-                        $ "Try double checking your license information "
-                        <> "and " <> howToFix App <> " "
-                        <> "before starting SlamData again. If you are "
-                        <> "still experiencing problems with your "
-                        <> "license after trying this please do get in touch."
-                    ]
+                    [ H.text "Try double checking your license information and reinstalling. If you are still experiencing problems with your license after trying this please contact support." ]
               ]
         , DR.modalFooter
             [ H.a
