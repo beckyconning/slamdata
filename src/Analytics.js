@@ -8,7 +8,9 @@ exports._enableAnalytics = function () {
 };
 
 exports._identify = function (email) {
-  return function () {
-    window.analytics.identity({email: email});
+  return function (traits) {
+    return function () {
+      window.analytics.identity({email: email, traits: traits});
+    };
   };
 };
