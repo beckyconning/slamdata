@@ -142,23 +142,23 @@
 }
 
 .license-dialog {
-  @sd-orange: #f5851e;
-  @bg: #151617;
+  @sd-orange: #ff8600;
+  @bg: #161616;
   pointer-events: all;
 
   p {
-    opacity: 0.68;
+    opacity: 0.7;
   }
 
   img {
     display: block;
     width: 100%;
     max-width: 16.6rem;
-    margin: 1rem auto 4rem;
+    margin: 1rem auto 5rem;
   }
 
   .deck-dialog-footer {
-    @m: 1.2rem;
+    @m: 1.8rem;
     display: flex;
     flex-flow: row nowrap;
     margin: 0 (@m * -1);
@@ -169,17 +169,17 @@
       float: none !important;
 
       &:not(:first-child) {
-        margin-left: @m;
+        margin-left: @m !important;
       }
 
       &:not(:first-child) {
-        margin-right: @m;
+        margin-right: @m !important;
       }
     }
   }
 
   .deck-dialog-footer {
-    margin-top: 2rem;
+    margin-top: 3rem;
     margin-bottom: 0.5rem;
   }
 
@@ -192,16 +192,20 @@
   }
 
   .btn {
-    background: transparent;
+    padding-top: 0.6em;
+    padding-bottom: 0.8em;
+    background: @sd-orange;
     border: 0.1rem solid @sd-orange;
     color: #fff;
+    text-shadow: 0 -0.1rem 0 darken(@sd-orange, 7.5%);
     transition-property: background-color, border-color, color;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
 
     &:hover, &:active {
       background-color: @sd-orange;
-      color: @bg;
+      background-image: linear-gradient(to bottom, darken(@sd-orange, 7.5%), darken(@sd-orange, 2.5%));
+      color: #fff;
     }
 
     &:active {
@@ -211,9 +215,10 @@
 
   h4 {
     color: #fff;
+    //color: @sd-orange;
     font-size: 3.5rem;
     padding-top: 0 !important;
-    padding-bottom: 2rem !important;
+    padding-bottom: 0 !important;
     text-align: center;
   }
 }
