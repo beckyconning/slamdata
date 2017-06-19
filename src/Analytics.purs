@@ -54,8 +54,8 @@ enableAnalytics ∷ ∀ eff. Aff (dom ∷ DOM, ajax ∷ AX.AJAX | eff) Unit
 enableAnalytics =
   apathize $ unlessM isAdvanced do
     liftEff $ _enableAnalytics
-    getLicensee >>= traverse_ (\licensee → liftEff $ _identify licensee.email licensee)
+    getLicensee >>= traverse_ (liftEff <<< _identify)
 
 foreign import _enableAnalytics ∷ ∀ eff. Eff (dom ∷ DOM | eff) Unit
 
-foreign import _identify ∷ ∀ eff. String → QAT.Licensee → Eff (dom ∷ DOM | eff) Unit
+foreign import _identify ∷ ∀ eff. QAT.Licensee → Eff (dom ∷ DOM | eff) Unit
