@@ -102,6 +102,7 @@ import SlamData.Render.Common (content, row)
 import SlamData.Wiring as Wiring
 import SlamData.Workspace.Action (Action(..), AccessType(..))
 import SlamData.Workspace.Routing (mkWorkspaceURL)
+
 import Utils (finally)
 import Utils.DOM as D
 import Utils.Path (DirPath, getNameStr)
@@ -193,13 +194,14 @@ eval = case _ of
       then
         void $ H.query' CS.cpNotify unit $ H.action $ NC.UpdateRenderMode NC.Notifications
       else
-        void $ fork $ liftQuasar QA.licenseInfo >>= traverse_
-          (_.status >>> case _ of
-            QAT.LicenseValid →
-              H.modify $ State._presentIntroVideo .~ true
-            QAT.LicenseExpired →
-              liftQuasar QA.serverInfo >>= traverse_
-                (_.name >>> eq "Quasar-Advanced" >>> not >>> flip when (H.modify $ State._presentIntroVideo .~ true)))
+        void $ fork $ liftQuasar QA.licenseInfo >>= case _ of
+          Right { status: QAT.LicenseValid } →
+            H.modify $ State._presentIntroVideo .~ true
+          Right { status: QAT.LicenseExpired } →
+            pure unit
+          Left _ →
+            liftQuasar QA.serverInfo >>= traverse_
+              (_.name >>> eq "Quasar-Advanced" >>> not >>> flip when (H.modify $ State._presentIntroVideo .~ true))
     H.subscribe $ busEventSource (flip HandleError ES.Listening) w.bus.globalError
     H.subscribe $ busEventSource (flip HandleSignInMessage ES.Listening) w.auth.signIn
     H.subscribe $ busEventSource (flip HandleLicenseProblem ES.Listening) w.bus.licenseProblems
