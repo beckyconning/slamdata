@@ -15,7 +15,8 @@ limitations under the License.
 -}
 
 module Test.Feature.ActionSequence
-  ( sendDelete
+  ( click
+  , sendDelete
   , sendEnter
   , shifted
   , keys
@@ -30,9 +31,15 @@ import Data.List (List)
 import Data.String as S
 import Data.Unfoldable (replicate)
 
-import Selenium.ActionSequence (Sequence, sendKeys, keyDown, keyUp)
+import Selenium.ActionSequence (Sequence, sendKeys, keyDown, keyUp, mouseDown, mouseUp)
 import Selenium.Key (shiftKey)
-import Selenium.Types (ControlKey)
+import Selenium.MouseButton (leftButton)
+import Selenium.Types (ControlKey, Element)
+
+click ∷ Element → Sequence Unit
+click element = do
+  mouseDown leftButton element
+  mouseUp leftButton element
 
 shifted ∷ String → Sequence Unit
 shifted str = do

@@ -58,7 +58,7 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readFile, readTextFile, readdir, unlink)
 
 import Selenium.ActionSequence as Sequence
-import Selenium.Monad (get, getAttribute, clickEl, attempt, later, byXPath, tryRepeatedlyTo, findElements, isDisplayed, getLocation, getSize, saveScreenshot, sendKeysEl)
+import Selenium.Monad (get, getAttribute, attempt, later, byXPath, tryRepeatedlyTo, findElements, isDisplayed, getLocation, getSize, saveScreenshot, sendKeysEl)
 import Selenium.Monad as Selenium
 import Selenium.Types (Element, Location)
 
@@ -515,7 +515,7 @@ checkWithProperties'
   → XPath
   → Feature eff o Unit
 checkWithProperties' checked properties xPath =
-  (traverse_ clickEl) =<< findAtLeastOneWithPropertiesNotRepeatedly properties' xPath
+  (traverse_ clickElement) =<< findAtLeastOneWithPropertiesNotRepeatedly properties' xPath
   where
   properties' = updateProperty "checked" checked properties
 
@@ -560,7 +560,7 @@ clickWithPropertiesNotRepeatedly
   → XPath
   → Feature eff o Unit
 clickWithPropertiesNotRepeatedly properties =
-  clickEl <=< findWithPropertiesNotRepeatedly properties
+  clickElement <=< findWithPropertiesNotRepeatedly properties
 
 
 -- | Click node with the provided properties or attributes found with the
@@ -571,14 +571,14 @@ clickWithProperties
   → XPath
   → Feature eff o Unit
 clickWithProperties properties xPath =
-  tryRepeatedlyTo $ clickEl =<< findWithPropertiesNotRepeatedly properties xPath
+  tryRepeatedlyTo $ clickElement =<< findWithPropertiesNotRepeatedly properties xPath
 
 -- | Click all nodes with the provided properties or attributes found with the
 -- | provided XPath.
 clickAllWithProperties ∷ ∀ eff o. Properties → XPath → Feature eff o Unit
 clickAllWithProperties properties xPath =
   tryRepeatedlyTo
-    $ (traverse_ clickEl)
+    $ (traverse_ clickElement)
     =<< findAtLeastOneWithPropertiesNotRepeatedly properties xPath
 
 -- | Drag node with the first provided properties or attributes found with the first
@@ -650,11 +650,11 @@ pressEnter = Selenium.sequence $ FeatureSequence.sendEnter
 
 -- Element dependent interactions
 clickAllElements ∷ ∀ eff o. Array Element → Feature eff o Unit
-clickAllElements = traverse_ clickEl
+clickAllElements = traverse_ clickElement
 
 clearElement ∷ ∀ eff o. Element → Feature eff o Unit
 clearElement element =
-  Selenium.clickEl element
+  clickElement element
     *> moveToEndOfString
     *> typeEnoughBackspaces
   where
@@ -688,17 +688,21 @@ hoverElement = Selenium.sequence ∘ Sequence.hover
 
 provideFieldValueElement ∷ ∀ eff o. String → Element → Feature eff o Unit
 provideFieldValueElement value element =
-  Selenium.clickEl element *> clearElement element *> typeString value
+  clickElement element *> clearElement element *> typeString value
 
 selectFromDropdownElement ∷ ∀ eff o. String → Element → Feature eff o Unit
 selectFromDropdownElement text element = do
-  clickEl element
+  clickElement element
   typeString text
   pressEnter
 
 dragAndDropElement ∷ ∀ eff o. Element → Location → Feature eff o Unit
 dragAndDropElement from =
   Selenium.sequence <<< Sequence.dndToLocation from
+
+clickElement ∷ ∀ eff o. Element → Feature eff o Unit
+clickElement =
+  Selenium.sequence <<< FeatureSequence.click
 
 -- Element dependent functions
 elementsWithProperties
