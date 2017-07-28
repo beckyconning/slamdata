@@ -92,5 +92,6 @@ adminUIDefaultTheme ∷ LS.Key String
 adminUIDefaultTheme = LS.Key "sd-admin-ui-default-theme"
 
 -- Licensing
+
 licenseDaysRemainingPresentedBefore ∷ LS.Key Date
 licenseDaysRemainingPresentedBefore = LS.Key "sd-license-days-remaining-presented-before"
