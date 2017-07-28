@@ -18,6 +18,7 @@ module SlamData.FileSystem.Resource
   ( Resource(..)
   , Mount(..)
   , _filePath
+  , _filePath'
   , _dirPath
   , _Workspace
   , _name
@@ -323,6 +324,18 @@ _filePath = wander \f s → case s of
   File fp → File <$> f fp
   Mount (View fp) → map (Mount ∘ View) $ f fp
   _ → pure s
+
+_filePath' ∷ Traversal' Resource PU.FilePath
+_filePath' = wander \f s → case s of
+  File fp → File <$> f fp
+  Mount (View fp) → map (Mount ∘ View) $ f fp
+  Directory dirPath → case P.peel dirPath of
+    Nothing → pure s
+    Just (Tuple parentDir peeled) → case peeled of
+      Right _ → pure s
+      Left dirName → File <$> (f $ parentDir </> (P.file $ P.runDirName dirName))
+  _ → pure s
+
 
 _dirPath ∷ Traversal' Resource PU.DirPath
 _dirPath = wander \f s → case s of

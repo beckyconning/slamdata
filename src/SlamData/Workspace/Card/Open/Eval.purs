@@ -51,12 +51,12 @@ evalOpen
 evalOpen model varMap = case model of
   Nothing → throwOpenError OpenNoResourceSelected
   Just (Open.Resource res) → do
-    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ res ^? R._filePath
-    checkPath filePath >>= case _ of
-      Nothing → do
-        CEM.addSource filePath
-        pure (Port.resourceOut (Port.Path filePath))
-      Just err → throwOpenError err
+    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ res ^? R._filePath'
+    CEM.addSource filePath
+    pure (Port.resourceOut (Port.Path filePath))
+    -- checkPath filePath >>= case _ of
+    --   Nothing → do
+    --   Just err → throwOpenError err
   Just (Open.Variable (VM.Var var)) → do
     res ← CEM.temporaryOutputResource
     let
@@ -101,5 +101,5 @@ evalOpen model varMap = case model of
       Sql.Parens expr' → unwrapParens expr'
       expr' → expr'
 
-  checkPath filePath =
-    CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
+  -- checkPath filePath =
+  --   CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
