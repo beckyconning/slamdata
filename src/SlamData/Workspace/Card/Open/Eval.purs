@@ -28,7 +28,6 @@ import Data.StrMap as SM
 import Matryoshka as M
 import SlamData.FileSystem.Resource as R
 import SlamData.Quasar.Class (class QuasarDSL)
-import SlamData.Quasar.FS as QFS
 import SlamData.Quasar.Query as QQ
 import SlamData.Workspace.Card.Error as CE
 import SlamData.Workspace.Card.Eval.Monad as CEM
