@@ -18,25 +18,27 @@ module SlamData.Workspace.Card.Variables.Error where
 
 import SlamData.Prelude
 
-import Data.List.NonEmpty as NEL
+import Data.List.NonEmpty (NonEmptyList)
 import SlamData.SqlSquared.Tagged (ParseError)
 import SlamData.Workspace.FormBuilder.Item.Model (FieldName)
+import SlamData.Workspace.Card.Variables.Error.TypeMismatchError (TypeMismatchError)
 import Utils (throwVariantError)
 
 data VError
-  = DefaultValueError FieldName ParseError
-  | URLValueError FieldName ParseError
+  = DefaultValueError FieldName (Either ParseError TypeMismatchError)
+  | URLValueError FieldName (Either ParseError TypeMismatchError)
   | DuplicateVariableError FieldName
   | InvalidVariableNameError FieldName
 
 instance showVError ∷ Show VError where
   show = case _ of
     DefaultValueError name err → "(DefaultValueError " <> show name <> " " <> show err <> ")"
-    URLValueError name err → "(URLValueError " <> show name <> " " <> show err <> ")"
+    -- TODO: Show URLValueError
+    URLValueError name err → "(URLValueError " -- <> show name <> " " <> show err <> ")"
     DuplicateVariableError name → "(DuplicateVariableError " <> show name <> ")"
     InvalidVariableNameError name → "(InvalidVariableNameError " <> show name <> ")"
 
-newtype VariablesError = VariablesError (NEL.NonEmptyList VError)
+newtype VariablesError = VariablesError (NonEmptyList VError)
 
 derive newtype instance semigroupVariablesError ∷ Semigroup VariablesError
 

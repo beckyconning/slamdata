@@ -26,6 +26,7 @@ module SlamData.Workspace.FormBuilder.Item.Model
   , EqModel(..)
   , runEqModel
   , defaultValueToVarMapValue
+  , urlVarMapValueToVarMapValue
   , module SlamData.Workspace.FormBuilder.Item.FieldType
   ) where
 
@@ -33,12 +34,13 @@ import SlamData.Prelude
 
 import Data.Argonaut ((~>), (:=), (.?))
 import Data.Argonaut as J
-import Data.Json.Extended.Signature as EJS
-import Data.Json.Extended.Type as EJT
-import Data.Lens (preview)
+import Data.Foldable as F
 import Data.String as Str
+import SlamData.Quasar.EJsonMeta as EJM
 import SlamData.SqlSquared.Tagged as SqlT
+import SlamData.Workspace.Card.Port.VarMap (URLVarMapValue, unURLVarMapValue)
 import SlamData.Workspace.Card.Port.VarMap as Port
+import SlamData.Workspace.Card.Variables.Error.TypeMismatchError (TypeMismatchError(..))
 import SlamData.Workspace.FormBuilder.Item.FieldType (FieldType(..), _FieldTypeDisplayName, allFieldTypes, fieldTypeToInputType)
 import SqlSquared as Sql
 import Test.StrongCheck.Arbitrary as SC
@@ -127,48 +129,61 @@ sanitiseValueForForm ty s = case ty of
   TimeFieldType → Str.take 8 s
   _ → s
 
+-- TODO: Should the "Failed to parse", "as a" errors be TypeMismatchError rather
+-- than ParseError.
 defaultValueToVarMapValue
   ∷ FieldType
   → String
-  → Either SqlT.ParseError Port.VarMapValue
+  → Either (Either SqlT.ParseError TypeMismatchError) Port.VarMapValue
 defaultValueToVarMapValue ty str =
   map Port.VarMapValue case ty of
     StringFieldType →
       pure $ Sql.string str
     DateTimeFieldType →
-      SqlT.datetimeSql str
+      lmap Left $ SqlT.datetimeSql str
     DateFieldType →
-      SqlT.dateSql str
+      lmap Left $ SqlT.dateSql str
     TimeFieldType →
-      SqlT.timeSql str
+      lmap Left $ SqlT.timeSql str
     IntervalFieldType →
-      SqlT.intervalSql str
+      lmap Left $ SqlT.intervalSql str
     ObjectIdFieldType →
-      SqlT.oidSql str
+      lmap Left $ SqlT.oidSql str
     SqlExprFieldType →
-      parseSql str
+      parseSql' str
     SqlIdentifierFieldType →
       pure $ Sql.ident str
-    BooleanFieldType → do
-      value ← parseSql str
-      unless (value `hasType` EJT.Boolean) $
-        throwError $ SqlT.ParseError ("Failed to parse " <> show str <> " as a Boolean")
-      pure value
-    NumericFieldType → do
-      value ← parseSql str
-      unless (value `hasType` EJT.Decimal || value `hasType` EJT.Integer) $
-        throwError $ SqlT.ParseError ("Failed to parse " <> show str <> " as a Number")
-      pure value
-    ArrayFieldType → do
-      value ← parseSql str
-      unless (value `hasType` EJT.Array) $
-        throwError $ SqlT.ParseError ("Failed to parse " <> show str <> " as an Array")
-      pure value
-    ObjectFieldType → do
-      value ← parseSql str
-      unless (value `hasType` EJT.Map) $
-        throwError $ SqlT.ParseError ("Failed to parse " <> show str <> " as a Map")
+    fieldType → do
+      value ← parseSql' str
+      unless (EJM.sqlToEJsonMeta value `F.elem` EJM.ejsonTypes fieldType) $
+        throwError $ Right $ TypeMismatchError { sql: str, expected: EJM.ejsonTypes fieldType,  actual: EJM.sqlToEJsonMeta value }
       pure value
   where
-    parseSql s = lmap (SqlT.ParseError ∘ P.parseErrorMessage) $ Sql.parse s
-    hasType val ty' = maybe false (\ej → EJS.getType ej == ty') (preview Sql._Literal val)
+  parseSql' ∷ String → Either (Either SqlT.ParseError TypeMismatchError) Sql.Sql
+  parseSql' = lmap Left ∘ parseSql
+
+urlVarMapValueToVarMapValue
+  ∷ FieldType
+  → URLVarMapValue
+  → Either (Either SqlT.ParseError TypeMismatchError) Port.VarMapValue
+urlVarMapValueToVarMapValue ty v =
+  map Port.VarMapValue do
+    let str = unURLVarMapValue v
+    value ← lmap Left $ parseSql str
+    traverse_ (throwError ∘ Right) (validateType str value ty)
+    pure value
+
+parseSql :: String -> Either SqlT.ParseError Sql.Sql
+parseSql s = lmap (SqlT.ParseError ∘ P.parseErrorMessage) $ Sql.parse s
+
+validateType :: String → Sql.Sql → FieldType → Maybe TypeMismatchError
+validateType s val ft =
+  let
+    expected = EJM.ejsonTypes ft
+    actual = EJM.sqlToEJsonMeta val
+  in
+    if F.elem actual expected
+      then
+        Nothing
+      else
+        Just $ TypeMismatchError { sql: s, actual, expected }

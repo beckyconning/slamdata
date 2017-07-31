@@ -15,6 +15,9 @@ module SlamData.Workspace.Card.Port.VarMap
   ( Var(..)
   , VarMap
   , URLVarMap
+  , URLVarMapValue
+  , urlVarMapValue
+  , unURLVarMapValue
   , VarMapValue(..)
   , _VarMapValue
   , emptyVarMap
@@ -23,26 +26,21 @@ module SlamData.Workspace.Card.Port.VarMap
 
 import SlamData.Prelude
 
-import Data.Array as A
-import Data.Json.Extended as EJSON
-import Data.List as L
-import Data.Lens.Types (Iso')
-import Data.String as S
-import Data.StrMap as SM
-
 import Data.Argonaut ((.?), Json)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
-
+import Data.Array as A
+import Data.Json.Extended as EJSON
+import Data.Lens.Types (Iso')
+import Data.List as L
+import Data.StrMap as SM
+import Data.String as S
 import Matryoshka (embed, transAna)
-
 import SqlSquared (Sql)
 import SqlSquared as Sql
 import SqlSquared.Parser as SqlP
-
-import Text.Markdown.SlamDown.Syntax.Value as SDV
-
 import Test.StrongCheck.Arbitrary as SC
+import Text.Markdown.SlamDown.Syntax.Value as SDV
 
 newtype Var = Var String
 
@@ -112,10 +110,22 @@ instance arbitraryVarMapValue ∷ SC.Arbitrary VarMapValue where
 
 type VarMap = SM.StrMap VarMapValue
 
+newtype URLVarMapValue = URLVarMapValue String
+
+derive newtype instance decodeJsonURLVarMapValue ∷ DecodeJson URLVarMapValue
+derive newtype instance encodeJsonURLVarMapValue ∷ EncodeJson URLVarMapValue
+derive newtype instance eqURLVarMapValue ∷ Eq URLVarMapValue
+
+urlVarMapValue ∷ VarMapValue → URLVarMapValue
+urlVarMapValue (VarMapValue sql) = URLVarMapValue $ Sql.print sql
+
+unURLVarMapValue ∷ URLVarMapValue → String
+unURLVarMapValue (URLVarMapValue s) = s
+
 -- | A VarMap passed through the URL - the VarMapValues are left unparsed until
 -- | they are unified with the Variables card for the deck so that values can
 -- | be parsed according to their defined type.
-type URLVarMap = SM.StrMap String
+type URLVarMap = SM.StrMap URLVarMapValue
 
 emptyVarMap ∷ VarMap
 emptyVarMap = SM.empty

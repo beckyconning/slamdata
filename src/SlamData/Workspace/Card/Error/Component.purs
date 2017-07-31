@@ -37,6 +37,7 @@ import Halogen.HTML.Properties as HP
 import Quasar.Advanced.QuasarAF as QA
 import SlamData.GlobalError as GE
 import SlamData.Monad (Slam)
+import SlamData.Quasar.EJsonMeta as EJM
 import SlamData.Render.Icon as I
 import SlamData.Wiring as Wiring
 import SlamData.Workspace.AccessType (AccessType(..))
@@ -59,6 +60,7 @@ import SlamData.Workspace.Card.Setups.FormInput.Labeled.Error as CFILE
 import SlamData.Workspace.Card.Setups.FormInput.Static.Error as CFISE
 import SlamData.Workspace.Card.Table.Error as CTE
 import SlamData.Workspace.Card.Variables.Error as CVE
+import SlamData.Workspace.Card.Variables.Error.TypeMismatchError (TypeMismatchError(TypeMismatchError))
 import Text.Parsing.Parser (parseErrorMessage)
 import Utils (prettyJson)
 
@@ -647,23 +649,65 @@ variablesErrorMessage { accessType, expanded } err =
           , HH.ul_ $ map (\msg → HH.li_ [ renderError msg ]) (A.fromFoldable nel)
           ]
   renderError = case _ of
-    CVE.DefaultValueError fieldName err' →
+    CVE.DefaultValueError fieldName (Left parseError) →
       HH.div_
         [ HH.p_
             [ HH.text "The default value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
             , HH.text " failed to parse:"
             ]
-        , HH.pre_ [ HH.text (unwrap err') ]
+        , HH.pre_ [ HH.text (unwrap parseError) ]
         ]
-    CVE.URLValueError fieldName err' →
+    CVE.DefaultValueError fieldName (Right (TypeMismatchError typeMismatchError)) →
+      HH.div_
+        [ HH.p_
+            [ HH.text "The default value for the variable "
+            , HH.code_ [ HH.text (show (unwrap fieldName)) ]
+            , HH.text " parses as the incorrect type:"
+            ]
+        , HH.p_
+            $ [ HH.code_ [ HH.text typeMismatchError.sql ]
+              , HH.text " was parsed as a "
+              , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
+              , HH.text " but a "
+              ]
+            <> (renderList
+                 [ HH.text ", " ]
+                 [ HH.text " or "]
+                 (pure ∘ renderEJsonMeta <$> typeMismatchError.expected))
+            <> [ HH.text " was expected." ]
+        ]
+    CVE.URLValueError fieldName (Left parseError) →
+      HH.div_
+        [ HH.p_
+            [ HH.text "The URL-specified value for the variable "
+            , HH.code_ [ HH.text (show (unwrap fieldName)) ]
+            , HH.text " parses as the incorrect type:"
+            ]
+        , HH.pre_ [ HH.text (unwrap parseError) ]
+        , HH.p_
+            [ HH.text "This may be due to the value not being encoded as SQL²."
+            -- TODO: Link
+            ]
+        ]
+    CVE.URLValueError fieldName (Right (TypeMismatchError typeMismatchError)) →
       HH.div_
         [ HH.p_
             [ HH.text "The URL-specified value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
             , HH.text " failed to parse:"
             ]
-        , HH.pre_ [ HH.text (unwrap err') ]
+        , HH.p_
+            $ [ HH.code_ [ HH.text typeMismatchError.sql ]
+              , HH.text " was parsed as a "
+              , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
+              , HH.text " but a "
+              ]
+            <> renderList
+                 [ HH.text ", " ]
+                 [ HH.text " or "]
+                 (pure ∘ renderEJsonMeta <$> typeMismatchError.expected)
+            <> [ HH.text " was expected." ]
         ]
     CVE.DuplicateVariableError fieldName →
       HH.p_
@@ -687,3 +731,6 @@ renderList sep connective xs = case NEL.init xs of
   L.Nil → NEL.head xs
   x : L.Nil → x <> connective <> NEL.last xs
   init → intercalate sep init <> sep <> connective <> NEL.last xs
+
+renderEJsonMeta ∷ EJM.EJsonMeta → HTML
+renderEJsonMeta = HH.code_ ∘ pure ∘ HH.text ∘ EJM.printEJsonMeta

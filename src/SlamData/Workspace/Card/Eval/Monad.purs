@@ -50,6 +50,7 @@ import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as Path
 import Data.Set (Set)
 import Data.Set as Set
+import Data.StrMap as SM
 import Quasar.Advanced.QuasarAF as QA
 import SlamData.Effects (SlamDataEffects)
 import SlamData.Quasar.Class (class QuasarDSL, class ParQuasarDSL, liftQuasar)
@@ -163,7 +164,7 @@ localUrlVarMap ∷ ∀ m. MonadAsk CardEnv m ⇒ m Port.URLVarMap
 localUrlVarMap = do
   CardEnv { cardId, urlVarMaps } ← ask
   pure
-    (fromMaybe mempty
+    (fromMaybe SM.empty
       (Map.lookup cardId urlVarMaps))
 
 runCardEvalM
