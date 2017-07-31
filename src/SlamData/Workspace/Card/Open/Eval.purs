@@ -26,10 +26,12 @@ import Data.List as L
 import Data.Path.Pathy as Path
 import Data.StrMap as SM
 import Matryoshka as M
+import Quasar.Advanced.QuasarAF as QF
 import SlamData.FileSystem.Resource as R
-import SlamData.Quasar.Class (class QuasarDSL)
+import SlamData.Quasar.Class (class QuasarDSL, class ParQuasarDSL)
 import SlamData.Quasar.Query as QQ
 import SlamData.Workspace.Card.Error as CE
+import SlamData.Workspace.Card.Eval.Common (validateResources)
 import SlamData.Workspace.Card.Eval.Monad as CEM
 import SlamData.Workspace.Card.Open.Error (OpenError(..), throwOpenError)
 import SlamData.Workspace.Card.Open.Model as Open
@@ -44,6 +46,7 @@ evalOpen
   ⇒ MonadTell CEM.CardLog m
   ⇒ MonadAsk CEM.CardEnv m
   ⇒ QuasarDSL m
+  ⇒ ParQuasarDSL m
   ⇒ Open.Model
   → Port.DataMap
   → m Port.Out
@@ -51,11 +54,16 @@ evalOpen model varMap = case model of
   Nothing → throwOpenError OpenNoResourceSelected
   Just (Open.Resource res) → do
     filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ res ^? R._filePath'
-    CEM.addSource filePath
-    pure (Port.resourceOut (Port.Path filePath))
-    -- checkPath filePath >>= case _ of
-    --   Nothing → do
-    --   Just err → throwOpenError err
+    resource ← CEM.temporaryOutputResource
+    let sql = selectStar filePath
+    let backendPath = fromMaybe Path.rootDir (Path.parentDir resource)
+    let varMap' = map (Sql.print ∘ unwrap) $ Port.flattenResources varMap
+    { inputs } ← QQ.compile backendPath sql varMap' >>= openError (OpenFileNotFound ∘ show)
+    validateResources inputs
+    CEM.addSources inputs
+    CE.liftQ $ QQ.viewQuery resource sql varMap'
+    QQ.liftQuasar (QF.fileMetadata resource) >>= openError (OpenFileNotFound ∘ show)
+    pure $ Port.resourceOut $ Port.View resource (Sql.print sql) varMap
   Just (Open.Variable (VM.Var var)) → do
     res ← CEM.temporaryOutputResource
     let
@@ -100,5 +108,20 @@ evalOpen model varMap = case model of
       Sql.Parens expr' → unwrapParens expr'
       expr' → expr'
 
-  -- checkPath filePath =
-  --   CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
+selectStar :: Path.Path Path.Abs Path.File Path.Sandboxed -> Sql.Sql
+selectStar path =
+  Sql.select
+    false
+    [ Sql.projection (Sql.splice Nothing)
+    ]
+    ( Just $ Sql.TableRelation
+        { alias: Nothing
+        , path: Left path
+        })
+    Nothing
+    Nothing
+    Nothing
+
+
+openError ∷ ∀ e a m v. MonadThrow (Variant (open ∷ OpenError | v)) m ⇒ (e → OpenError) → Either e a → m a
+openError e = either throwOpenError pure ∘ lmap e

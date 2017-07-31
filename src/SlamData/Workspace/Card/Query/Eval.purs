@@ -20,11 +20,9 @@ module SlamData.Workspace.Card.Query.Eval
 
 import SlamData.Prelude
 
-import Control.Monad.Aff.Class (class MonadAff)
 import Control.Monad.Writer.Class (class MonadTell)
 import Data.Path.Pathy as Path
 import Quasar.Advanced.QuasarAF as QF
-import SlamData.Effects (SlamDataEffects)
 import SlamData.Quasar.Class (class QuasarDSL, class ParQuasarDSL)
 import SlamData.Quasar.Query as QQ
 import SlamData.Workspace.Card.Error as CE
@@ -36,8 +34,7 @@ import SqlSquared as Sql
 
 evalQuery
   ∷ ∀ m v
-  . MonadAff SlamDataEffects m
-  ⇒ MonadAsk CEM.CardEnv m
+  . MonadAsk CEM.CardEnv m
   ⇒ MonadThrow (Variant (query ∷ QueryError, qerror ∷ CE.QError | v)) m
   ⇒ MonadTell CEM.CardLog m
   ⇒ QuasarDSL m

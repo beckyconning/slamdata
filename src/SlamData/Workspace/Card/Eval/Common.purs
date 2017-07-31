@@ -18,7 +18,6 @@ module SlamData.Workspace.Card.Eval.Common where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff.Class (class MonadAff)
 import Data.Lens ((^?), _Right, (<>~), (%~))
 import Data.List as L
 import Data.Path.Pathy as Path
@@ -26,7 +25,6 @@ import Data.StrMap as SM
 import Matryoshka (embed)
 import Quasar.Advanced.QuasarAF as QF
 import Quasar.Types (FilePath)
-import SlamData.Effects (SlamDataEffects)
 import SlamData.Quasar.Class (class QuasarDSL, class ParQuasarDSL, sequenceQuasar)
 import SlamData.Quasar.Error as QE
 import SlamData.Workspace.Card.Error as CE
@@ -36,8 +34,7 @@ import SqlSquared as Sql
 
 validateResources
   ∷ ∀ m v t
-  . MonadAff SlamDataEffects m
-  ⇒ MonadThrow (Variant (qerror ∷ CE.QError | v)) m
+  . MonadThrow (Variant (qerror ∷ CE.QError | v)) m
   ⇒ QuasarDSL m
   ⇒ ParQuasarDSL m
   ⇒ Traversable t
