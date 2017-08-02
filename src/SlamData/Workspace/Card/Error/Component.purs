@@ -671,9 +671,9 @@ variablesErrorMessage { accessType, expanded } err =
                  [ HH.text ", " ]
                  [ HH.text " or "]
                  (pure ∘ renderEJsonMeta <$> typeMismatchError.expected))
-            <> [ HH.text ", but got "
+            <> [ HH.text ", but "
                , HH.code_ [ HH.text typeMismatchError.sql ]
-               , HH.text " which is "
+               , HH.text " is "
                , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
                ]
         ]
@@ -703,9 +703,9 @@ variablesErrorMessage { accessType, expanded } err =
                  [ HH.text ", " ]
                  [ HH.text " or "]
                  (pure ∘ renderEJsonMeta <$> typeMismatchError.expected))
-            <> [ HH.text ", but got "
+            <> [ HH.text ", but "
                , HH.code_ [ HH.text typeMismatchError.sql ]
-               , HH.text " which is "
+               , HH.text " is "
                , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
                ]
         ]
