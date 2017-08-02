@@ -666,23 +666,23 @@ variablesErrorMessage { accessType, expanded } err =
             , HH.text " parses as the incorrect type:"
             ]
         , HH.p_
-            $ [ HH.code_ [ HH.text typeMismatchError.sql ]
-              , HH.text " was parsed as "
-              , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
-              , HH.text " but "
-              ]
+            $ [ HH.text "Expected " ]
             <> (renderList
                  [ HH.text ", " ]
                  [ HH.text " or "]
                  (pure ∘ renderEJsonMeta <$> typeMismatchError.expected))
-            <> [ HH.text " was expected." ]
+            <> [ HH.text ", but got "
+               , HH.code_ [ HH.text typeMismatchError.sql ]
+               , HH.text " which is "
+               , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
+               ]
         ]
     CVE.URLValueError fieldName (Left parseError) →
       HH.div_
         [ HH.p_
             [ HH.text "The URL-specified value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
-            , HH.text " parses as the incorrect type:"
+            , HH.text " failed to parse:"
             ]
         , HH.pre_ [ HH.text (unwrap parseError) ]
         , HH.p_
@@ -695,19 +695,19 @@ variablesErrorMessage { accessType, expanded } err =
         [ HH.p_
             [ HH.text "The URL-specified value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
-            , HH.text " failed to parse:"
+            , HH.text " parses as the incorrect type:"
             ]
         , HH.p_
-            $ [ HH.code_ [ HH.text typeMismatchError.sql ]
-              , HH.text " was parsed as "
-              , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
-              , HH.text " but "
-              ]
-            <> renderList
+            $ [ HH.text "Expected " ]
+            <> (renderList
                  [ HH.text ", " ]
                  [ HH.text " or "]
-                 (pure ∘ renderEJsonMeta <$> typeMismatchError.expected)
-            <> [ HH.text " was expected." ]
+                 (pure ∘ renderEJsonMeta <$> typeMismatchError.expected))
+            <> [ HH.text ", but got "
+               , HH.code_ [ HH.text typeMismatchError.sql ]
+               , HH.text " which is "
+               , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
+               ]
         ]
     CVE.DuplicateVariableError fieldName →
       HH.p_
