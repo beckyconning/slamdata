@@ -667,9 +667,9 @@ variablesErrorMessage { accessType, expanded } err =
             ]
         , HH.p_
             $ [ HH.code_ [ HH.text typeMismatchError.sql ]
-              , HH.text " was parsed as a "
+              , HH.text " was parsed as "
               , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
-              , HH.text " but a "
+              , HH.text " but "
               ]
             <> (renderList
                  [ HH.text ", " ]
@@ -699,9 +699,9 @@ variablesErrorMessage { accessType, expanded } err =
             ]
         , HH.p_
             $ [ HH.code_ [ HH.text typeMismatchError.sql ]
-              , HH.text " was parsed as a "
+              , HH.text " was parsed as "
               , HH.code_ [ HH.text $ EJM.printEJsonMeta typeMismatchError.actual ]
-              , HH.text " but a "
+              , HH.text " but "
               ]
             <> renderList
                  [ HH.text ", " ]
