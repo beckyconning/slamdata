@@ -25,6 +25,7 @@ import Data.Lens.Fold (preview)
 import Data.List.NonEmpty as NEL
 import Data.List.Safe ((:))
 import Data.List.Safe as SL
+import Data.String as S
 import SlamData.Workspace.FormBuilder.Item.FieldType (FieldType)
 import SlamData.Workspace.FormBuilder.Item.FieldType as FB
 import SqlSquared as Sql
@@ -32,10 +33,14 @@ import SqlSquared as Sql
 data EJsonMeta = Literal EJsonType | FunctionName String | Ident | Expr
 
 instance showEJsonMeta ∷ Show EJsonMeta where
-  show (Literal eJsonType) = "(Literal " <> show eJsonType <> ")"
-  show (FunctionName functionName) = "(FunctionName " <> show functionName <> ")"
-  show Ident = "Ident"
-  show Expr = "Expr"
+  show (Literal eJsonType) =
+    "(Literal " <> show eJsonType <> ")"
+  show (FunctionName functionName) =
+    "(FunctionName " <> show functionName <> ")"
+  show Ident =
+    "Ident"
+  show Expr =
+    "Expr"
 
 derive instance eqEJsonMeta ∷ Eq EJsonMeta
 
@@ -44,13 +49,16 @@ sqlToEJsonMeta sql =
   fromMaybe Expr $ tryLiteral <|> tryFunctionName <|> tryIdent
   where
   tryLiteral ∷ Maybe EJsonMeta
-  tryLiteral = Literal ∘ EJS.getType <$> preview Sql._Literal sql
+  tryLiteral =
+    Literal ∘ EJS.getType <$> preview Sql._Literal sql
 
   tryFunctionName ∷ Maybe EJsonMeta
-  tryFunctionName = FunctionName ∘ _.name <$> preview Sql._InvokeFunction sql
+  tryFunctionName =
+    FunctionName ∘ S.toUpper ∘ _.name <$> preview Sql._InvokeFunction sql
 
   tryIdent ∷ Maybe EJsonMeta
-  tryIdent = const Ident <$> preview Sql._Ident sql
+  tryIdent =
+    const Ident <$> preview Sql._Ident sql
 
 printEJsonMeta ∷ EJsonMeta → String
 printEJsonMeta = case _ of
