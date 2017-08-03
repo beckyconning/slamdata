@@ -21,7 +21,7 @@ import SlamData.Prelude
 import Control.Monad.Writer.Class (class MonadTell)
 import Data.Functor.Mu (Mu)
 import Data.Json.Extended as EJ
-import Data.Lens ((^?), (?~), (.~))
+import Data.Lens ((?~), (.~))
 import Data.List as L
 import Data.Path.Pathy as Path
 import Data.StrMap as SM
@@ -53,7 +53,7 @@ evalOpen
 evalOpen model varMap = case model of
   Nothing → throwOpenError OpenNoResourceSelected
   Just (Open.Resource res) → do
-    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ res ^? R._filePath'
+    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ R.filePath res
     resource ← CEM.temporaryOutputResource
     let sql = selectStar filePath
     let backendPath = fromMaybe Path.rootDir (Path.parentDir resource)
