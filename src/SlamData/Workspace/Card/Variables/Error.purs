@@ -33,8 +33,7 @@ data VError
 instance showVError ∷ Show VError where
   show = case _ of
     DefaultValueError name err → "(DefaultValueError " <> show name <> " " <> show err <> ")"
-    -- TODO: Show URLValueError
-    URLValueError name err → "(URLValueError " -- <> show name <> " " <> show err <> ")"
+    URLValueError name err → "(URLValueError " <> show name <> " " <> show err <> ")"
     DuplicateVariableError name → "(DuplicateVariableError " <> show name <> ")"
     InvalidVariableNameError name → "(InvalidVariableNameError " <> show name <> ")"
 

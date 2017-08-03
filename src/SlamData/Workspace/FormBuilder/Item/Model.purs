@@ -129,8 +129,6 @@ sanitiseValueForForm ty s = case ty of
   TimeFieldType → Str.take 8 s
   _ → s
 
--- TODO: Should the "Failed to parse", "as a" errors be TypeMismatchError rather
--- than ParseError.
 defaultValueToVarMapValue
   ∷ FieldType
   → String
