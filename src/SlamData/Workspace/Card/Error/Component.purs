@@ -663,7 +663,7 @@ variablesErrorMessage { accessType, expanded } err =
         [ HH.p_
             [ HH.text "The default value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
-            , HH.text " parses as the incorrect type:"
+            , HH.text " has the wrong type:"
             ]
         , HH.p_
             $ [ HH.text "Expected " ]
@@ -695,7 +695,7 @@ variablesErrorMessage { accessType, expanded } err =
         [ HH.p_
             [ HH.text "The URL-specified value for the variable "
             , HH.code_ [ HH.text (show (unwrap fieldName)) ]
-            , HH.text " parses as the incorrect type:"
+            , HH.text " has the wrong type:"
             ]
         , HH.p_
             $ [ HH.text "Expected " ]
