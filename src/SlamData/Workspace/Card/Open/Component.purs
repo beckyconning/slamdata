@@ -106,7 +106,7 @@ isLeaf f = case _ of
   Resource r → f r
 
 isActionable ∷ AnyItem' → Boolean
-isActionable i = isLeaf (isRight ∘ R.getPath) i || isResource i
+isActionable = isLeaf (isRight ∘ R.getPath) || isResource
 
 isResource ∷ ∀ a. AnyItem a → Boolean
 isResource = case _ of
