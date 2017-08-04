@@ -49,14 +49,8 @@ evalOpen
   → m Port.Out
 evalOpen model varMap = case model of
   Nothing → throwOpenError OpenNoResourceSelected
-  Just (Open.Resource (R.File filePath)) →
-    filePathOut filePath
-  Just (Open.Resource (R.Directory dirPath)) →
-    selectStarDirPathOut dirPath
-  Just (Open.Resource (R.Workspace dirPath)) →
-    selectStarDirPathOut dirPath
-  Just (Open.Resource (R.Mount mount)) →
-    either selectStarDirPathOut filePathOut $ R.mountPath mount
+  Just (Open.Resource res) →
+    either selectStarDirPathOut filePathOut $ R.getPath res
   Just (Open.Variable (VM.Var var)) → do
     CEM.CardEnv { cardId, path } ← ask
     let
@@ -70,9 +64,6 @@ evalOpen model varMap = case model of
   checkPath filePath =
     CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
 
-  -- Using this will cause the workspace to be saved so don't use it for single
-  -- files or it will create a workspace straight away when "exploring" a file
-  -- from the file browser.
   selectStarDirPathOut dirPath = do
     filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ R.dirPathAsFilePath dirPath
     let query = Sql.Query L.Nil $ selectStar filePath
