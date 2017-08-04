@@ -34,7 +34,6 @@ import SlamData.Workspace.Card.Open.Error (OpenError(..), throwOpenError)
 import SlamData.Workspace.Card.Open.Model as Open
 import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Card.Port.VarMap as VM
-import SlamData.FileSystem.Resource (Resource(File))
 import SqlSquared as Sql
 import Utils.SqlSquared (all, selectStar)
 
@@ -50,18 +49,14 @@ evalOpen
   → m Port.Out
 evalOpen model varMap = case model of
   Nothing → throwOpenError OpenNoResourceSelected
-  Just (Open.Resource (File filePath)) → do
-    checkPath filePath >>= case _ of
-      Nothing → do
-        CEM.addSource filePath
-        CEM.resourceOut (Port.Path filePath)
-      Just err → throwOpenError err
-  Just (Open.Resource res) → do
-    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ R.filePath res
-    let query = Sql.Query L.Nil $ selectStar filePath
-    let err = openError (const $ OpenFileNotFound $ Path.printPath filePath)
-    resource ← CEC.localEvalResource query varMap >>= err
-    CEM.resourceOut resource
+  Just (Open.Resource (R.File filePath)) →
+    filePathOut filePath
+  Just (Open.Resource (R.Directory dirPath)) →
+    selectStarDirPathOut dirPath
+  Just (Open.Resource (R.Workspace dirPath)) →
+    selectStarDirPathOut dirPath
+  Just (Open.Resource (R.Mount mount)) →
+    either selectStarDirPathOut filePathOut $ R.mountPath mount
   Just (Open.Variable (VM.Var var)) → do
     CEM.CardEnv { cardId, path } ← ask
     let
@@ -74,6 +69,23 @@ evalOpen model varMap = case model of
   where
   checkPath filePath =
     CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
+
+  -- Using this will cause the workspace to be saved so don't use it for single
+  -- files or it will create a workspace straight away when "exploring" a file
+  -- from the file browser.
+  selectStarDirPathOut dirPath = do
+    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ R.dirPathAsFilePath dirPath
+    let query = Sql.Query L.Nil $ selectStar filePath
+    let err = openError (const $ OpenFileNotFound $ Path.printPath filePath)
+    resource ← CEC.localEvalResource query varMap >>= err
+    CEM.resourceOut resource
+
+  filePathOut filePath =
+    checkPath filePath >>= case _ of
+      Nothing → do
+        CEM.addSource filePath
+        CEM.resourceOut (Port.Path filePath)
+      Just err → throwOpenError err
 
 openError ∷ ∀ e a m v. MonadThrow (Variant (open ∷ OpenError | v)) m ⇒ (e → OpenError) → Either e a → m a
 openError e = either throwOpenError pure ∘ lmap e

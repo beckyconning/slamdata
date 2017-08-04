@@ -28,7 +28,7 @@ module SlamData.FileSystem.Resource
   , getPath
   , setPath
   , mountPath
-  , filePath
+  , dirPathAsFilePath
   , hiddenTopLevel
   , isDirectory
   , isFile
@@ -259,16 +259,8 @@ resourceMount = case _ of
   Mount m → Just m
   _ → Nothing
 
-filePath ∷ Resource → Maybe PU.FilePath
-filePath = case _ of
-  File fp → Just fp
-  Mount (View fp) → Just fp
-  Directory dirPath → filePathForDir dirPath
-  Workspace dirPath → filePathForDir dirPath
-  _ → Nothing
-
-filePathForDir ∷ PU.DirPath -> Maybe PU.FilePath
-filePathForDir = P.peel >>> case _ of
+dirPathAsFilePath ∷ PU.DirPath -> Maybe PU.FilePath
+dirPathAsFilePath = P.peel >>> case _ of
   Nothing → Nothing
   Just (Tuple parentDir peeled) → case peeled of
     Right _ → Nothing
