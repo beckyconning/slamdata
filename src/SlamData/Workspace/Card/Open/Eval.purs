@@ -18,13 +18,11 @@ module SlamData.Workspace.Card.Open.Eval (evalOpen) where
 
 import SlamData.Prelude
 
-import Control.Monad.Aff.Class (class MonadAff)
 import Control.Monad.Writer.Class (class MonadTell)
 import Data.Lens ((?~))
 import Data.List as L
 import Data.Path.Pathy as Path
 import SlamData.FileSystem.Resource as R
-import SlamData.Effects (SlamDataEffects)
 import SlamData.Quasar.Class (class ParQuasarDSL)
 import SlamData.Quasar.FS as QFS
 import SlamData.Workspace.Card.Error as CE
@@ -43,7 +41,6 @@ evalOpen
   . MonadThrow (Variant (open ∷ OpenError, qerror ∷ CE.QError, stringly ∷ String | v)) m
   ⇒ MonadTell CEM.CardLog m
   ⇒ MonadAsk CEM.CardEnv m
-  ⇒ MonadAff SlamDataEffects m
   ⇒ ParQuasarDSL m
   ⇒ Open.Model
   → Port.VarMap
