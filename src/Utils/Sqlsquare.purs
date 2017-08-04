@@ -44,14 +44,14 @@ asRel a = case _ of
 
 selectStar ∷ FilePath → Sql.Sql
 selectStar path =
-    Sql.select
-      false
-      [ Sql.projection (Sql.splice Nothing)
-      ]
-      ( Just $ Sql.TableRelation
-          { alias: Nothing
-          , path: Left $ unsandbox path
-          })
-      Nothing
-      Nothing
-      Nothing
+  Sql.select
+    false
+    [ Sql.projection (Sql.splice Nothing)
+    ]
+    ( Just $ Sql.TableRelation
+        { alias: Nothing
+        , path: Left $ unsandbox path
+        })
+    Nothing
+    Nothing
+    Nothing
