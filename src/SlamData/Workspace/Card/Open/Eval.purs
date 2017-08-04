@@ -36,6 +36,7 @@ import SlamData.Workspace.Card.Port as Port
 import SlamData.Workspace.Card.Port.VarMap as VM
 import SqlSquared as Sql
 import Utils.SqlSquared (all, selectStar)
+import Utils.Path (dirPathAsFilePath)
 
 evalOpen
   ∷ ∀ m v
@@ -65,7 +66,7 @@ evalOpen model varMap = case model of
     CE.liftQ $ QFS.messageIfFileNotFound filePath $ OpenFileNotFound (Path.printPath filePath)
 
   selectStarDirPathOut dirPath = do
-    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ R.dirPathAsFilePath dirPath
+    filePath ← maybe (throwOpenError OpenNoFileSelected) pure $ dirPathAsFilePath dirPath
     let query = Sql.Query L.Nil $ selectStar filePath
     let err = openError (const $ OpenFileNotFound $ Path.printPath filePath)
     resource ← CEC.localEvalResource query varMap >>= err

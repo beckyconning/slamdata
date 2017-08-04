@@ -28,7 +28,6 @@ module SlamData.FileSystem.Resource
   , getPath
   , setPath
   , mountPath
-  , dirPathAsFilePath
   , hiddenTopLevel
   , isDirectory
   , isFile
@@ -258,13 +257,6 @@ resourceMount ∷ Resource → Maybe Mount
 resourceMount = case _ of
   Mount m → Just m
   _ → Nothing
-
-dirPathAsFilePath ∷ PU.DirPath -> Maybe PU.FilePath
-dirPathAsFilePath = P.peel >>> case _ of
-  Nothing → Nothing
-  Just (Tuple parentDir peeled) → case peeled of
-    Right _ → Nothing
-    Left dirName → Just $ parentDir </> (P.file $ P.runDirName dirName)
 
 -- TODO: Database unnecesarily maps to "mongodb", but I think this is a purely
 -- cosmetic thing, and changing it might break a bunch of JSON decoding. - NF
