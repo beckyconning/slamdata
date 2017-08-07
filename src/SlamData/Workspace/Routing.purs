@@ -47,7 +47,7 @@ import SlamData.Config as Config
 import SlamData.Workspace.AccessType (AccessType(..))
 import SlamData.Workspace.Action as WA
 import SlamData.Workspace.Card.CardId as CID
-import SlamData.Workspace.Card.Port.VarMap as Port
+import SlamData.Workspace.Card.Port.VarMap as VM
 import SlamData.Workspace.Deck.DeckId as DID
 
 import Utils.Path as UP
@@ -57,12 +57,12 @@ data Routes
       UP.DirPath
       (L.List DID.DeckId)
       WA.Action
-      (SM.StrMap Port.URLVarMap)
+      (SM.StrMap VM.URLVarMap)
 
 getPath ∷ Routes → UP.DirPath
 getPath (WorkspaceRoute p _ _ _) = p
 
-getURLVarMaps ∷ Routes → SM.StrMap Port.URLVarMap
+getURLVarMaps ∷ Routes → SM.StrMap VM.URLVarMap
 getURLVarMaps (WorkspaceRoute _ _ _ vm) = vm
 
 routing ∷ Match Routes
@@ -70,10 +70,10 @@ routing
   = WorkspaceRoute <$> workspace <*> deckIds <*> action <*> optionalVarMap
 
   where
-  optionalVarMap ∷ Match (SM.StrMap Port.URLVarMap)
+  optionalVarMap ∷ Match (SM.StrMap VM.URLVarMap)
   optionalVarMap = varMap <|> pure SM.empty
 
-  varMap ∷ Match (SM.StrMap Port.URLVarMap)
+  varMap ∷ Match (SM.StrMap VM.URLVarMap)
   varMap = Match.eitherMatch $ decodeVarMaps <$> Match.param "vars"
 
   oneSlash ∷ Match Unit
@@ -149,7 +149,7 @@ mkWorkspaceURL path action =
 mkWorkspaceHash
   ∷ UP.DirPath -- workspace path
   → WA.Action -- workspace action
-  → SM.StrMap Port.URLVarMap -- varmaps introduced by variables cards in the workspace
+  → SM.StrMap VM.URLVarMap -- varmaps introduced by variables cards in the workspace
   → String
 mkWorkspaceHash path action varMap =
   "#"
@@ -157,17 +157,17 @@ mkWorkspaceHash path action varMap =
     <> WA.printAction action
     <> maybe "" ("/" <> _) (renderVarMapQueryString varMap)
 
-varMapsForURL ∷ Map.Map CID.CardId Port.VarMap → SM.StrMap Port.URLVarMap
+varMapsForURL ∷ Map.Map CID.CardId VM.VarMap → SM.StrMap VM.URLVarMap
 varMapsForURL =
   SM.fromFoldable
-  ∘ map (bimap CID.toString (map Port.urlVarMapValue))
+  ∘ map (bimap CID.toString VM.toURLVarMap)
   ∘ asList
   ∘ Map.toUnfoldable
 
-decodeVarMaps ∷ String → Either String (SM.StrMap Port.URLVarMap)
+decodeVarMaps ∷ String → Either String (SM.StrMap VM.URLVarMap)
 decodeVarMaps = J.jsonParser >=> J.decodeJson
 
-renderVarMapQueryString ∷ SM.StrMap Port.URLVarMap → Maybe String
+renderVarMapQueryString ∷ SM.StrMap VM.URLVarMap → Maybe String
 renderVarMapQueryString varMaps
   | F.all SM.isEmpty varMaps = Nothing
   | otherwise =

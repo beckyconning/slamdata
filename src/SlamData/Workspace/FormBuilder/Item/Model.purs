@@ -41,6 +41,7 @@ import SlamData.SqlSquared.Tagged as SqlT
 import SlamData.Workspace.Card.Port.VarMap (URLVarMapValue, unURLVarMapValue)
 import SlamData.Workspace.Card.Port.VarMap as Port
 import SlamData.Workspace.Card.Variables.Error.TypeMismatchError (TypeMismatchError(..))
+import SlamData.Workspace.Card.Port.VarMap as VM
 import SlamData.Workspace.FormBuilder.Item.FieldType (FieldType(..), _FieldTypeDisplayName, allFieldTypes, fieldTypeToInputType)
 import SqlSquared as Sql
 import Test.StrongCheck.Arbitrary as SC
@@ -134,7 +135,7 @@ defaultValueToVarMapValue
   → String
   → Either (Either SqlT.ParseError TypeMismatchError) Port.VarMapValue
 defaultValueToVarMapValue ty str =
-  map Port.VarMapValue case ty of
+  map VM.Expr case ty of
     StringFieldType →
       pure $ Sql.string str
     DateTimeFieldType →
@@ -165,7 +166,7 @@ urlVarMapValueToVarMapValue
   → URLVarMapValue
   → Either (Either SqlT.ParseError TypeMismatchError) Port.VarMapValue
 urlVarMapValueToVarMapValue ty v =
-  map Port.VarMapValue do
+  map Port.Expr do
     let str = unURLVarMapValue v
     value ← lmap Left $ parseSql str
     traverse_ (throwError ∘ Right) (validateType str value ty)
