@@ -708,8 +708,11 @@ variablesErrorMessage { accessType, expanded } err =
             ]
         , HH.pre_ [ HH.text (unwrap parseError) ]
         , HH.p_
-            [ HH.text "This may be due to the value not being encoded as SQL²."
-            -- TODO: Link
+            [ HH.text "This may be due to the value not being encoded as "
+            , HH.a
+                [ HP.href "https://github.com/quasar-analytics/quasar#examples"]
+                [ HH.text "SQL²" ]
+            , HH.text "."
             ]
         ]
     CVE.URLValueError fieldName (Right (TypeMismatchError typeMismatchError)) →
