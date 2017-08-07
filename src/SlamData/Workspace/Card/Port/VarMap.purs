@@ -18,6 +18,7 @@ module SlamData.Workspace.Card.Port.VarMap
   , URLVarMapValue
   , urlVarMapValue
   , unURLVarMapValue
+  , unURLVarMapF
   , Resource(..)
   , VarMapValue(..)
   , VarMapPtr
@@ -43,8 +44,6 @@ module SlamData.Workspace.Card.Port.VarMap
   , downloadUrl
   ) where
 
-import SlamData.Prelude hiding (empty)
-
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Array as A
@@ -54,10 +53,12 @@ import Data.Path.Pathy as Path
 import Data.StrMap as SM
 import Data.URI as URI
 import Quasar.Paths as Paths
+import SlamData.Prelude hiding (empty)
 import SlamData.Workspace.Card.CardId as CID
 import SqlSquared (Sql)
 import SqlSquared as Sql
 import Test.StrongCheck.Arbitrary as SC
+import Unsafe.Coerce (unsafeCoerce)
 import Utils.Path as PU
 
 newtype Var = Var String
@@ -174,6 +175,9 @@ toURLVarMap = SM.fromFoldable ∘ L.mapMaybe go ∘ expand
   where
   go { name, mark, value } =
     Tuple (uniqueVarName name mark) <$> urlVarMapValue value
+
+unURLVarMapF ∷ ∀ f. Functor f => f URLVarMapValue → f String
+unURLVarMapF = unsafeCoerce
 
 uniqueVarName ∷ String → Int → String
 uniqueVarName vari 0 = vari

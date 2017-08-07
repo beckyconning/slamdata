@@ -41,7 +41,6 @@ import SlamData.Quasar.Query as QQ
 import SlamData.Workspace.Card.Error as CE
 import SlamData.Workspace.Card.Eval.Monad as CEM
 import SlamData.Workspace.Card.Eval.Process as Process
-import SlamData.Workspace.Card.Port.VarMap (unURLVarMapValue)
 import SlamData.Workspace.Card.Port.VarMap as VM
 import SqlSquared as Sql
 import Utils.Path (tmpDir, parentDir, DirPath)
@@ -80,7 +79,7 @@ localEvalResource sql varMap = runExceptT do
       filePath × relFilePath ← lift $ CEM.temporaryOutputResource
       unless readOnly do
         let
-          varMap' = unURLVarMapValue <$> VM.toURLVarMap varMap
+          varMap' = VM.unURLVarMapF $ VM.toURLVarMap varMap
           compilePath = fromMaybe Path.rootDir (Path.parentDir filePath)
         { inputs } ← ExceptT $ QQ.compile compilePath sqlQuery varMap'
         ExceptT $ validateResources inputs
@@ -107,7 +106,7 @@ sampleResource' mode path res pagination =
   liftQuasar $ case res of
     VM.Path filePath → QF.readFile mode filePath pagination
     VM.View filePath _ _ → QF.readFile mode (path </> tmpDir </> filePath) pagination
-    VM.Process filePath _ varMap → left $ Q.invokeFile mode (path </> tmpDir </> filePath) (unURLVarMapValue <$> VM.toURLVarMap varMap) pagination
+    VM.Process filePath _ varMap → left $ Q.invokeFile mode (path </> tmpDir </> filePath) (VM.unURLVarMapF $ VM.toURLVarMap varMap) pagination
 
 sampleResource
   ∷ ∀ m
@@ -139,7 +138,7 @@ runElaboratedQuery'
   → m (Either QE.QError J.JArray)
 runElaboratedQuery' mode path query varMap =
   let query' = Process.elaborateQuery (Path.unsandbox (Path.currentDir </> tmpDir)) varMap query
-  in liftQuasar $ QF.readQuery QJ.Readable path (Sql.printQuery query') (unURLVarMapValue <$> VM.toURLVarMap varMap) Nothing
+  in liftQuasar $ QF.readQuery QJ.Readable path (Sql.printQuery query') (VM.unURLVarMapF $ VM.toURLVarMap varMap) Nothing
 
 runElaboratedQuery
   ∷ ∀ m

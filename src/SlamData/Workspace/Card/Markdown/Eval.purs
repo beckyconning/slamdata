@@ -46,7 +46,6 @@ import SlamData.Workspace.Card.Markdown.Error (MarkdownError(..), throwMarkdownE
 import SlamData.Workspace.Card.Markdown.Interpret (formFieldDefaultValue)
 import SlamData.Workspace.Card.Markdown.Model as MD
 import SlamData.Workspace.Card.Port as Port
-import SlamData.Workspace.Card.Port.VarMap (unURLVarMapValue)
 import SlamData.Workspace.Card.Port.VarMap as VM
 import SqlSquared as Sql
 import SqlSquared.Parser (prettyParse)
@@ -238,7 +237,7 @@ evalEmbeddedQueries varMap dir =
         Left error →
           throwMarkdownError (MarkdownSqlParseError { field, sql: code, error: error })
         Right sql → do
-          let varMap' = unURLVarMapValue <$> urlVarMap
+          let varMap' = VM.unURLVarMapF $ urlVarMap
           { inputs } ← CE.liftQ $ Quasar.compile dir sql varMap'
           CEM.addSources inputs
           CE.liftQ $ Quasar.queryEJsonVM dir sql varMap'
