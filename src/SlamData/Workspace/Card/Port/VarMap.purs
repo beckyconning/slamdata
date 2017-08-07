@@ -44,6 +44,8 @@ module SlamData.Workspace.Card.Port.VarMap
   , downloadUrl
   ) where
 
+import SlamData.Prelude hiding (empty)
+
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Array as A
@@ -53,7 +55,6 @@ import Data.Path.Pathy as Path
 import Data.StrMap as SM
 import Data.URI as URI
 import Quasar.Paths as Paths
-import SlamData.Prelude hiding (empty)
 import SlamData.Workspace.Card.CardId as CID
 import SqlSquared (Sql)
 import SqlSquared as Sql
