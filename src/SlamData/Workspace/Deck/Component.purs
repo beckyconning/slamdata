@@ -27,6 +27,7 @@ import Control.Monad.Aff as Aff
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Eff.Exception as Exception
 import Control.UI.Browser as Browser
+import DOM.HTML.HTMLElement (getBoundingClientRect)
 import Data.Argonaut as J
 import Data.Array as Array
 import Data.Lens ((.~), _Left, _Just, is)
@@ -34,7 +35,6 @@ import Data.List ((:))
 import Data.List as L
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds(..))
-import DOM.HTML.HTMLElement (getBoundingClientRect)
 import Halogen as H
 import Halogen.Component.Utils (sendAfter, busEventSource)
 import Halogen.HTML as HH
@@ -46,6 +46,7 @@ import SlamData.FileSystem.Routing (parentURL)
 import SlamData.GlobalError as GE
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
+import SlamData.Monad (exportAsPdf)
 import SlamData.Quasar as Api
 import SlamData.Wiring (DeckMessage(..))
 import SlamData.Wiring as Wiring
@@ -366,6 +367,10 @@ handleBackSide opts = case _ of
           _ → do
             childId ← H.lift $ P.unwrapDeck opts.deckId
             navigateToDeck (childId L.: opts.cursor)
+      Back.ExportAsPdf → do
+        { name } ← H.get
+        H.lift $ exportAsPdf name
+        pure unit
   where
   wrapDeck ∷ (DeckId → Card.AnyCardModel) → DeckDSL Unit
   wrapDeck wrapper = do

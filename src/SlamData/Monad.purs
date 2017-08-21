@@ -20,8 +20,8 @@ import SlamData.Prelude
 
 import Control.Applicative.Free (FreeAp, hoistFreeAp, liftFreeAp, retractFreeAp)
 import Control.Monad.Aff (Aff)
-import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff.AVar as AVar
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
@@ -31,22 +31,32 @@ import Control.Monad.Fork (class MonadFork, fork)
 import Control.Monad.Free (Free, liftF, foldFree)
 import Control.Monad.Rec.Class (tailRecM, Step(..))
 import Control.Parallel (parallel, sequential)
-import Control.UI.Browser (locationObject, newTab)
-
+import Control.Semigroupoid ((<<<))
+import Control.UI.Browser (locationObject, locationString, newTab)
 import DOM (DOM)
+import DOM.HTML.HTMLFormElement (name)
 import DOM.HTML.Location (setHash)
-
 import Data.Array as Array
 import Data.Exists as Exists
+import Data.HTTP.Method as Method
+import Data.Lens.Lens.Product (_1)
+import Data.Maybe (Maybe(..))
 import Data.Path.Pathy ((</>))
 import Data.Path.Pathy as P
-
+import Network.HTTP.Affjax (AffjaxRequest, AffjaxResponse)
+import Network.HTTP.Affjax as Affjax
+import Network.HTTP.RequestHeader as RequestHeader
+import Network.HTTP.ResponseHeader (ResponseHeader)
+import Network.HTTP.StatusCode (StatusCode(..))
 import OIDC.Crypt.Types as OIDC
-
+import Network.HTTP.Affjax (AffjaxRequest, AffjaxResponse)
+import Network.HTTP.Affjax as Affjax
+import Network.HTTP.RequestHeader as RequestHeader
+import Network.HTTP.ResponseHeader (ResponseHeader)
+import Network.HTTP.StatusCode (StatusCode(..))
+import OIDC.Crypt.Types as OIDC
 import Quasar.Advanced.QuasarAF as QA
 import Quasar.Advanced.Types as QAT
-
-import SlamData.Workspace.AccessType as AT
 import SlamData.Effects (SlamDataEffects)
 import SlamData.GlobalError as GE
 import SlamData.License as License
@@ -61,6 +71,7 @@ import SlamData.Quasar.Auth.Authentication as Auth
 import SlamData.Quasar.Class (class QuasarDSL, liftQuasar)
 import SlamData.Wiring (Wiring)
 import SlamData.Wiring as Wiring
+import SlamData.Workspace.AccessType as AT
 import SlamData.Workspace.Class (class WorkspaceDSL)
 import SlamData.Workspace.Deck.DeckId as DeckId
 import SlamData.Workspace.Routing as Routing
@@ -71,6 +82,7 @@ data SlamF eff a
   = Aff (Aff eff a)
   | GetAuthIdToken (Maybe OIDC.IdToken → a)
   | Quasar (QA.QuasarAFC a)
+  | Pdf String a
   | LocalStorage (Exists.Exists (LS.LocalStorageF a))
   | Notify N.NotificationOptions a
   | Halt GE.GlobalError a
@@ -130,6 +142,12 @@ instance globalErrorDSLSlamM ∷ GE.GlobalErrorDSL (SlamM eff) where
 instance workspaceDSLSlamM ∷ WorkspaceDSL (SlamM eff) where
   navigate = SlamM ∘ liftF ∘ flip Navigate unit
 
+class ExportAsPdfDSL m where
+  exportAsPdf ∷ String → m Unit
+
+instance exportAsPdfDSLSlamM ∷ ExportAsPdfDSL (SlamM eff) where
+  exportAsPdf = SlamM ∘ liftF ∘ flip Pdf unit
+
 instance localStorageDSLSlamM :: LocalStorageDSL (SlamM eff) where
   persist encode key value =
     SlamM $ liftF $ LocalStorage $ Exists.mkExists $ LS.Persist encode key value unit
@@ -174,6 +192,9 @@ runSlam wiring@(Wiring.Wiring { auth, bus }) = foldFree go ∘ unSlamM
         _ →
           pure unit
       runQuasarF (maybe Nothing hush idToken) qf
+    Pdf name a → do
+      _ ← exportAsPdfImpl name
+      pure a
     LocalStorage lse →
       Exists.runExists LS.run lse
     Notify no a → do
@@ -236,3 +257,19 @@ notifyDaysRemainingIfNeeded =
             liftEff $ newTab "https://slamdata.com/contact-us/"
       _, _ →
         pure unit
+
+
+exportAsPdfImpl ∷ String → Aff _ (AffjaxResponse String)
+exportAsPdfImpl name =
+  (Affjax.affjax ∷ AffjaxRequest Unit → Aff _ (AffjaxResponse String))
+    ∘ { method: Left Method.POST
+      , url: "http://localhost:9288/" <> name <> ".pdf"
+      , headers: _
+      , content: Nothing
+      , username: Nothing
+      , password: Nothing
+      , withCredentials: false
+      }
+    ∘ pure
+    ∘ RequestHeader.RequestHeader "Content-Location"
+    =<< liftEff locationString

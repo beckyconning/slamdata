@@ -39,6 +39,7 @@ data BackAction
   | Unwrap
   | Share
   | Unshare
+  | ExportAsPdf
 
 derive instance eqBackAction ∷ Eq BackAction
 
@@ -64,6 +65,7 @@ allBackActions isAdvanced =
     , Mirror
     , Wrap
     , Unwrap
+    , ExportAsPdf
     ]
 
 toActionListAction
@@ -118,6 +120,8 @@ toActionListAction unwrappable activeCard cardDefs action =
       I.IconHTML I.cardAndDeckActionsDeleteDeck
     WrapChoice cty →
       CT.cardIcon cty
+    ExportAsPdf →
+      I.IconHTML I.cardAndDeckActionsShareDeck
 
   name ∷ String
   name = case action of
@@ -133,6 +137,7 @@ toActionListAction unwrappable activeCard cardDefs action =
     Unshare → "Unshare deck"
     WrapChoice cty → CT.cardName cty
     Theme → "Theme workspace"
+    ExportAsPdf → "Export as PDF"
 
   description = name
 
