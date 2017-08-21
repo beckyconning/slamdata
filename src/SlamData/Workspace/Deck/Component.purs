@@ -570,14 +570,18 @@ updateCardSize =
   H.getHTMLElementRef Common.sizerRef >>= traverse_ \el → void do
     { width, height } ← H.liftEff $ getBoundingClientRect el
     H.modify _
-      { cardDimensions = { width, height }
+      { cardDimensions = f { width, height }
       , responsiveSize = breakpoint width
       }
     _ ← queryNextActionList $ H.action ActionList.CalculateBoundingRect
     _ ← queryBacksideActionList $ H.action ActionList.CalculateBoundingRect
     pure unit
   where
+  f { width: 0.0, height: 0.0 } = { width: 720.0, height: 480.0 }
+  f o = o
+
   breakpoint w
+    | w == 0.0 = DCS.Large
     | w < 240.0 = DCS.XSmall
     | w < 320.0 = DCS.Small
     | w < 420.0 = DCS.Medium

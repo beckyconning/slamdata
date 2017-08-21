@@ -1,0 +1,135 @@
+@media print {
+/* Remove styling from .sd-card-active and its parents */
+
+.sd-card > div {
+  height: auto;
+}
+
+.sd-card[style], .sd-fade-none[style], .sd-card-active[style] {
+    z-index: 999999;
+    position: static;
+    height: auto;
+    width: auto;
+}
+
+/* .sd-card-draftboard */
+.sd-deck-card fieldset {
+    position: static;
+    height: auto;
+    width: auto;
+}
+
+.sd-card-slider[style] {
+    position: static;
+    transform: unset !important;
+    transition: none !important;
+}
+
+.sd-deck {
+    position: static;
+}
+
+.sd-deck-card {
+    position: static;
+    height: auto;
+}
+
+ .sd-deck-container .sd-size-large .sd-unfocused
+.sd-deck-container .sd-size-xxlarge .sd-focused
+.sd-deck-container .sd-size-xxlarge .sd-unfocused
+.sd-deck-container {
+    position: static;
+}
+
+/* .sd-deck-nested .sd-deck-level-1
+.sd-deck-nested .sd-deck-level-2
+.sd-deck-nested .sd-deck-level-3 */
+
+/* .sd-draftboard */
+
+/* .sd-draftboard-cell[style] .filled[style] */
+.sd-draftboard-cell[style] {
+    position: static !important;
+    height: auto !important;
+    width: auto !important;
+}
+
+.sd-draftboard-cell-content {
+    position: static;
+    height: auto;
+    width: auto;
+}
+
+/* .sd-draftboard-layout */
+
+.sd-draftboard-root {
+    position: static;
+}
+
+/* .sd-workspace .sd-published .root-deck-focused */
+
+/* Unstyle others */
+
+.sd-pending-overlay {
+  display: none;
+}
+.sd-deck-frame {
+  display: none;
+}
+.sd-card:not(.sd-card-active) {
+  display: none;
+}
+.sd-card-sizer {
+  display: none;
+}
+.sd-deck-container {
+  position: static;
+}
+.sd-card-active fieldset {
+  position: static; z-index: 999999; height: auto; width: auto;
+}
+.sd-deck-container {
+  position: static;
+}
+.sd-deck-card {
+    /* Remove styles and class styles */
+}
+.card-input-maximum-lod {
+    /* Remove styles and class styles */
+}
+[_echarts_instance_] > div > canvas {
+    /* Remove class styles */
+    position: static !important;
+    height: auto !important;
+    width: 100% !important;
+    background: white !important;
+}
+[_echarts_instance_][style] > div {
+    /* Remove styles and class styles */
+    position: static !important;
+    height: auto !important;
+    width: auto !important;
+    background: white !important;
+}
+[_echarts_instance_][style] {
+    /* Remove styles and class styles */
+    position: static !important;
+    height: auto !important;
+    width: 100% !important;
+    background: white !important;
+    transform: unset;
+}
+.sd-card-table .sd-card-table-content {
+    position: static;
+    height: auto;
+    width: 100%;
+}
+.sd-card-header {
+  display: none;
+}
+.sd-card-table .sd-pagination {
+  position: unset;
+}
+.sd-draftboard-edge {
+  display: none;
+}
