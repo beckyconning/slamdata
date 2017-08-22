@@ -56,15 +56,17 @@ dialog res =
     >>> D.withRender render
     >>> D.withEval eval
     >>> D.withPending (_.deleting)
+    >>> D.withSubmitAction (const (Just Delete))
     >>> D.withButton
         (D.button
           $ D.withLabel "Cancel"
+          >>> D.withType HP.ButtonButton
           >>> D.withAction (const (Just Dismiss)))
     >>> D.withButton
         (D.button
           $ D.withLabel "Delete"
           >>> D.withClass CN.btnPrimary
-          >>> D.withAction (const (Just Delete))
+          >>> D.withType HP.ButtonSubmit
           >>> D.withPending (_.deleting))
 
 

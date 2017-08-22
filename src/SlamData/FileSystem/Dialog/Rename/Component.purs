@@ -65,15 +65,17 @@ dialog res =
     >>> D.withInitializer Init
     >>> D.withEval eval
     >>> D.withPending _.renaming
+    >>> D.withSubmitAction (either (const Nothing) (Just ∘ Confirm) ∘ _.value)
     >>> D.withButton
         (D.button
           $ D.withLabel "Cancel"
+          >>> D.withType HP.ButtonButton
           >>> D.withAction (const (Just Dismiss)))
     >>> D.withButton
         (D.button
           $ D.withLabel "Rename"
           >>> D.withClass CN.btnPrimary
-          >>> D.withAction (either (const Nothing) (Just ∘ Confirm) ∘ _.value)
+          >>> D.withType HP.ButtonSubmit
           >>> D.withPending _.renaming)
 
 render ∷ S.State → HTML

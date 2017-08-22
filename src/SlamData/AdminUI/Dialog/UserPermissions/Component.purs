@@ -67,12 +67,14 @@ dialog userId =
     >>> D.withParentRender render
     >>> D.withEval eval
     >>> D.withPending _.refreshing
+    >>> D.withSubmitAction (const $ Just Dismiss)
     >>> D.withButton
         (D.button
           $ D.withLabel "Done"
-          >>> D.withClass CN.btnPrimary
-          >>> D.withAction (const (Just Dismiss)))
-  where
+          >>> D.withAction (const Nothing)
+          >>> D.withType HP.ButtonSubmit
+          >>> D.withClass CN.btnPrimary)
+   where
     render ∷ State → HTML
     render { groups, allGroups, groupSelection, refreshing } =
       HH.div_

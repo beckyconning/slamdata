@@ -39,9 +39,11 @@ mkSpec { title, class_, action, message } =
     >>> D.withClass class_
     >>> D.withRender (const (absurd ∘ unwrap <$> message))
     >>> D.withEval eval
+    >>> D.withSubmitAction (const (Just (Tuple (D.Bubble o))))
     >>> D.withButton
         (D.button
           $ D.withLabel (either id (const "Cancel") action)
+          >>> D.withType HP.ButtonButton
           >>> D.withAction (const (Just (Tuple D.Dismiss))))
     >>> case action of
         Left _ → id
@@ -49,8 +51,8 @@ mkSpec { title, class_, action, message } =
           D.withButton
             (D.button
               $ D.withLabel label
-              >>> D.withClass CN.btnPrimary
-              >>> D.withAction (const (Just (Tuple (D.Bubble o)))))
+              >>> D.withType HP.ButtonSubmit
+              >>> D.withClass CN.btnPrimary)
 
 eval ∷ ∀ o m. MessageQuery o ~> H.ComponentDSL Unit (MessageQuery o) (D.Message o) m
 eval (Tuple msg next) = do

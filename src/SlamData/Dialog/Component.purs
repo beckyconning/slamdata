@@ -38,6 +38,8 @@ module SlamData.Dialog.Component
   , withInitialState
   , withRender
   , withParentRender
+  , withSubmitAction
+  , withType
   , withEval
   , withInitializer
   , withFinalizer
@@ -46,11 +48,11 @@ module SlamData.Dialog.Component
 import SlamData.Prelude
 
 import Control.Monad.Eff.Class (class MonadEff)
+import DOM (DOM)
+import DOM.Event.Types (MouseEvent)
 import Data.Array as A
 import Data.List.Safe as SL
 import Data.Record as DR
-import DOM (DOM)
-import DOM.Event.Types (MouseEvent)
 import Halogen as H
 import Halogen.Component as HC
 import Halogen.Component.Proxy as Proxy
@@ -137,6 +139,7 @@ type ButtonRec s f =
   , classes ∷ Array H.ClassName
   , action ∷ s → Maybe (H.Action f)
   , pending ∷ s → Boolean
+  , type_ ∷ HP.ButtonType
   }
 
 newtype Button s f = Button (ButtonRec s f)
@@ -152,6 +155,9 @@ button = build Button { classes: [], pending: const false }
 
 withLabel ∷ ∀ r. RowLacks "label" r ⇒ String → { | r } → { label ∷ String | r }
 withLabel = DR.insert (SProxy ∷ SProxy "label")
+
+withType ∷ ∀ r. RowLacks "type_" r ⇒ HP.ButtonType → { | r } → { type_ ∷ HP.ButtonType | r }
+withType = DR.insert (SProxy ∷ SProxy "type_")
 
 withAction ∷ ∀ s r f. RowLacks "action" r ⇒ (s → Maybe (H.Action f)) → { | r } → { action ∷ s → Maybe (H.Action f) | r }
 withAction = DR.insert (SProxy ∷ SProxy "action")
@@ -185,6 +191,7 @@ type DialogSpecRec s f g p o m =
   , initializer ∷ Maybe (f Unit)
   , finalizer ∷ Maybe (f Unit)
   , pending ∷ s → Boolean
+  , submitAction ∷ s → Maybe (H.Action f)
   }
 
 foreign import data DialogSpec ∷ Type → (Type → Type) → Type
@@ -227,6 +234,9 @@ withInitializer = DR.set (SProxy ∷ SProxy "initializer") ∘ Just ∘ H.action
 withFinalizer ∷ ∀ f r. H.Action f → { finalizer ∷ Maybe (f Unit) | r } → { finalizer ∷ Maybe (f Unit) | r }
 withFinalizer = DR.set (SProxy ∷ SProxy "finalizer") ∘ Just ∘ H.action
 
+withSubmitAction ∷ ∀ f r s. (s → Maybe (H.Action f)) → { submitAction ∷ (s → Maybe (H.Action f)) | r } → { submitAction ∷ (s → Maybe (H.Action f)) | r }
+withSubmitAction = DR.set (SProxy ∷ SProxy "submitAction")
+
 -------------------------------------------------------------------------------
 
 buildDialog ∷ ∀ o m. DialogSpec o m → Proxy.ProxyComponent (Const Void) Unit (Message o) m
@@ -246,8 +256,11 @@ buildDialog' spec@{ render: Render (Tuple mkOrdBox renderInner), eval: Eval eval
   where
     render' ∷ s → H.ParentHTML f g p m
     render' state =
-      HH.div
-        [ HP.classes (H.ClassName "sd-dialog" `A.cons` spec.classes) ]
+      HH.form
+        (join
+          [ pure $ HP.classes (H.ClassName "sd-dialog" `A.cons` spec.classes)
+          , foldMap (pure ∘ HE.onSubmit ∘ HE.input_) $ spec.submitAction state
+        ])
         [ HH.div
             [ HP.class_ (HH.ClassName "sd-dialog-header") ]
             [ HH.div
@@ -280,7 +293,7 @@ renderButtons state disabled xs =
       ]
 
 renderButton ∷ ∀ s f g p m. s → Boolean → Button s f → H.ParentHTML f g p m
-renderButton state disabled (Button { label, classes, action, pending }) =
+renderButton state disabled (Button { label, classes, action, pending, type_ }) =
   let
     query = action state
     classes' = if A.null classes then [CN.btnDefault] else classes
@@ -288,7 +301,7 @@ renderButton state disabled (Button { label, classes, action, pending }) =
     HH.button
       (join
         [ pure $ HP.classes $ A.cons CN.btn classes'
-        , pure $ HP.type_ HP.ButtonButton
+        , pure $ HP.type_ type_
         , pure $ HP.enabled (not disabled && isJust query)
         , foldMap (pure ∘ HE.onClick ∘ HE.input_) query
         , pure $ ARIA.label label
