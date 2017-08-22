@@ -49,7 +49,7 @@ dialog res =
     >>> D.withRender render
     >>> D.withEval eval
     >>> D.withClass (H.ClassName "sd-download-dialog")
-    >>> D.withSubmitAction 
+    >>> D.withSubmitAction
           (\st → if isJust st.error then Nothing else Just Download)
     >>> D.withButton
           (D.button
