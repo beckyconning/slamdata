@@ -170,6 +170,7 @@ type DialogSpecDefaults s f =
   , finalizer ∷ Maybe (f Unit)
   , buttons ∷ SL.SafeList SL.Empty (Button s f)
   , pending ∷ s → Boolean
+  , submitAction ∷ s → Maybe (H.Action f)
   }
 
 dialogSpecDefaults ∷ ∀ s f. DialogSpecDefaults s f
@@ -179,6 +180,7 @@ dialogSpecDefaults =
   , finalizer: Nothing
   , buttons: SL.nil
   , pending: const false
+  , submitAction: const Nothing
   }
 
 type DialogSpecRec s f g p o m =

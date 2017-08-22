@@ -75,6 +75,7 @@ dialog input =
     >>> D.withParentRender render
     >>> D.withEval eval
     >>> D.withPending (\st → st.status /= S.Idle)
+    >>> D.withSubmitAction (\st → Mount <$> (Tuple <$> hush st.pathValue <*> hush st.configValue))
     >>> buttons
     >>> D.withButton btnSave
   where
@@ -92,16 +93,19 @@ dialog input =
         >>> D.withClass CN.btnDanger
         >>> D.withAction (const (Just Unmount))
         >>> D.withPending (\st → st.status == S.Unmounting)
+        >>> D.withType HP.ButtonButton
     btnCancel =
       D.button
         $ D.withLabel "Cancel"
         >>> D.withAction (const (Just Dismiss))
+        >>> D.withType HP.ButtonButton
     btnSave =
       D.button
         $ D.withLabel (if S.isNew input then "Mount" else "Save changes")
         >>> D.withClass CN.btnPrimary
-        >>> D.withAction (\st → Mount <$> (Tuple <$> hush st.pathValue <*> hush st.configValue))
+        >>> D.withAction (const Nothing)
         >>> D.withPending (\st → st.status == S.Saving)
+        >>> D.withType HP.ButtonSubmit
 
 render ∷ S.State → HTML
 render state@{ input, name, scheme, pathValue, configValue, error } =

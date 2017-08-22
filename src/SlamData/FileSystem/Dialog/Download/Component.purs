@@ -49,16 +49,19 @@ dialog res =
     >>> D.withRender render
     >>> D.withEval eval
     >>> D.withClass (H.ClassName "sd-download-dialog")
+    >>> D.withSubmitAction 
+          (\st → if isJust st.error then Nothing else Just Download)
     >>> D.withButton
           (D.button
             $ D.withLabel "Cancel"
+            >>> D.withType HP.ButtonButton
             >>> D.withAction (const (Just Dismiss)))
     >>> D.withButton
           (D.button
             $ D.withLabel "Download"
             >>> D.withClass CN.btnPrimary
-            >>> D.withAction
-                (\st → if isJust st.error then Nothing else Just Download))
+            >>> D.withType HP.ButtonSubmit
+            >>> D.withAction (const Nothing))
 
 render ∷ S.State → H.ComponentHTML Query
 render state@{ options, targetName } =

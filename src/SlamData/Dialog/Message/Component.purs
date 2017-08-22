@@ -19,6 +19,7 @@ module SlamData.Dialog.Message.Component where
 import SlamData.Prelude
 
 import Halogen as H
+import Halogen.HTML.Properties as HP
 import SlamData.Dialog.Component as D
 import SlamData.Render.ClassName as CN
 
@@ -39,7 +40,6 @@ mkSpec { title, class_, action, message } =
     >>> D.withClass class_
     >>> D.withRender (const (absurd ∘ unwrap <$> message))
     >>> D.withEval eval
-    >>> D.withSubmitAction (const (Just (Tuple (D.Bubble o))))
     >>> D.withButton
         (D.button
           $ D.withLabel (either id (const "Cancel") action)
@@ -48,11 +48,13 @@ mkSpec { title, class_, action, message } =
     >>> case action of
         Left _ → id
         Right (label × o) →
-          D.withButton
-            (D.button
-              $ D.withLabel label
-              >>> D.withType HP.ButtonSubmit
-              >>> D.withClass CN.btnPrimary)
+    	  D.withSubmitAction (const (Just (Tuple (D.Bubble o))))
+            >>> D.withButton
+                (D.button
+                  $ D.withLabel label
+                  >>> D.withType HP.ButtonSubmit
+                  >>> D.withAction (const Nothing)
+                  >>> D.withClass CN.btnPrimary)
 
 eval ∷ ∀ o m. MessageQuery o ~> H.ComponentDSL Unit (MessageQuery o) (D.Message o) m
 eval (Tuple msg next) = do

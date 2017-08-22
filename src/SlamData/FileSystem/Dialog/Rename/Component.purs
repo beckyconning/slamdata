@@ -76,6 +76,7 @@ dialog res =
           $ D.withLabel "Rename"
           >>> D.withClass CN.btnPrimary
           >>> D.withType HP.ButtonSubmit
+          >>> D.withAction (const Nothing)
           >>> D.withPending _.renaming)
 
 render ∷ S.State → HTML

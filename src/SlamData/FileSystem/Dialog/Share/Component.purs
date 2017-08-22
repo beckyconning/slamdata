@@ -53,7 +53,8 @@ dialog { name, url } =
     >>> D.withButton
         (D.button
           $ D.withLabel "Dismiss"
-          >>> D.withAction (const (Just Dismiss)))
+          >>> D.withAction (const (Just Dismiss))
+          >>> D.withType HP.ButtonButton)
 
 render ∷ String → H.ComponentHTML Query
 render url =

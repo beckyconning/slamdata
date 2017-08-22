@@ -21,6 +21,7 @@ import SlamData.Prelude
 import Data.Variant as V
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
 import SlamData.Dialog.Component as D
 import SlamData.Dialog.Render as DR
 import SlamData.FileSystem.Resource as R
@@ -67,6 +68,7 @@ dialog res =
           $ D.withLabel "Delete"
           >>> D.withClass CN.btnPrimary
           >>> D.withType HP.ButtonSubmit
+          >>> D.withAction (const Nothing)
           >>> D.withPending (_.deleting))
 
 
