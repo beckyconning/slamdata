@@ -16,8 +16,6 @@ limitations under the License.
 
 module SlamData.Workspace.Eval.Persistence where
 
-import SlamData.Prelude hiding (note)
-
 import Control.Monad.Aff.AVar (AVar, modifyVar, killVar, peekVar, putVar)
 import Control.Monad.Aff.Bus as Bus
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
@@ -45,6 +43,7 @@ import SlamData.Effects (SlamDataEffects)
 import SlamData.LocalStorage.Class (class LocalStorageDSL)
 import SlamData.LocalStorage.Class as LS
 import SlamData.LocalStorage.Keys as LSK
+import SlamData.Prelude hiding (note)
 import SlamData.Quasar.Class (class QuasarDSL)
 import SlamData.Quasar.Data as Quasar
 import SlamData.Quasar.Error as QE
@@ -70,6 +69,7 @@ import SlamData.Workspace.Eval.Traverse (TraverseCard(..), TraverseDeck(..), unf
 import SlamData.Workspace.Legacy (isLegacy, loadCompatWorkspace, pruneLegacyData)
 import SlamData.Workspace.Model as WM
 import Utils.Aff (laterVar)
+import Utils.DOM (disableOnBeforeUnloadConfirmation, enableOnBeforeUnloadConfirmation)
 
 defaultSaveDebounce ∷ Milliseconds
 defaultSaveDebounce = Milliseconds 500.0
@@ -293,14 +293,16 @@ snapshotGraph cardId = do
   pure (pendingGraph (pure cardId) { decks, cards })
 
 queueSave ∷ ∀ f m. Persist f m (Milliseconds → Maybe Card.Id → m Unit)
-queueSave ms cardId = do
+queueSave ms cardId = do 
+  liftEff $ enableOnBeforeUnloadConfirmation
   { eval, path, accessType } ← Wiring.expose
-  debounce ms path { avar: _ } eval.debounceSaves (pure unit)
+  debounce ms path { avar: _ } eval.debounceSaves (pure unit) do
     case accessType of
       AccessType.Editable →
         void saveWorkspace
       AccessType.ReadOnly →
         for_ cardId saveCardLocally
+    liftEff $ disableOnBeforeUnloadConfirmation
 
 queueSaveImmediate ∷ ∀ f m. Persist f m (Maybe Card.Id → m Unit)
 queueSaveImmediate = queueSave (Milliseconds 0.0)

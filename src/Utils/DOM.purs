@@ -34,9 +34,10 @@ import DOM.Classy.Event (toEvent, fromEvent, target, currentTarget, stopPropagat
 import DOM.Classy.HTMLElement (toHTMLElement, fromHTMLElement)
 import DOM.Classy.Node (toNode, fromNode)
 import DOM.Event.EventTarget as EventTarget
+import DOM.Event.Types as EventTypes
 import DOM.Event.Types (EventTarget, EventType, Event, MouseEvent, KeyboardEvent, FocusEvent)
 import DOM.HTML (window)
-import DOM.HTML.Event.EventTypes as EventTypes
+import DOM.HTML.Event.EventTypes as HtmlEventTypes
 import DOM.HTML.HTMLElement (classList, offsetHeight, offsetWidth)
 import DOM.HTML.Types (HTMLElement, Window, htmlDocumentToDocument, htmlElementToElement, htmlDocumentToNonElementParentNode, windowToEventTarget)
 import DOM.HTML.Window (document)
@@ -130,7 +131,7 @@ onResize cb = do
   let listener = EventTarget.eventListener \_ → cb
   window
     >>= windowToEventTarget
-    >>> EventTarget.addEventListener EventTypes.resize listener false
+    >>> EventTarget.addEventListener HtmlEventTypes.resize listener false
 
 openPopup ∷ ∀ eff. String → Eff (dom ∷ DOM | eff) (Maybe Window)
 openPopup stringUrl = do
@@ -156,10 +157,10 @@ loadStyleSheet uri = Aff.makeAff \_ onSuccess → do
       imgTarget = elementToEventTarget img
 
       listener = EventTarget.eventListener \_ → do
-        EventTarget.removeEventListener EventTypes.error listener false imgTarget
+        EventTarget.removeEventListener HtmlEventTypes.error listener false imgTarget
         onSuccess unit
 
-    EventTarget.addEventListener EventTypes.error listener false imgTarget
+    EventTarget.addEventListener HtmlEventTypes.error listener false imgTarget
     setAttribute "src" (printURIRef uri) img
 
 toggleLoadingOverlay ∷ ∀ eff. Boolean → Eff (dom ∷ DOM | eff) Unit
@@ -180,9 +181,9 @@ toggleLoadingOverlay shouldShow = liftEff do
         overlayTarget = elementToEventTarget overlay
 
         listener = EventTarget.eventListener \_ → do
-          EventTarget.removeEventListener EventTypes.transitionend listener false overlayTarget
+          EventTarget.removeEventListener HtmlEventTypes.transitionend listener false overlayTarget
           ClassList.add overlayClassList "hide-overlay"
-      EventTarget.addEventListener EventTypes.transitionend listener false overlayTarget
+      EventTarget.addEventListener HtmlEventTypes.transitionend listener false overlayTarget
       ClassList.add overlayClassList "fade-overlay"
 
 hideLoadingOverlay ∷ ∀ eff. Eff (dom ∷ DOM | eff) Unit
@@ -190,3 +191,17 @@ hideLoadingOverlay = toggleLoadingOverlay false
 
 showLoadingOverlay ∷ ∀ eff. Eff (dom ∷ DOM | eff) Unit
 showLoadingOverlay = toggleLoadingOverlay true
+
+trueEventListener ∷ ∀ eff. EventTarget.EventListener eff
+trueEventListener = EventTarget.eventListener $ const $ pure true
+
+beforeunload ∷ EventTypes.EventType
+beforeunload = EventTypes.EventType "beforeunload"
+
+enableOnBeforeUnloadConfirmation ∷ ∀ eff. Eff (dom ∷ DOM | eff) Unit
+enableOnBeforeUnloadConfirmation =
+  EventTarget.addEventListener beforeunload trueEventListener false =<< windowToEventTarget <$> window
+
+disableOnBeforeUnloadConfirmation ∷ ∀ eff. Eff (dom ∷ DOM | eff) Unit
+disableOnBeforeUnloadConfirmation =
+  EventTarget.removeEventListener beforeunload trueEventListener false =<< windowToEventTarget <$> window
